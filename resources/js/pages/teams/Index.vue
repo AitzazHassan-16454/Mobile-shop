@@ -69,7 +69,7 @@ defineOptions({
                 v-for="team in teams"
                 :key="team.id"
                 data-test="team-row"
-                class="flex items-center justify-between gap-4 rounded-lg border p-4"
+                class="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors hover:bg-gray-50"
             >
                 <div class="flex items-center gap-4">
                     <div>

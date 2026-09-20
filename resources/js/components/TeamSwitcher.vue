@@ -95,7 +95,7 @@ onUnmounted(() => {
                 :class="
                     props.inHeader
                         ? 'h-8 gap-1 px-2'
-                        : 'data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full justify-start px-2 has-[>svg]:px-2'
+                        : 'w-full justify-start px-2 hover:bg-white/10 hover:text-white has-[>svg]:px-2 data-[state=open]:bg-white data-[state=open]:text-[#003b7d]'
                 "
             >
                 <Users

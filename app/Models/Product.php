@@ -17,6 +17,8 @@ class Product extends Model
         'barcode',
         'is_serialized',
         'sale_price',
+        'cost_price',
+        'stock_quantity',
         'alert_quantity',
     ];
 
@@ -25,6 +27,8 @@ class Product extends Model
         return [
             'is_serialized' => 'boolean',
             'sale_price' => 'decimal:2',
+            'cost_price' => 'decimal:2',
+            'stock_quantity' => 'integer',
             'alert_quantity' => 'integer',
         ];
     }

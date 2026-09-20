@@ -41,7 +41,11 @@ defineOptions({
     >
         <div class="space-y-6">
             <div class="grid gap-2">
-                <Label htmlFor="password">Password</Label>
+                <Label
+                    htmlFor="password"
+                    class="text-sm font-medium text-slate-600"
+                    >Password</Label
+                >
                 <PasswordInput
                     id="password"
                     name="password"
@@ -56,7 +60,7 @@ defineOptions({
 
             <div class="flex items-center">
                 <Button
-                    class="w-full"
+                    class="w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
                     :disabled="processing"
                     data-test="confirm-password-button"
                 >

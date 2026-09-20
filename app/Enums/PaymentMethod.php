@@ -8,6 +8,7 @@ enum PaymentMethod: string
     case JazzCash = 'jazzcash';
     case EasyPaisa = 'easypaisa';
     case Bank = 'bank';
+    case Card = 'card';
     case Split = 'split';
     case Udhaar = 'udhaar';
 
@@ -18,6 +19,7 @@ enum PaymentMethod: string
             self::JazzCash => 'JazzCash',
             self::EasyPaisa => 'EasyPaisa',
             self::Bank => 'Bank Transfer (Raast)',
+            self::Card => 'Card Swipe (POS)',
             self::Split => 'Split Tender',
             self::Udhaar => 'Udhaar (Customer Khata)',
         };

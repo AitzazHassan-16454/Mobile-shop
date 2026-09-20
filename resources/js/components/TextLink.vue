@@ -18,7 +18,7 @@ defineProps<Props>();
         :tabindex="tabindex"
         :method="method"
         :as="as"
-        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+        class="text-[#003b7d] underline decoration-[#003b7d]/40 underline-offset-4 transition-colors duration-300 ease-out hover:text-[#0f4c81] hover:decoration-[#0f4c81]"
     >
         <slot />
     </Link>

@@ -36,26 +36,30 @@ const inputEmail = ref(props.email);
     >
         <div class="grid gap-6">
             <div class="grid gap-2">
-                <Label for="email">Email</Label>
+                <Label for="email" class="text-sm font-medium text-slate-600"
+                    >Email</Label
+                >
                 <Input
                     id="email"
                     type="email"
                     name="email"
                     autocomplete="email"
                     v-model="inputEmail"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
                     readonly
                 />
                 <InputError :message="errors.email" class="mt-2" />
             </div>
 
             <div class="grid gap-2">
-                <Label for="password">Password</Label>
+                <Label for="password" class="text-sm font-medium text-slate-600"
+                    >Password</Label
+                >
                 <PasswordInput
                     id="password"
                     name="password"
                     autocomplete="new-password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
                     autofocus
                     placeholder="Password"
                     :passwordrules="passwordRules"
@@ -64,12 +68,17 @@ const inputEmail = ref(props.email);
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation"> Confirm password </Label>
+                <Label
+                    for="password_confirmation"
+                    class="text-sm font-medium text-slate-600"
+                >
+                    Confirm password
+                </Label>
                 <PasswordInput
                     id="password_confirmation"
                     name="password_confirmation"
                     autocomplete="new-password"
-                    class="mt-1 block w-full"
+                    class="mt-1 block w-full border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
                     placeholder="Confirm password"
                     :passwordrules="passwordRules"
                 />
@@ -78,7 +87,7 @@ const inputEmail = ref(props.email);
 
             <Button
                 type="submit"
-                class="mt-4 w-full"
+                class="mt-4 w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
                 :disabled="processing"
                 data-test="reset-password-button"
             >

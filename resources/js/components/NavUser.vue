@@ -34,7 +34,7 @@ const currentTeam = computed(() => page.props.currentTeam as Team | null);
                         class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                         data-test="sidebar-menu-button"
                     >
-                        <UserInfo :user="user" :team="currentTeam" />
+                        <UserInfo :user="user" :team="currentTeam" on-dark />
                         <ChevronsUpDown class="ml-auto size-4" />
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>

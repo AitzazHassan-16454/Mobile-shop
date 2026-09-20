@@ -22,10 +22,10 @@ defineProps<Props>();
         :class="`group-data-[collapsible=icon]:p-0 ${$props.class || ''}`"
     >
         <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu class="gap-1.5">
                 <SidebarMenuItem v-for="item in items" :key="item.title">
                     <SidebarMenuButton
-                        class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                        class="h-12 rounded-md px-3 text-blue-100 transition-colors hover:bg-white hover:text-[#003b7d]"
                         as-child
                     >
                         <a
@@ -33,8 +33,14 @@ defineProps<Props>();
                             target="_blank"
                             rel="noopener noreferrer"
                         >
-                            <component :is="item.icon" />
-                            <span>{{ item.title }}</span>
+                            <component
+                                :is="item.icon"
+                                class="size-5! shrink-0"
+                            />
+                            <span
+                                class="truncate text-xs font-bold tracking-wide lg:text-sm"
+                                >{{ item.title }}</span
+                            >
                         </a>
                     </SidebarMenuButton>
                 </SidebarMenuItem>

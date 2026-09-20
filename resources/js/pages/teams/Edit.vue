@@ -120,6 +120,7 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                         name="name"
                         data-test="team-name-input"
                         :default-value="team.name"
+                        class="border-gray-200 bg-gray-50 text-gray-900 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
                         required
                     />
                     <InputError :message="errors.name" />
@@ -129,6 +130,7 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                     <Button
                         type="submit"
                         data-test="team-save-button"
+                        class="shadow-sm"
                         :disabled="processing"
                     >
                         Save
@@ -157,6 +159,7 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                 <Button
                     v-if="permissions.canCreateInvitation"
                     data-test="invite-member-button"
+                    class="shadow-sm"
                     @click="inviteDialogOpen = true"
                 >
                     <UserPlus /> Invite member
@@ -168,7 +171,7 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                     v-for="member in members"
                     :key="member.id"
                     data-test="member-row"
-                    class="flex items-center justify-between rounded-lg border p-4"
+                    class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors hover:bg-gray-50"
                 >
                     <div class="flex items-center gap-4">
                         <Avatar class="h-10 w-10">
@@ -177,9 +180,10 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                                 :src="member.avatar"
                                 :alt="member.name"
                             />
-                            <AvatarFallback>{{
-                                getInitials(member.name)
-                            }}</AvatarFallback>
+                            <AvatarFallback
+                                class="bg-gray-100 text-slate-600"
+                                >{{ getInitials(member.name) }}</AvatarFallback
+                            >
                         </Avatar>
                         <div>
                             <div class="font-medium">
@@ -267,11 +271,11 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                     v-for="invitation in invitations"
                     :key="invitation.code"
                     data-test="invitation-row"
-                    class="flex items-center justify-between rounded-lg border p-4"
+                    class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors hover:bg-gray-50"
                 >
                     <div class="flex items-center gap-4">
                         <div
-                            class="bg-muted flex h-10 w-10 items-center justify-center rounded-full"
+                            class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-gray-50"
                         >
                             <Mail class="text-muted-foreground h-5 w-5" />
                         </div>
@@ -317,11 +321,9 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                 description="Permanently delete your team"
             />
             <div
-                class="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10"
+                class="space-y-4 rounded-lg border border-rose-200 bg-rose-500/[0.06] p-4"
             >
-                <div
-                    class="relative space-y-0.5 text-red-600 dark:text-red-100"
-                >
+                <div class="relative space-y-0.5 text-rose-200">
                     <p class="font-medium">Warning</p>
                     <p class="text-sm">
                         Please proceed with caution, this cannot be undone.
@@ -330,6 +332,7 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                 <Button
                     data-test="delete-team-button"
                     variant="destructive"
+                    class="shadow-[0_12px_30px_rgba(251,113,133,0.18)]"
                     @click="deleteDialogOpen = true"
                     >Delete team</Button
                 >

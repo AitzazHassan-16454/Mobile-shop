@@ -56,7 +56,7 @@ const dashboardUrl = computed(() =>
 );
 
 const activeItemStyles =
-    'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100';
+    'bg-[#003b7d]/10 text-[#003b7d] dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/25';
 
 const mainNavItems = computed<NavItem[]>(() => [
     {
@@ -102,7 +102,7 @@ const rightNavItems: NavItem[] = [
                             >
                             <SheetHeader class="flex justify-start text-left">
                                 <AppLogoIcon
-                                    class="size-6 fill-current text-black dark:text-white"
+                                    class="size-6 fill-current text-black"
                                 />
                             </SheetHeader>
                             <div
@@ -186,7 +186,7 @@ const rightNavItems: NavItem[] = [
                                 </Link>
                                 <div
                                     v-if="isCurrentUrl(item.href)"
-                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white"
+                                    class="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-[#003b7d]"
                                 ></div>
                             </NavigationMenuItem>
                         </NavigationMenuList>

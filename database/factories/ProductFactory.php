@@ -18,6 +18,8 @@ class ProductFactory extends Factory
             'barcode' => fake()->unique()->numerify('890##########'),
             'is_serialized' => false,
             'sale_price' => fake()->randomFloat(2, 500, 350000),
+            'cost_price' => fake()->randomFloat(2, 300, 250000),
+            'stock_quantity' => fake()->numberBetween(0, 50),
             'alert_quantity' => 5,
         ];
     }

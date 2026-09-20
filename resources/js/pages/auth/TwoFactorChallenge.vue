@@ -70,6 +70,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                             :maxlength="6"
                             :disabled="processing"
                             autofocus
+                            class="[&_[data-slot='input-otp-slot']]:border-gray-200 [&_[data-slot='input-otp-slot']]:bg-gray-50"
                         >
                             <InputOTPGroup>
                                 <InputOTPSlot
@@ -82,14 +83,17 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     </div>
                     <InputError :message="errors.code" />
                 </div>
-                <Button type="submit" class="w-full" :disabled="processing"
+                <Button
+                    type="submit"
+                    class="w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
+                    :disabled="processing"
                     >Continue</Button
                 >
                 <div class="text-muted-foreground text-center text-sm">
                     <span>or you can </span>
                     <button
                         type="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                        class="text-violet-600 underline decoration-violet-400/40 underline-offset-4 transition-colors duration-300 ease-out hover:text-violet-600 hover:decoration-violet-300"
                         @click="() => toggleRecoveryMode(clearErrors)"
                     >
                         {{ authConfigContent.buttonText }}
@@ -111,9 +115,13 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     placeholder="Enter recovery code"
                     :autofocus="showRecoveryInput"
                     required
+                    class="h-12 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
                 />
                 <InputError :message="errors.recovery_code" />
-                <Button type="submit" class="w-full" :disabled="processing"
+                <Button
+                    type="submit"
+                    class="w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
+                    :disabled="processing"
                     >Continue</Button
                 >
 
@@ -121,7 +129,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                     <span>or you can </span>
                     <button
                         type="button"
-                        class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                        class="text-violet-600 underline decoration-violet-400/40 underline-offset-4 transition-colors duration-300 ease-out hover:text-violet-600 hover:decoration-violet-300"
                         @click="() => toggleRecoveryMode(clearErrors)"
                     >
                         {{ authConfigContent.buttonText }}
