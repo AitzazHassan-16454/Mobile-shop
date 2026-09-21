@@ -34,10 +34,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useConfirm } from '@/composables/useConfirm';
 import imeis from '@/routes/imeis';
 import inventory from '@/routes/inventory';
 import products from '@/routes/products';
 import type { Team } from '@/types';
+
+const { confirm } = useConfirm();
 
 interface ProductImeiItem {
     id: number;
@@ -237,12 +240,15 @@ const submitProductForm = () => {
     }
 };
 
-const deleteProduct = (product: ProductItem) => {
-    if (
-        confirm(
-            `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
-        )
-    ) {
+const deleteProduct = async (product: ProductItem) => {
+    const ok = await confirm({
+        title: 'Delete Product',
+        message: `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+    });
+    if (ok) {
         router.delete(
             products.destroy([currentTeamSlug.value, product.id]).url,
         );
@@ -351,8 +357,15 @@ const submitEditImeiForm = () => {
     );
 };
 
-const deleteImei = (imeiItem: ProductImeiItem) => {
-    if (confirm(`Delete IMEI "${imeiItem.imei_1}"?`)) {
+const deleteImei = async (imeiItem: ProductImeiItem) => {
+    const ok = await confirm({
+        title: 'Delete IMEI',
+        message: `Are you sure you want to delete IMEI "${imeiItem.imei_1}"?`,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+    });
+    if (ok) {
         router.delete(imeis.destroy([currentTeamSlug.value, imeiItem.id]).url, {
             onSuccess: () => {
                 const updated = props.products.data.find(

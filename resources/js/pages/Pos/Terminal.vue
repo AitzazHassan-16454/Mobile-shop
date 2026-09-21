@@ -54,10 +54,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
+import { useConfirm } from '@/composables/useConfirm';
 import { dashboard } from '@/routes';
 import pos from '@/routes/pos';
 import type { Team } from '@/types';
+
+const { confirm, alert } = useConfirm();
 
 interface ProductImeiItem {
     id: number;
@@ -524,11 +528,16 @@ const removeCartItem = (index: number) => {
     cart.value.splice(index, 1);
 };
 
-const clearCart = () => {
-    if (
-        cart.value.length === 0 ||
-        confirm('Clear all items from current cart?')
-    ) {
+const clearCart = async () => {
+    if (cart.value.length === 0) return;
+    const ok = await confirm({
+        title: 'Clear Cart',
+        message: 'Are you sure you want to clear all items from the current cart?',
+        confirmText: 'Clear Cart',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+    });
+    if (ok) {
         cart.value = [];
         discountInput.value = 0;
         paidInput.value = '';
@@ -563,12 +572,19 @@ const holdCurrentSale = () => {
     toast.success(`Sale for "${customerName}" placed on hold.`);
 };
 
-const recallHeldSale = (index: number) => {
+const recallHeldSale = async (index: number) => {
     const item = heldSales.value[index];
     if (!item) return;
 
     if (cart.value.length > 0) {
-        if (!confirm('Replace current cart with this held sale?')) return;
+        const ok = await confirm({
+            title: 'Replace Cart',
+            message: 'Replace current cart with this held sale?',
+            confirmText: 'Replace Cart',
+            cancelText: 'Cancel',
+            variant: 'warning',
+        });
+        if (!ok) return;
     }
 
     cart.value = JSON.parse(JSON.stringify(item.cart));
@@ -608,7 +624,11 @@ const handleProceedToPayment = () => {
         paymentMethod.value === 'udhaar' &&
         selectedCustomerId.value === 'walk_in'
     ) {
-        alert('Please select a customer for Udhaar (Khata) checkout.');
+        alert({
+            title: 'Customer Required',
+            message: 'Please select a customer for Udhaar (Khata) checkout.',
+            variant: 'warning',
+        });
         return;
     }
 
@@ -621,7 +641,11 @@ const selectMethodAndProceed = (methodId: string) => {
     paymentMethodError.value = false;
     isMethodSelectionPromptOpen.value = false;
     if (methodId === 'udhaar' && selectedCustomerId.value === 'walk_in') {
-        alert('Please select a customer for Udhaar (Khata) checkout.');
+        alert({
+            title: 'Customer Required',
+            message: 'Please select a customer for Udhaar (Khata) checkout.',
+            variant: 'warning',
+        });
         return;
     }
     openPaymentModal();
@@ -661,7 +685,11 @@ const submitCheckout = () => {
         paymentMethod.value === 'udhaar' &&
         selectedCustomerId.value === 'walk_in'
     ) {
-        alert('Please select a customer for Udhaar (Khata) checkout.');
+        alert({
+            title: 'Customer Required',
+            message: 'Please select a customer for Udhaar (Khata) checkout.',
+            variant: 'warning',
+        });
         return;
     }
 
@@ -2075,5 +2103,6 @@ const printReceipt = () => {
         </Dialog>
 
         <Toaster />
+        <ConfirmDialog />
     </div>
 </template>

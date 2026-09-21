@@ -3,23 +3,15 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowDownLeft,
     ArrowUpRight,
-    BookOpen,
-    DollarSign,
     Edit3,
-    FileText,
     History,
-    Phone,
     Plus,
-    Printer,
     Search,
     Trash2,
-    UserCheck,
-    UserPlus,
     Users,
     Wallet,
 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -38,13 +30,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import customers from '@/routes/customers';
+import { useConfirm } from '@/composables/useConfirm';
+import customerRoutes from '@/routes/customers';
 import type { Team } from '@/types';
+
+const { confirm } = useConfirm();
 
 interface LedgerItem {
     id: number;
     customer_id: number;
-    type: 'sale' | 'payment' | 'return' | 'adjustment';
+    type: string;
     amount: number | string;
     balance_after: number | string;
     reference_id?: string | null;
@@ -62,18 +57,6 @@ interface CustomerItem {
     ledgers?: LedgerItem[];
 }
 
-interface ShopInfo {
-    name: string;
-    phone: string;
-    address: string;
-}
-
-interface SummaryStats {
-    total_customers: number;
-    total_receivables: number;
-    total_advances: number;
-}
-
 const props = defineProps<{
     customers: {
         data: CustomerItem[];
@@ -82,13 +65,15 @@ const props = defineProps<{
         last_page: number;
         total: number;
     };
-    shopInfo: ShopInfo;
     filters: {
         search: string;
         balance_filter: string;
     };
-    summary: SummaryStats;
-    latestPayment?: any;
+    summary: {
+        total_customers: number;
+        total_receivables: number;
+        total_advances: number;
+    };
 }>();
 
 const page = usePage();
@@ -104,22 +89,23 @@ defineOptions({
                 href: layoutProps.currentTeam ? '/dashboard' : '/',
             },
             {
-                title: 'Customer Khata',
+                title: 'Customers',
                 href: layoutProps.currentTeam
-                    ? customers.index(layoutProps.currentTeam.slug).url
+                    ? customerRoutes.index(layoutProps.currentTeam.slug).url
                     : '/customers',
             },
         ],
     }),
 });
 
+// Search & Filter
 const search = ref(props.filters.search || '');
 const selectedBalanceFilter = ref(props.filters.balance_filter || 'all');
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const applyFilters = () => {
     router.get(
-        customers.index(currentTeamSlug.value).url,
+        customerRoutes.index(currentTeamSlug.value).url,
         {
             search: search.value || undefined,
             balance_filter:
@@ -142,370 +128,367 @@ watch(selectedBalanceFilter, () => {
     applyFilters();
 });
 
-// Modals
-const isCreateCustomerModalOpen = ref(false);
+// Add / Edit Modal
+const isFormModalOpen = ref(false);
 const editingCustomer = ref<CustomerItem | null>(null);
 
-const customerForm = useForm({
+const form = useForm({
     name: '',
     phone: '',
     address: '',
-    initial_balance: 0,
+    initial_balance: '',
 });
 
-const openCreateCustomerModal = () => {
+const openAddModal = () => {
     editingCustomer.value = null;
-    customerForm.reset();
-    customerForm.clearErrors();
-    isCreateCustomerModalOpen.value = true;
+    form.reset();
+    form.clearErrors();
+    form.initial_balance = '';
+    isFormModalOpen.value = true;
 };
 
-const openEditCustomerModal = (customer: CustomerItem) => {
+const openEditModal = (customer: CustomerItem) => {
     editingCustomer.value = customer;
-    customerForm.clearErrors();
-    customerForm.name = customer.name;
-    customerForm.phone = customer.phone;
-    customerForm.address = customer.address || '';
-    customerForm.initial_balance = Number(customer.current_balance);
-    isCreateCustomerModalOpen.value = true;
+    form.clearErrors();
+    form.name = customer.name;
+    form.phone = customer.phone;
+    form.address = customer.address || '';
+    form.initial_balance = '';
+    isFormModalOpen.value = true;
 };
 
-const submitCustomerForm = () => {
+const submitForm = () => {
     if (editingCustomer.value) {
-        customerForm.put(
-            customers.update([currentTeamSlug.value, editingCustomer.value.id])
-                .url,
+        form.put(
+            customerRoutes.update([
+                currentTeamSlug.value,
+                editingCustomer.value.id,
+            ]).url,
             {
                 onSuccess: () => {
-                    isCreateCustomerModalOpen.value = false;
+                    isFormModalOpen.value = false;
                 },
             },
         );
     } else {
-        customerForm.post(customers.store(currentTeamSlug.value).url, {
+        form.post(customerRoutes.store(currentTeamSlug.value).url, {
             onSuccess: () => {
-                isCreateCustomerModalOpen.value = false;
+                isFormModalOpen.value = false;
             },
         });
     }
 };
 
-// Record Wasooli (Payment Received) Modal
-const isWasooliModalOpen = ref(false);
-const activeCustomerForWasooli = ref<CustomerItem | null>(null);
+// Payment (Wasooli) Modal
+const isPaymentModalOpen = ref(false);
+const paymentCustomer = ref<CustomerItem | null>(null);
 
-const wasooliForm = useForm({
+const paymentForm = useForm({
     amount: '',
     payment_method: 'cash',
     notes: '',
 });
 
-const openWasooliModal = (customer: CustomerItem) => {
-    activeCustomerForWasooli.value = customer;
-    wasooliForm.reset();
-    wasooliForm.clearErrors();
-    wasooliForm.amount = String(Math.max(0, Number(customer.current_balance)));
-    isWasooliModalOpen.value = true;
+const openPaymentModal = (customer: CustomerItem) => {
+    paymentCustomer.value = customer;
+    paymentForm.reset();
+    paymentForm.clearErrors();
+    const currentDebt = Math.max(0, Number(customer.current_balance));
+    paymentForm.amount = currentDebt > 0 ? String(currentDebt) : '';
+    paymentForm.payment_method = 'cash';
+    paymentForm.notes = '';
+    isPaymentModalOpen.value = true;
 };
 
-const submitWasooli = () => {
-    if (!activeCustomerForWasooli.value) return;
+const submitPayment = () => {
+    if (!paymentCustomer.value) return;
 
-    wasooliForm.post(
-        customers.payments.store([
+    paymentForm.post(
+        customerRoutes.payments.store([
             currentTeamSlug.value,
-            activeCustomerForWasooli.value.id,
+            paymentCustomer.value.id,
         ]).url,
         {
             onSuccess: () => {
-                isWasooliModalOpen.value = false;
+                isPaymentModalOpen.value = false;
             },
         },
     );
 };
 
-// Ledger Statement Modal
-const isLedgerModalOpen = ref(false);
-const activeLedgerCustomer = ref<CustomerItem | null>(null);
+// Ledger History Modal
+const isHistoryModalOpen = ref(false);
+const historyCustomer = ref<CustomerItem | null>(null);
 
-const openLedgerModal = (customer: CustomerItem) => {
-    activeLedgerCustomer.value = customer;
-    isLedgerModalOpen.value = true;
+const openHistoryModal = (customer: CustomerItem) => {
+    historyCustomer.value = customer;
+    isHistoryModalOpen.value = true;
 };
 
-// Wasooli Payment Receipt Print Modal
-const isPaymentReceiptModalOpen = ref(false);
-const activePaymentReceipt = ref<any>(props.latestPayment || null);
-
-watch(
-    () => props.latestPayment,
-    (newPay) => {
-        if (newPay) {
-            activePaymentReceipt.value = newPay;
-            isPaymentReceiptModalOpen.value = true;
-        }
-    },
-    { immediate: true },
-);
-
-const deleteCustomer = (customer: CustomerItem) => {
-    if (confirm(`Delete customer "${customer.name}"?`)) {
+// Delete Customer
+const deleteCustomer = async (customer: CustomerItem) => {
+    const ok = await confirm({
+        title: 'Delete Customer',
+        message: `Are you sure you want to delete "${customer.name}"?`,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+    });
+    if (ok) {
         router.delete(
-            customers.destroy([currentTeamSlug.value, customer.id]).url,
+            customerRoutes.destroy([currentTeamSlug.value, customer.id]).url,
         );
     }
 };
 
-const printReceipt = () => {
-    window.print();
-};
-
-const formatCurrency = (val: number | string) => {
+// Format currency
+const money = (val: number | string) => {
     const num = Number(val) || 0;
-    return new Intl.NumberFormat('en-PK', {
-        style: 'currency',
-        currency: 'PKR',
-        maximumFractionDigits: 0,
-    }).format(num);
+    return (
+        'Rs. ' +
+        Math.round(num).toLocaleString('en-PK', { maximumFractionDigits: 0 })
+    );
 };
 </script>
 
 <template>
-    <Head title="Customer Khata Directory" />
+    <Head title="Customers" />
 
-    <div class="flex h-full flex-1 flex-col gap-6 p-6">
-        <!-- Header Banner -->
+    <div class="flex h-full flex-1 flex-col gap-5 p-4 sm:p-6">
+        <!-- Top Header -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
         >
             <div>
                 <h1
-                    class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900"
+                    class="text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl"
                 >
-                    <Users class="h-7 w-7 text-[#003B7D]" />
-                    Customer Khata Directory & Wasooli Ledger
+                    Customers
                 </h1>
-                <p class="mt-1 text-sm text-slate-500">
-                    Manage Udhaar accounts, Wasooli payments, running statements
-                    & balances.
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Customer Khata accounts and balances
                 </p>
             </div>
+
             <div>
                 <Button
-                    @click="openCreateCustomerModal"
-                    class="gap-2 bg-[#003B7D] font-bold text-white shadow-sm hover:bg-[#002b5c]"
+                    @click="openAddModal"
+                    class="gap-1.5 bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
                 >
-                    <UserPlus class="h-4 w-4" /> + Add Customer to Khata
+                    <Plus class="h-4 w-4" /> Add Customer
                 </Button>
             </div>
         </div>
 
         <!-- Summary Cards -->
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+                class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
             >
-                <div class="flex items-center justify-between">
-                    <span class="eyebrow">Total Customers</span>
-                    <Users class="h-5 w-5 text-[#003B7D]" />
+                <div class="flex items-center justify-between text-gray-500">
+                    <span class="text-xs font-semibold">Total Customers</span>
+                    <Users class="h-4 w-4 text-[#003B7D]" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-gray-900">
+                <div
+                    class="mt-2 text-2xl font-bold text-gray-900 dark:text-white"
+                >
                     {{ summary.total_customers }}
                 </div>
-                <div class="mt-1 text-xs text-slate-500">
-                    Registered Khata accounts
+            </div>
+
+            <div
+                class="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20"
+            >
+                <div class="flex items-center justify-between text-amber-800">
+                    <span class="text-xs font-semibold"
+                        >Total Udhaar (Receivables)</span
+                    >
+                    <ArrowDownLeft class="h-4 w-4 text-amber-600" />
+                </div>
+                <div class="mt-2 text-2xl font-bold text-amber-600">
+                    {{ money(summary.total_receivables) }}
                 </div>
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+                class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/20"
             >
-                <div class="flex items-center justify-between">
-                    <span class="eyebrow">Total Shop Receivables (Udhaar)</span>
-                    <ArrowDownLeft class="h-5 w-5 text-amber-600" />
+                <div class="flex items-center justify-between text-emerald-800">
+                    <span class="text-xs font-semibold"
+                        >Total Advance Deposits</span
+                    >
+                    <ArrowUpRight class="h-4 w-4 text-emerald-600" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-amber-600">
-                    {{ formatCurrency(summary.total_receivables) }}
-                </div>
-                <div class="mt-1 text-xs text-slate-500">
-                    Customers owe this to shop
-                </div>
-            </div>
-
-            <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
-            >
-                <div class="flex items-center justify-between">
-                    <span class="eyebrow">Total Customer Advances</span>
-                    <ArrowUpRight class="h-5 w-5 text-[#003B7D]" />
-                </div>
-                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
-                    {{ formatCurrency(summary.total_advances) }}
-                </div>
-                <div class="mt-1 text-xs text-slate-500">
-                    Advance deposits received
+                <div class="mt-2 text-2xl font-bold text-emerald-600">
+                    {{ money(summary.total_advances) }}
                 </div>
             </div>
         </div>
 
         <!-- Search & Filter Bar -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
+            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between"
         >
-            <div class="relative max-w-md flex-1">
+            <div class="relative max-w-sm flex-1">
                 <Search
                     class="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
                 />
                 <Input
                     v-model="search"
-                    placeholder="Search customer by name, phone or address..."
-                    class="pl-9"
+                    placeholder="Search by name, phone or address..."
+                    class="h-9 pl-9 text-xs"
                 />
             </div>
 
-            <div class="w-48">
+            <div class="w-44">
                 <Select v-model="selectedBalanceFilter">
-                    <SelectTrigger>
+                    <SelectTrigger class="h-9 text-xs">
                         <SelectValue placeholder="All Balances" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Balances</SelectItem>
-                        <SelectItem value="has_debt"
-                            >Udhaar / Receivables Only</SelectItem
-                        >
-                        <SelectItem value="advance"
-                            >Advance Balances Only</SelectItem
-                        >
+                        <SelectItem value="has_debt">Udhaar Only</SelectItem>
+                        <SelectItem value="advance">Advance Only</SelectItem>
                         <SelectItem value="zero">Zero Balance</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
         </div>
 
-        <!-- Customers Directory Table -->
-        <div class="bg-card overflow-hidden rounded-xl border shadow-sm">
+        <!-- Customers Table -->
+        <div
+            class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        >
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
                     <thead
-                        class="bg-muted/50 text-muted-foreground font-semibold uppercase"
+                        class="border-b border-gray-200 bg-gray-50 text-gray-600 uppercase dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
                     >
                         <tr>
-                            <th class="px-4 py-3">Customer Name</th>
-                            <th class="px-4 py-3">Phone & Address</th>
-                            <th class="px-4 py-3">Khata Running Balance</th>
-                            <th class="px-4 py-3 text-right">Actions</th>
+                            <th class="px-4 py-3 font-semibold">Name</th>
+                            <th class="px-4 py-3 font-semibold">Phone</th>
+                            <th class="px-4 py-3 font-semibold">Address</th>
+                            <th class="px-4 py-3 font-semibold">Balance</th>
+                            <th class="px-4 py-3 text-right font-semibold">
+                                Actions
+                            </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-border divide-y">
+                    <tbody
+                        class="divide-y divide-gray-100 dark:divide-gray-800"
+                    >
                         <tr v-if="customers.data.length === 0">
                             <td
-                                colspan="4"
-                                class="text-muted-foreground px-4 py-8 text-center"
+                                colspan="5"
+                                class="px-4 py-8 text-center text-gray-500"
                             >
-                                No customer Khata records found.
+                                No customers found.
                             </td>
                         </tr>
 
                         <tr
                             v-for="customer in customers.data"
                             :key="customer.id"
-                            class="transition-colors hover:bg-gray-50"
+                            class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
                         >
-                            <td class="px-4 py-3">
-                                <div
-                                    class="text-foreground flex items-center gap-2 text-sm font-bold"
-                                >
-                                    <UserCheck class="h-4 w-4 text-[#003B7D]" />
-                                    {{ customer.name }}
-                                </div>
+                            <td
+                                class="px-4 py-3 font-semibold text-gray-900 dark:text-white"
+                            >
+                                {{ customer.name }}
+                            </td>
+
+                            <td
+                                class="px-4 py-3 font-mono text-gray-600 dark:text-gray-300"
+                            >
+                                {{ customer.phone }}
+                            </td>
+
+                            <td
+                                class="px-4 py-3 text-gray-500 dark:text-gray-400"
+                            >
+                                {{ customer.address || '-' }}
                             </td>
 
                             <td class="px-4 py-3">
-                                <div
-                                    class="tnum text-foreground font-mono font-semibold"
-                                >
-                                    {{ customer.phone }}
-                                </div>
-                                <div class="text-muted-foreground text-[11px]">
-                                    {{
-                                        customer.address || 'No address logged'
-                                    }}
-                                </div>
-                            </td>
-
-                            <td class="px-4 py-3">
-                                <div
+                                <span
                                     :class="[
-                                        'tnum text-sm font-extrabold',
+                                        'font-bold',
                                         Number(customer.current_balance) > 0
                                             ? 'text-amber-600'
                                             : Number(customer.current_balance) <
                                                 0
-                                              ? 'text-[#003B7D]'
-                                              : 'text-muted-foreground',
+                                              ? 'text-emerald-600'
+                                              : 'text-gray-500',
                                     ]"
                                 >
                                     {{
-                                        formatCurrency(customer.current_balance)
+                                        money(
+                                            Math.abs(
+                                                Number(
+                                                    customer.current_balance,
+                                                ),
+                                            ),
+                                        )
                                     }}
-                                </div>
-                                <div class="text-muted-foreground text-[10px]">
-                                    {{
-                                        Number(customer.current_balance) > 0
-                                            ? 'Customer Owes Shop'
-                                            : Number(customer.current_balance) <
-                                                0
-                                              ? 'Advance Credit'
-                                              : 'Balanced'
-                                    }}
-                                </div>
+                                </span>
+                                <span
+                                    v-if="Number(customer.current_balance) > 0"
+                                    class="ml-1 text-[10px] text-amber-700"
+                                    >(Udhaar)</span
+                                >
+                                <span
+                                    v-else-if="
+                                        Number(customer.current_balance) < 0
+                                    "
+                                    class="ml-1 text-[10px] text-emerald-700"
+                                    >(Advance)</span
+                                >
                             </td>
 
                             <td class="px-4 py-3 text-right">
                                 <div
-                                    class="flex items-center justify-end gap-1"
+                                    class="flex items-center justify-end gap-1.5"
                                 >
+                                    <!-- Wasooli -->
                                     <Button
                                         size="sm"
-                                        variant="default"
-                                        @click="openWasooliModal(customer)"
-                                        title="Receive Wasooli Payment"
-                                        class="h-8 gap-1 bg-[#003B7D] text-gray-900 hover:bg-[#002b5c]"
+                                        @click="openPaymentModal(customer)"
+                                        class="h-7 gap-1 bg-[#003B7D] px-2 text-[11px] font-semibold text-white hover:bg-[#002b5c]"
                                     >
-                                        <Wallet class="h-3.5 w-3.5" /> Wasooli
+                                        <Wallet class="h-3 w-3" /> Wasooli
                                     </Button>
 
+                                    <!-- History -->
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        @click="openLedgerModal(customer)"
-                                        title="View Statement History"
-                                        class="h-8 gap-1 border-[#003B7D]/20 text-[#003B7D] hover:border-[#003B7D]/40 hover:bg-[#003B7D]/5"
+                                        @click="openHistoryModal(customer)"
+                                        class="h-7 px-2 text-[11px] text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                                        title="View History"
                                     >
-                                        <History class="h-3.5 w-3.5" />
-                                        Statement
+                                        <History class="h-3 w-3" /> History
                                     </Button>
 
+                                    <!-- Edit -->
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        @click="openEditCustomerModal(customer)"
-                                        title="Edit Customer"
-                                        class="h-8 w-8 p-0"
+                                        @click="openEditModal(customer)"
+                                        class="h-7 w-7 p-0 text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                                        title="Edit"
                                     >
-                                        <Edit3
-                                            class="text-muted-foreground h-4 w-4"
-                                        />
+                                        <Edit3 class="h-3.5 w-3.5" />
                                     </Button>
 
+                                    <!-- Delete -->
                                     <Button
                                         size="sm"
                                         variant="ghost"
                                         @click="deleteCustomer(customer)"
-                                        title="Delete Customer"
-                                        class="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-600"
+                                        class="h-7 w-7 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
+                                        title="Delete"
                                     >
-                                        <Trash2 class="h-4 w-4" />
+                                        <Trash2 class="h-3.5 w-3.5" />
                                     </Button>
                                 </div>
                             </td>
@@ -514,20 +497,16 @@ const formatCurrency = (val: number | string) => {
                 </table>
             </div>
 
+            <!-- Pagination -->
             <div
-                v-if="customers.links.length > 3"
-                class="bg-muted/20 flex items-center justify-between border-t px-4 py-3"
+                v-if="customers.links && customers.links.length > 3"
+                class="flex items-center justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
             >
-                <div class="text-muted-foreground text-xs">
-                    Page
-                    <span class="font-semibold">{{
-                        customers.current_page
-                    }}</span>
-                    of
-                    <span class="font-semibold">{{ customers.last_page }}</span>
-                    ({{ customers.total }} customers)
+                <div class="text-xs text-gray-500">
+                    Total {{ customers.total }} customers
                 </div>
-                <div class="flex gap-1">
+
+                <div class="flex items-center gap-1">
                     <template v-for="(link, i) in customers.links" :key="i">
                         <Button
                             v-if="link.url"
@@ -540,7 +519,12 @@ const formatCurrency = (val: number | string) => {
                                     { preserveState: true },
                                 )
                             "
-                            class="h-8 px-3 text-xs"
+                            class="h-7 px-2.5 text-xs"
+                            :class="[
+                                link.active
+                                    ? 'bg-[#003B7D] text-white'
+                                    : 'text-gray-700 dark:text-gray-300',
+                            ]"
                             v-html="link.label"
                         />
                     </template>
@@ -548,169 +532,192 @@ const formatCurrency = (val: number | string) => {
             </div>
         </div>
 
-        <!-- MODAL 1: Create / Edit Customer Modal -->
-        <Dialog v-model:open="isCreateCustomerModalOpen">
+        <!-- Modal 1: Add / Edit Customer -->
+        <Dialog v-model:open="isFormModalOpen">
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{{
-                        editingCustomer
-                            ? 'Edit Customer'
-                            : 'Add Customer to Khata Directory'
-                    }}</DialogTitle>
+                    <DialogTitle class="text-base font-bold">
+                        {{ editingCustomer ? 'Edit Customer' : 'Add Customer' }}
+                    </DialogTitle>
+                    <DialogDescription class="text-xs">
+                        Enter customer details below.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <form
-                    @submit.prevent="submitCustomerForm"
+                    @submit.prevent="submitForm"
                     class="space-y-3 py-2 text-xs"
                 >
+                    <!-- Name -->
                     <div class="space-y-1">
-                        <Label for="cust_name">Customer Full Name *</Label>
+                        <Label for="name" class="font-medium"
+                            >Customer Name *</Label
+                        >
                         <Input
-                            id="cust_name"
-                            v-model="customerForm.name"
+                            id="name"
+                            v-model="form.name"
                             placeholder="Full Name"
+                            class="h-9 text-xs"
+                            required
                         />
                         <span
-                            v-if="customerForm.errors.name"
+                            v-if="form.errors.name"
                             class="text-xs text-rose-600"
-                            >{{ customerForm.errors.name }}</span
+                            >{{ form.errors.name }}</span
                         >
                     </div>
 
+                    <!-- Phone -->
                     <div class="space-y-1">
-                        <Label for="cust_phone">Mobile Phone Number *</Label>
+                        <Label for="phone" class="font-medium"
+                            >Phone Number *</Label
+                        >
                         <Input
-                            id="cust_phone"
-                            v-model="customerForm.phone"
+                            id="phone"
+                            v-model="form.phone"
                             placeholder="03001234567"
-                            font-mono
+                            class="h-9 text-xs"
+                            required
                         />
                         <span
-                            v-if="customerForm.errors.phone"
+                            v-if="form.errors.phone"
                             class="text-xs text-rose-600"
-                            >{{ customerForm.errors.phone }}</span
+                            >{{ form.errors.phone }}</span
                         >
                     </div>
 
+                    <!-- Address -->
                     <div class="space-y-1">
-                        <Label for="cust_address">Address / City</Label>
+                        <Label for="address" class="font-medium">Address</Label>
                         <Input
-                            id="cust_address"
-                            v-model="customerForm.address"
-                            placeholder="Residential or Shop Address"
+                            id="address"
+                            v-model="form.address"
+                            placeholder="Address or City"
+                            class="h-9 text-xs"
                         />
                     </div>
 
+                    <!-- Opening Balance (Only shown when adding new customer) -->
                     <div
                         v-if="!editingCustomer"
-                        class="space-y-1 border-t pt-2"
+                        class="space-y-1 rounded-lg border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-800/40"
                     >
-                        <Label for="init_bal"
-                            >Opening / Previous Udhaar Balance (PKR)</Label
-                        >
+                        <Label for="initial_balance" class="font-medium">
+                            Opening Balance (PKR)
+                        </Label>
                         <Input
-                            id="init_bal"
+                            id="initial_balance"
                             type="number"
                             step="0.01"
-                            v-model="customerForm.initial_balance"
+                            v-model="form.initial_balance"
                             placeholder="0.00"
+                            class="h-9 text-xs font-bold"
                         />
+                        <p class="text-[11px] text-gray-500">
+                            Purana udhaar hai to رقم likhein (maslan 5000). Agar
+                            advance hai to negative (-1000).
+                        </p>
                     </div>
 
                     <DialogFooter class="pt-3">
                         <Button
                             type="button"
                             variant="outline"
-                            @click="isCreateCustomerModalOpen = false"
-                            >Cancel</Button
+                            size="sm"
+                            @click="isFormModalOpen = false"
+                            class="text-xs"
                         >
+                            Cancel
+                        </Button>
                         <Button
                             type="submit"
-                            :disabled="customerForm.processing"
-                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
+                            size="sm"
+                            :disabled="form.processing"
+                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
                         >
-                            {{
-                                editingCustomer
-                                    ? 'Update Customer'
-                                    : 'Save Customer'
-                            }}
+                            {{ editingCustomer ? 'Update' : 'Save' }}
                         </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
-        <!-- MODAL 2: Record Wasooli Payment Received Modal -->
-        <Dialog v-model:open="isWasooliModalOpen">
+        <!-- Modal 2: Receive Payment (Wasooli) -->
+        <Dialog v-model:open="isPaymentModalOpen">
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2">
-                        <Wallet class="h-5 w-5 text-[#003B7D]" />
-                        Receive Wasooli Payment &bull;
-                        {{ activeCustomerForWasooli?.name }}
+                    <DialogTitle class="text-base font-bold">
+                        Receive Payment (Wasooli)
                     </DialogTitle>
-                    <DialogDescription>
-                        Current Debt Balance:
-                        <span
-                            class="tnum text-sm font-extrabold text-amber-600"
-                            >{{
-                                formatCurrency(
-                                    activeCustomerForWasooli?.current_balance ||
-                                        0,
-                                )
-                            }}</span
-                        >
+                    <DialogDescription class="text-xs">
+                        Customer:
+                        <span class="font-bold text-gray-900 dark:text-white">{{
+                            paymentCustomer?.name
+                        }}</span>
+                        &bull; Balance:
+                        <span class="font-bold text-amber-600">{{
+                            money(paymentCustomer?.current_balance || 0)
+                        }}</span>
                     </DialogDescription>
                 </DialogHeader>
 
                 <form
-                    @submit.prevent="submitWasooli"
+                    @submit.prevent="submitPayment"
                     class="space-y-3 py-2 text-xs"
                 >
+                    <!-- Amount -->
                     <div class="space-y-1">
-                        <Label for="wasooli_amt">Amount Received (PKR) *</Label>
+                        <Label for="amount" class="font-medium"
+                            >Amount Received (PKR) *</Label
+                        >
                         <Input
-                            id="wasooli_amt"
+                            id="amount"
                             type="number"
                             step="0.01"
-                            v-model="wasooliForm.amount"
+                            v-model="paymentForm.amount"
                             placeholder="0.00"
-                            class="tnum h-10 font-mono text-base font-bold"
+                            class="h-9 text-sm font-bold"
+                            required
                         />
                         <span
-                            v-if="wasooliForm.errors.amount"
+                            v-if="paymentForm.errors.amount"
                             class="text-xs text-rose-600"
-                            >{{ wasooliForm.errors.amount }}</span
+                            >{{ paymentForm.errors.amount }}</span
                         >
                     </div>
 
+                    <!-- Payment Method -->
                     <div class="space-y-1">
-                        <Label>Payment Mode</Label>
-                        <Select v-model="wasooliForm.payment_method">
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+                        <Label class="font-medium">Payment Mode</Label>
+                        <Select v-model="paymentForm.payment_method">
+                            <SelectTrigger class="h-9 text-xs">
+                                <SelectValue />
+                            </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="cash"
-                                    >Cash Received</SelectItem
-                                >
+                                <SelectItem value="cash">Cash</SelectItem>
                                 <SelectItem value="jazzcash"
-                                    >JazzCash Transfer</SelectItem
+                                    >JazzCash</SelectItem
                                 >
                                 <SelectItem value="easypaisa"
-                                    >EasyPaisa Transfer</SelectItem
+                                    >EasyPaisa</SelectItem
                                 >
                                 <SelectItem value="bank"
-                                    >Bank Transfer (Raast)</SelectItem
+                                    >Bank Transfer</SelectItem
                                 >
                             </SelectContent>
                         </Select>
                     </div>
 
+                    <!-- Notes -->
                     <div class="space-y-1">
-                        <Label for="wasooli_notes">Notes / Reference</Label>
+                        <Label for="notes" class="font-medium"
+                            >Notes (Optional)</Label
+                        >
                         <Input
-                            id="wasooli_notes"
-                            v-model="wasooliForm.notes"
-                            placeholder="e.g. Cash received in shop"
+                            id="notes"
+                            v-model="paymentForm.notes"
+                            placeholder="e.g. Cash received"
+                            class="h-9 text-xs"
                         />
                     </div>
 
@@ -718,273 +725,116 @@ const formatCurrency = (val: number | string) => {
                         <Button
                             type="button"
                             variant="outline"
-                            @click="isWasooliModalOpen = false"
-                            >Cancel</Button
+                            size="sm"
+                            @click="isPaymentModalOpen = false"
+                            class="text-xs"
                         >
+                            Cancel
+                        </Button>
                         <Button
                             type="submit"
-                            :disabled="wasooliForm.processing"
-                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
+                            size="sm"
+                            :disabled="paymentForm.processing"
+                            class="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
                         >
-                            Receive Wasooli & Print Slip
+                            Save Payment
                         </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
-        <!-- MODAL 3: Statement History Ledger Drawer -->
-        <Dialog v-model:open="isLedgerModalOpen">
-            <DialogContent class="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <!-- Modal 3: Ledger History -->
+        <Dialog v-model:open="isHistoryModalOpen">
+            <DialogContent class="max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2">
-                        <History class="h-5 w-5 text-[#003B7D]" />
-                        Khata Statement &bull; {{ activeLedgerCustomer?.name }}
+                    <DialogTitle class="text-base font-bold">
+                        Khata History &bull; {{ historyCustomer?.name }}
                     </DialogTitle>
-                    <DialogDescription>
-                        Ph: {{ activeLedgerCustomer?.phone }} &bull; Current
-                        Balance:
-                        <span class="tnum text-foreground font-bold">{{
-                            formatCurrency(
-                                activeLedgerCustomer?.current_balance || 0,
-                            )
+                    <DialogDescription class="text-xs">
+                        Current Balance:
+                        <span class="font-bold text-gray-900 dark:text-white">{{
+                            money(historyCustomer?.current_balance || 0)
                         }}</span>
                     </DialogDescription>
                 </DialogHeader>
 
-                <div class="space-y-4 py-2">
-                    <div class="overflow-x-auto rounded-lg border">
-                        <table class="w-full text-left text-xs">
-                            <thead
-                                class="bg-muted/50 text-muted-foreground font-semibold uppercase"
+                <div class="max-h-96 overflow-y-auto rounded-lg border">
+                    <table class="w-full text-left text-xs">
+                        <thead
+                            class="border-b bg-gray-50 text-gray-600 uppercase dark:bg-gray-800"
+                        >
+                            <tr>
+                                <th class="p-2.5">Date</th>
+                                <th class="p-2.5">Type</th>
+                                <th class="p-2.5">Notes</th>
+                                <th class="p-2.5 text-right">Amount</th>
+                                <th class="p-2.5 text-right">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <tr
+                                v-if="
+                                    !historyCustomer?.ledgers ||
+                                    historyCustomer.ledgers.length === 0
+                                "
                             >
-                                <tr>
-                                    <th class="p-2.5">Date & Ref</th>
-                                    <th class="p-2.5">Type</th>
-                                    <th class="p-2.5">Notes</th>
-                                    <th class="p-2.5 text-right">Amount</th>
-                                    <th class="p-2.5 text-right">
-                                        Balance After
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-border divide-y">
-                                <tr
-                                    v-if="
-                                        !activeLedgerCustomer?.ledgers ||
-                                        activeLedgerCustomer.ledgers.length ===
-                                            0
-                                    "
+                                <td
+                                    colspan="5"
+                                    class="p-4 text-center text-gray-500"
                                 >
-                                    <td
-                                        colspan="5"
-                                        class="text-muted-foreground p-4 text-center"
-                                    >
-                                        No ledger history entries on record.
-                                    </td>
-                                </tr>
-
-                                <tr
-                                    v-for="entry in activeLedgerCustomer?.ledgers"
-                                    :key="entry.id"
-                                    class="hover:bg-gray-50"
+                                    No history records found.
+                                </td>
+                            </tr>
+                            <tr
+                                v-for="item in historyCustomer?.ledgers"
+                                :key="item.id"
+                                class="hover:bg-gray-50"
+                            >
+                                <td class="p-2.5 text-[11px] text-gray-600">
+                                    {{
+                                        new Date(
+                                            item.created_at,
+                                        ).toLocaleDateString('en-PK')
+                                    }}
+                                </td>
+                                <td class="p-2.5 font-semibold capitalize">
+                                    {{ item.type }}
+                                </td>
+                                <td class="p-2.5 text-gray-500">
+                                    {{ item.notes || '-' }}
+                                </td>
+                                <td
+                                    :class="[
+                                        'p-2.5 text-right font-bold',
+                                        item.type === 'payment'
+                                            ? 'text-emerald-600'
+                                            : 'text-amber-600',
+                                    ]"
                                 >
-                                    <td class="p-2.5 font-mono">
-                                        <div>
-                                            {{
-                                                new Date(
-                                                    entry.created_at,
-                                                ).toLocaleString('en-PK')
-                                            }}
-                                        </div>
-                                        <div
-                                            v-if="entry.reference_id"
-                                            class="text-muted-foreground text-[10px]"
-                                        >
-                                            Ref: {{ entry.reference_id }}
-                                        </div>
-                                    </td>
-
-                                    <td class="p-2.5">
-                                        <span
-                                            :class="[
-                                                'inline-flex rounded border px-2 py-0.5 text-[10px] font-semibold uppercase',
-                                                entry.type === 'sale'
-                                                    ? 'border-amber-200 bg-amber-50 text-amber-600'
-                                                    : entry.type === 'payment'
-                                                      ? 'border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
-                                                      : 'border-sky-200 bg-sky-50 text-sky-600',
-                                            ]"
-                                        >
-                                            {{ entry.type }}
-                                        </span>
-                                    </td>
-
-                                    <td class="text-muted-foreground p-2.5">
-                                        {{ entry.notes || '-' }}
-                                    </td>
-
-                                    <td class="tnum p-2.5 text-right font-bold">
-                                        <span
-                                            :class="
-                                                entry.type === 'payment'
-                                                    ? 'text-[#003B7D]'
-                                                    : 'text-amber-600'
-                                            "
-                                        >
-                                            {{
-                                                entry.type === 'payment'
-                                                    ? '-'
-                                                    : '+'
-                                            }}{{ formatCurrency(entry.amount) }}
-                                        </span>
-                                    </td>
-
-                                    <td
-                                        class="tnum text-foreground p-2.5 text-right font-bold"
-                                    >
-                                        {{
-                                            formatCurrency(entry.balance_after)
-                                        }}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-
-        <!-- MODAL 4: Wasooli Payment Receipt Print Slip (80mm / 58mm) -->
-        <Dialog v-model:open="isPaymentReceiptModalOpen">
-            <DialogContent class="max-w-sm p-4">
-                <DialogHeader class="no-print">
-                    <DialogTitle class="text-center text-sm"
-                        >Wasooli Payment Receipt</DialogTitle
-                    >
-                </DialogHeader>
-
-                <div
-                    id="wasooli-receipt-slip"
-                    class="space-y-3 bg-white p-2 font-mono text-[11px] leading-tight text-black"
-                >
-                    <div class="border-b pb-2 text-center">
-                        <div class="text-sm font-extrabold uppercase">
-                            {{ shopInfo.name }}
-                        </div>
-                        <div class="text-[10px]">{{ shopInfo.address }}</div>
-                        <div class="text-[10px]">Ph: {{ shopInfo.phone }}</div>
-                        <div
-                            class="mt-1 inline-block border bg-slate-100 px-2 py-0.5 text-xs font-extrabold"
-                        >
-                            WASOOLI PAYMENT RECEIPT
-                        </div>
-                    </div>
-
-                    <div class="space-y-0.5 border-b pb-1 text-[10px]">
-                        <div class="flex justify-between font-bold">
-                            <span>Receipt #:</span>
-                            <span>{{ activePaymentReceipt?.ref_no }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Date:</span>
-                            <span>{{
-                                activePaymentReceipt?.date
-                                    ? new Date(
-                                          activePaymentReceipt.date,
-                                      ).toLocaleString('en-PK')
-                                    : ''
-                            }}</span>
-                        </div>
-                        <div class="flex justify-between font-bold">
-                            <span>Customer:</span>
-                            <span>{{
-                                activePaymentReceipt?.customer?.name
-                            }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Phone:</span>
-                            <span>{{
-                                activePaymentReceipt?.customer?.phone
-                            }}</span>
-                        </div>
-                    </div>
-
-                    <div class="space-y-1 border-b pb-2 text-xs">
-                        <div
-                            class="flex justify-between font-bold text-[#002b5c]"
-                        >
-                            <span>Amount Received:</span>
-                            <span>{{
-                                formatCurrency(
-                                    activePaymentReceipt?.paid_amount || 0,
-                                )
-                            }}</span>
-                        </div>
-                        <div
-                            class="text-muted-foreground flex justify-between text-[10px]"
-                        >
-                            <span>Payment Mode:</span>
-                            <span class="font-bold uppercase">{{
-                                activePaymentReceipt?.payment_method
-                            }}</span>
-                        </div>
-                    </div>
-
-                    <div class="space-y-1 border-b pb-2 text-[11px]">
-                        <div class="flex justify-between font-bold">
-                            <span>Remaining Khata Balance:</span>
-                            <span>{{
-                                formatCurrency(
-                                    activePaymentReceipt?.customer
-                                        ?.current_balance || 0,
-                                )
-                            }}</span>
-                        </div>
-                    </div>
-
-                    <div class="pt-1 text-center text-[9px]">
-                        *** JazakAllah / Thank You For Your Payment ***
-                    </div>
+                                    {{ item.type === 'payment' ? '-' : '+'
+                                    }}{{ money(item.amount) }}
+                                </td>
+                                <td class="p-2.5 text-right font-bold">
+                                    {{ money(item.balance_after) }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <DialogFooter class="no-print flex justify-between pt-2">
+                <DialogFooter class="pt-2">
                     <Button
                         type="button"
                         variant="outline"
-                        @click="isPaymentReceiptModalOpen = false"
-                        >Close</Button
+                        size="sm"
+                        @click="isHistoryModalOpen = false"
+                        class="text-xs"
                     >
-                    <Button
-                        type="button"
-                        @click="printReceipt"
-                        class="gap-1 bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
-                    >
-                        <Printer class="h-4 w-4" /> Print Wasooli Receipt
+                        Close
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     </div>
 </template>
-
-<style>
-@media print {
-    body * {
-        visibility: hidden;
-    }
-    #wasooli-receipt-slip,
-    #wasooli-receipt-slip * {
-        visibility: visible;
-    }
-    #wasooli-receipt-slip {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 80mm;
-    }
-    .no-print {
-        display: none !important;
-    }
-}
-</style>

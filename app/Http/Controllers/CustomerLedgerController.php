@@ -19,7 +19,7 @@ class CustomerLedgerController extends Controller
         $balanceFilter = $request->input('balance_filter', 'all');
 
         $query = Customer::query()->with(['ledgers' => function ($q) {
-            $q->latest()->limit(20);
+            $q->latest()->limit(30);
         }]);
 
         if ($search !== '') {
@@ -38,13 +38,7 @@ class CustomerLedgerController extends Controller
             $query->where('current_balance', 0);
         }
 
-        $customers = $query->latest()->paginate(15)->withQueryString();
-
-        $shopInfo = [
-            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Faizan Mobile & POS',
-            'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
-            'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
-        ];
+        $customers = $query->orderBy('name', 'asc')->paginate(15)->withQueryString();
 
         $summary = [
             'total_customers' => Customer::count(),
@@ -54,13 +48,11 @@ class CustomerLedgerController extends Controller
 
         return Inertia::render('Customers/Index', [
             'customers' => $customers,
-            'shopInfo' => $shopInfo,
             'filters' => [
                 'search' => $search,
                 'balance_filter' => $balanceFilter,
             ],
             'summary' => $summary,
-            'latestPayment' => session('latest_payment'),
         ]);
     }
 
@@ -68,7 +60,7 @@ class CustomerLedgerController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:255', 'unique:customers,phone'],
+            'phone' => ['required', 'string', 'max:50', 'unique:customers,phone'],
             'address' => ['nullable', 'string', 'max:500'],
             'initial_balance' => ['nullable', 'numeric'],
         ]);
@@ -87,28 +79,28 @@ class CustomerLedgerController extends Controller
                 CustomerLedger::create([
                     'customer_id' => $customer->id,
                     'type' => 'adjustment',
-                    'amount' => $initialBalance,
+                    'amount' => abs($initialBalance),
                     'balance_after' => $initialBalance,
-                    'reference_id' => 'INIT-BAL',
-                    'notes' => 'Opening / Previous Khata Balance',
+                    'reference_id' => 'OPENING-BAL',
+                    'notes' => $initialBalance > 0 ? 'Opening Balance (Udhaar)' : 'Opening Balance (Advance)',
                 ]);
             }
         });
 
-        return redirect()->back()->with('success', 'Customer added to Khata directory.');
+        return redirect()->back()->with('success', 'Customer added successfully.');
     }
 
     public function update(Request $request, string $currentTeam, Customer $customer): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:255', 'unique:customers,phone,'.$customer->id],
+            'phone' => ['required', 'string', 'max:50', 'unique:customers,phone,'.$customer->id],
             'address' => ['nullable', 'string', 'max:500'],
         ]);
 
         $customer->update($validated);
 
-        return redirect()->back()->with('success', 'Customer details updated.');
+        return redirect()->back()->with('success', 'Customer updated.');
     }
 
     public function recordPayment(Request $request, string $currentTeam, Customer $customer): RedirectResponse
@@ -119,7 +111,7 @@ class CustomerLedgerController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $payment = DB::transaction(function () use ($customer, $validated) {
+        DB::transaction(function () use ($customer, $validated) {
             $paidAmount = (float) $validated['amount'];
             $newBalance = round((float) $customer->current_balance - $paidAmount, 2);
 
@@ -129,26 +121,17 @@ class CustomerLedgerController extends Controller
 
             $refNo = 'RCPT-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
 
-            $ledger = CustomerLedger::create([
+            CustomerLedger::create([
                 'customer_id' => $customer->id,
                 'type' => 'payment',
                 'amount' => $paidAmount,
                 'balance_after' => $newBalance,
                 'reference_id' => $refNo,
-                'notes' => $validated['notes'] ?? "Wasooli Payment Received via {$validated['payment_method']}",
+                'notes' => $validated['notes'] ?? 'Payment Received ('.ucfirst($validated['payment_method']).')',
             ]);
-
-            return [
-                'ledger' => $ledger,
-                'customer' => $customer,
-                'paid_amount' => $paidAmount,
-                'payment_method' => $validated['payment_method'],
-                'ref_no' => $refNo,
-                'date' => now()->toDateTimeString(),
-            ];
         });
 
-        return redirect()->back()->with('latest_payment', $payment);
+        return redirect()->back()->with('success', 'Payment recorded successfully.');
     }
 
     public function destroy(Request $request, string $currentTeam, Customer $customer): RedirectResponse

@@ -34,8 +34,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useConfirm } from '@/composables/useConfirm';
 import usedPhones from '@/routes/used-phones';
 import type { Team } from '@/types';
+
+const { confirm } = useConfirm();
 
 interface UsedPurchaseItem {
     id: number;
@@ -181,8 +184,15 @@ watch(
     { immediate: true },
 );
 
-const deletePurchase = (purchase: UsedPurchaseItem) => {
-    if (confirm(`Delete purchase voucher "${purchase.voucher_no}"?`)) {
+const deletePurchase = async (purchase: UsedPurchaseItem) => {
+    const ok = await confirm({
+        title: 'Delete Purchase Voucher',
+        message: `Are you sure you want to delete purchase voucher "${purchase.voucher_no}"?`,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+    });
+    if (ok) {
         router.delete(
             usedPhones.destroy([currentTeamSlug.value, purchase.id]).url,
         );
