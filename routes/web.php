@@ -81,6 +81,15 @@ Route::prefix('{current_team}')
         // Analytics & Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
 
+        // Module Pages (placeholders)
+        Route::inertia('all-payments', 'Payments/Index')->name('all-payments.index');
+        Route::inertia('yearly-dues', 'YearlyDues/Index')->name('yearly-dues.index');
+        Route::inertia('expenses', 'Expenses/Index')->name('expenses.index');
+        Route::inertia('categories', 'Categories/Index')->name('categories.index');
+        Route::inertia('stock-transfers', 'StockTransfers/Index')->name('stock-transfers.index');
+        Route::inertia('stock-adjustments', 'StockAdjustments/Index')->name('stock-adjustments.index');
+        Route::inertia('discounts', 'Discounts/Index')->name('discounts.index');
+
         // Database Backup
         Route::get('backup/download', [BackupController::class, 'download'])->name('backup.download');
     });

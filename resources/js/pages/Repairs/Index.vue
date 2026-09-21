@@ -39,8 +39,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useConfirm } from '@/composables/useConfirm';
 import repairs from '@/routes/repairs';
 import type { Team } from '@/types';
+
+const { confirm } = useConfirm();
 
 interface RepairTicketItem {
     id: number;
@@ -254,8 +257,15 @@ watch(
     { immediate: true },
 );
 
-const deleteTicket = (ticket: RepairTicketItem) => {
-    if (confirm(`Delete repair ticket "${ticket.ticket_no}"?`)) {
+const deleteTicket = async (ticket: RepairTicketItem) => {
+    const ok = await confirm({
+        title: 'Delete Repair Ticket',
+        message: `Are you sure you want to delete repair ticket "${ticket.ticket_no}"?`,
+        confirmText: 'Yes, Delete',
+        cancelText: 'Cancel',
+        variant: 'destructive',
+    });
+    if (ok) {
         router.delete(repairs.destroy([currentTeamSlug.value, ticket.id]).url);
     }
 };
