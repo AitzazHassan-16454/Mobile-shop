@@ -166,8 +166,8 @@ function onPointerLeave() {
                         x2="0"
                         y2="1"
                     >
-                        <stop offset="0%" stop-color="rgba(139,92,246,0.32)" />
-                        <stop offset="100%" stop-color="rgba(139,92,246,0)" />
+                        <stop offset="0%" stop-color="rgba(0,59,125,0.32)" />
+                        <stop offset="100%" stop-color="rgba(0,59,125,0)" />
                     </linearGradient>
                 </defs>
 
@@ -241,7 +241,7 @@ function onPointerLeave() {
             </svg>
 
             <div
-                class="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-[0_10px_30px_rgba(2,43,90,0.15)] backdrop-blur"
+                class="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-2xl border border-white/90 bg-white/85 px-4 py-3 shadow-[0_16px_40px_rgba(0,35,90,0.16),inset_0_1px_1.5px_rgba(255,255,255,0.95)] backdrop-blur-2xl"
                 :style="tooltipStyle"
             >
                 <p

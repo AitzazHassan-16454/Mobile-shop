@@ -120,7 +120,7 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                         name="name"
                         data-test="team-name-input"
                         :default-value="team.name"
-                        class="border-gray-200 bg-gray-50 text-gray-900 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
+                        class="border-gray-200 bg-gray-50 text-gray-900 focus-visible:border-[#003B7D]/60 focus-visible:ring-[#003B7D]/20"
                         required
                     />
                     <InputError :message="errors.name" />

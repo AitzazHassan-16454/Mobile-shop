@@ -26,7 +26,7 @@ defineProps<{
 
     <div
         v-if="status"
-        class="mb-4 rounded-xl border border-[#003b7d]/20 bg-[#003b7d]/5 px-4 py-3 text-center text-sm font-medium text-[#003b7d]"
+        class="mb-4 rounded-xl border border-[#003B7D]/20 bg-[#003B7D]/5 px-4 py-3 text-center text-sm font-medium text-[#003B7D]"
     >
         {{ status }}
     </div>
@@ -44,14 +44,14 @@ defineProps<{
                     autocomplete="off"
                     autofocus
                     placeholder="email@example.com"
-                    class="h-12 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
+                    class="h-12 border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
                 />
                 <InputError :message="errors.email" />
             </div>
 
             <div class="my-6 flex items-center justify-start">
                 <Button
-                    class="w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
+                    class="w-full rounded-md border-2 border-transparent bg-[#003B7D] px-3 py-1.5 text-sm font-bold text-white transition-colors duration-150 hover:bg-[#002b5c] disabled:opacity-70 lg:text-base"
                     :disabled="processing"
                     data-test="email-password-reset-link-button"
                 >

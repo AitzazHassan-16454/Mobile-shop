@@ -282,9 +282,9 @@ const getStatusBadgeClass = (status: string) => {
         case 'waiting_parts':
             return 'bg-purple-500/10 text-purple-300 border border-purple-500/25';
         case 'ready':
-            return 'bg-violet-50 text-violet-600 border border-violet-200';
+            return 'bg-[#003B7D]/5 text-[#003B7D] border border-[#003B7D]/20';
         case 'delivered':
-            return 'bg-[#003b7d] text-white font-semibold';
+            return 'bg-[#003B7D] text-white font-semibold';
         case 'cancelled':
             return 'bg-rose-50 text-rose-600 border border-rose-200';
         default:
@@ -299,13 +299,13 @@ const getStatusBadgeClass = (status: string) => {
     <div class="flex h-full flex-1 flex-col gap-6 p-6">
         <!-- Top Header Banner -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
         >
             <div>
                 <h1
                     class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900"
                 >
-                    <Wrench class="h-7 w-7 text-violet-600" />
+                    <Wrench class="h-7 w-7 text-[#003B7D]" />
                     Mobile Repairing Lab & Service Ticketing
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
@@ -316,7 +316,7 @@ const getStatusBadgeClass = (status: string) => {
             <div>
                 <Button
                     @click="openCreateModal"
-                    class="gap-2 bg-[#003b7d] font-bold text-white shadow-sm hover:bg-[#0f4c81]"
+                    class="gap-2 bg-[#003B7D] font-bold text-white shadow-sm hover:bg-[#002b5c]"
                 >
                     <Plus class="h-4 w-4" /> + New Repair Ticket
                 </Button>
@@ -326,11 +326,11 @@ const getStatusBadgeClass = (status: string) => {
         <!-- Summary Stats Grid -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Active Tickets</span>
-                    <Wrench class="h-5 w-5 text-violet-600" />
+                    <Wrench class="h-5 w-5 text-[#003B7D]" />
                 </div>
                 <div class="tnum mt-2 text-2xl font-bold text-gray-900">
                     {{ summary.total_active }}
@@ -339,7 +339,7 @@ const getStatusBadgeClass = (status: string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Tokens Generated</span>
@@ -352,7 +352,7 @@ const getStatusBadgeClass = (status: string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">In Progress / Parts</span>
@@ -367,26 +367,26 @@ const getStatusBadgeClass = (status: string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Ready for Delivery</span>
-                    <CheckCircle class="h-5 w-5 text-violet-600" />
+                    <CheckCircle class="h-5 w-5 text-[#003B7D]" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-violet-600">
+                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
                     {{ summary.ready_count }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">Repair completed</div>
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Lab Revenue</span>
-                    <DollarSign class="h-5 w-5 text-violet-600" />
+                    <DollarSign class="h-5 w-5 text-[#003B7D]" />
                 </div>
-                <div class="tnum mt-2 text-xl font-bold text-violet-600">
+                <div class="tnum mt-2 text-xl font-bold text-[#003B7D]">
                     {{ formatCurrency(summary.delivered_revenue) }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">Delivered tickets</div>
@@ -395,7 +395,7 @@ const getStatusBadgeClass = (status: string) => {
 
         <!-- Filter & Search Bar -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
+            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
         >
             <div class="relative flex-1">
                 <Search
@@ -425,7 +425,7 @@ const getStatusBadgeClass = (status: string) => {
                     :class="[
                         'rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap capitalize transition-colors',
                         selectedStatusTab === st
-                            ? 'bg-[#003b7d] font-semibold text-white shadow-sm'
+                            ? 'bg-[#003B7D] font-semibold text-white shadow-sm'
                             : 'bg-muted hover:bg-muted/80 text-muted-foreground',
                     ]"
                 >
@@ -468,7 +468,7 @@ const getStatusBadgeClass = (status: string) => {
                         >
                             <td class="px-4 py-3">
                                 <div
-                                    class="tnum font-mono text-sm font-bold text-violet-600"
+                                    class="tnum font-mono text-sm font-bold text-[#003B7D]"
                                 >
                                     {{ ticket.ticket_no }}
                                 </div>
@@ -534,7 +534,7 @@ const getStatusBadgeClass = (status: string) => {
                                     {{ formatCurrency(ticket.advance_paid) }}
                                 </div>
                                 <div
-                                    class="tnum text-[11px] font-semibold text-violet-600"
+                                    class="tnum text-[11px] font-semibold text-[#003B7D]"
                                 >
                                     Due:
                                     {{
@@ -590,7 +590,7 @@ const getStatusBadgeClass = (status: string) => {
                                         variant="outline"
                                         @click="openSlipModal(ticket)"
                                         title="Print Claim Token Slip"
-                                        class="h-8 gap-1 border-violet-200 text-violet-600 hover:border-violet-400/50 hover:bg-violet-50"
+                                        class="h-8 gap-1 border-[#003B7D]/20 text-[#003B7D] hover:border-[#003B7D]/40 hover:bg-[#003B7D]/5"
                                     >
                                         <Printer class="h-3.5 w-3.5" /> Token
                                     </Button>
@@ -661,7 +661,7 @@ const getStatusBadgeClass = (status: string) => {
             <DialogContent class="max-w-xl">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
-                        <Wrench class="h-5 w-5 text-violet-600" />
+                        <Wrench class="h-5 w-5 text-[#003B7D]" />
                         Create Repair Job Sheet & Token
                     </DialogTitle>
                     <DialogDescription>
@@ -750,7 +750,7 @@ const getStatusBadgeClass = (status: string) => {
                             v-model="ticketForm.problem_description"
                             rows="3"
                             placeholder="e.g. Screen flickering, battery draining fast, charging port loose..."
-                            class="w-full rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-900 placeholder:text-slate-500 focus:ring-2 focus:ring-violet-200 focus:outline-none"
+                            class="w-full rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-900 placeholder:text-slate-500 focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none"
                         ></textarea>
                         <span
                             v-if="ticketForm.errors.problem_description"
@@ -813,7 +813,7 @@ const getStatusBadgeClass = (status: string) => {
                         <Button
                             type="submit"
                             :disabled="ticketForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             {{
                                 ticketForm.processing
@@ -888,7 +888,7 @@ const getStatusBadgeClass = (status: string) => {
                         <Button
                             type="submit"
                             :disabled="sparePartForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             Deduct Stock & Add Cost
                         </Button>
@@ -1042,7 +1042,7 @@ const getStatusBadgeClass = (status: string) => {
                     <Button
                         type="button"
                         @click="printSlip"
-                        class="gap-1 bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                        class="gap-1 bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                     >
                         <Printer class="h-4 w-4" /> Print Token
                     </Button>

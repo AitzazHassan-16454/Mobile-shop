@@ -487,13 +487,13 @@ const serializedProductsList = computed(() =>
     <div class="flex h-full flex-1 flex-col gap-6 p-6">
         <!-- Top Banner Header -->
         <div
-            class="bg-card/60 flex flex-col gap-4 rounded-2xl border border-gray-200 p-5 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+            class="bg-card/60 flex flex-col gap-4 rounded-2xl border border-gray-200 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
         >
             <div>
                 <h1
                     class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900"
                 >
-                    <Boxes class="h-7 w-7 text-violet-600" />
+                    <Boxes class="h-7 w-7 text-[#003B7D]" />
                     Product & IMEI Inventory Catalog
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
@@ -504,7 +504,7 @@ const serializedProductsList = computed(() =>
             <div class="flex flex-wrap gap-2">
                 <Button
                     @click="openCreateProductModal(true)"
-                    class="gap-2 bg-[#003b7d] font-bold text-white shadow-sm hover:bg-[#0f4c81]"
+                    class="gap-2 bg-[#003B7D] font-bold text-white shadow-sm hover:bg-[#002b5c]"
                 >
                     <Smartphone class="h-4 w-4" />
                     + Add Handset
@@ -512,9 +512,9 @@ const serializedProductsList = computed(() =>
                 <Button
                     @click="openCreateProductModal(false)"
                     variant="outline"
-                    class="gap-2 border-violet-200 bg-violet-50 text-violet-600 hover:border-violet-400/50 hover:bg-violet-50"
+                    class="gap-2 border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] hover:border-[#003B7D]/40 hover:bg-[#003B7D]/5"
                 >
-                    <Tag class="h-4 w-4 text-violet-600" />
+                    <Tag class="h-4 w-4 text-[#003B7D]" />
                     + Add Accessory / Part
                 </Button>
                 <Button
@@ -522,7 +522,7 @@ const serializedProductsList = computed(() =>
                     variant="secondary"
                     class="gap-2 bg-gray-50 font-bold text-gray-900 hover:bg-gray-100"
                 >
-                    <Layers class="h-4 w-4 text-violet-600" />
+                    <Layers class="h-4 w-4 text-[#003B7D]" />
                     Bulk Add IMEIs
                 </Button>
             </div>
@@ -531,14 +531,14 @@ const serializedProductsList = computed(() =>
         <!-- Summary Stats Grid -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div
-                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Total Catalog Items</span
                     >
-                    <Boxes class="h-5 w-5 text-violet-600" />
+                    <Boxes class="h-5 w-5 text-[#003B7D]" />
                 </div>
                 <div class="tnum mt-2 text-2xl font-bold text-gray-900">
                     {{ summary.total_products }}
@@ -550,16 +550,16 @@ const serializedProductsList = computed(() =>
             </div>
 
             <div
-                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >In-Stock Handsets (IMEIs)</span
                     >
-                    <Smartphone class="h-5 w-5 text-violet-600" />
+                    <Smartphone class="h-5 w-5 text-[#003B7D]" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-violet-600">
+                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
                     {{ summary.in_stock_imeis_count }} Units
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
@@ -568,7 +568,7 @@ const serializedProductsList = computed(() =>
             </div>
 
             <div
-                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
@@ -586,16 +586,16 @@ const serializedProductsList = computed(() =>
             </div>
 
             <div
-                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="bg-card/60 rounded-2xl border border-gray-200 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Total Inventory Valuation</span
                     >
-                    <span class="text-xs font-bold text-violet-600">COGS</span>
+                    <span class="text-xs font-bold text-[#003B7D]">COGS</span>
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-violet-600">
+                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
                     {{ formatCurrency(summary.total_stock_value) }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
@@ -606,7 +606,7 @@ const serializedProductsList = computed(() =>
 
         <!-- Filter & Search Section -->
         <div
-            class="bg-card/60 flex flex-col gap-4 rounded-2xl border border-gray-200 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
+            class="bg-card/60 flex flex-col gap-4 rounded-2xl border border-gray-200 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
         >
             <div class="relative flex-1">
                 <Search
@@ -716,7 +716,7 @@ const serializedProductsList = computed(() =>
                                 </div>
                                 <div class="text-muted-foreground text-xs">
                                     <span
-                                        class="font-semibold text-violet-600"
+                                        class="font-semibold text-[#003B7D]"
                                         >{{ product.brand }}</span
                                     >
                                     &bull; {{ product.category }}
@@ -726,7 +726,7 @@ const serializedProductsList = computed(() =>
                             <td class="px-4 py-3">
                                 <span
                                     v-if="product.is_serialized"
-                                    class="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-600"
+                                    class="inline-flex items-center gap-1 rounded-full border border-[#003B7D]/20 bg-[#003B7D]/5 px-2.5 py-0.5 text-xs font-semibold text-[#003B7D]"
                                 >
                                     <Smartphone class="h-3.5 w-3.5" />
                                     Handset (IMEI)
@@ -745,7 +745,7 @@ const serializedProductsList = computed(() =>
                                     v-if="product.is_serialized"
                                     class="flex flex-col gap-0.5"
                                 >
-                                    <span class="font-semibold text-violet-600">
+                                    <span class="font-semibold text-[#003B7D]">
                                         {{ product.in_stock_imeis_count || 0 }}
                                         IMEIs In Stock
                                     </span>
@@ -796,7 +796,7 @@ const serializedProductsList = computed(() =>
                                                         0) <=
                                                     product.alert_quantity
                                                   ? 'border-amber-200 bg-amber-50 text-amber-600'
-                                                  : 'border-violet-200 bg-violet-50 text-violet-600',
+                                                  : 'border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]',
                                         ]"
                                     >
                                         {{ product.in_stock_imeis_count || 0 }}
@@ -812,7 +812,7 @@ const serializedProductsList = computed(() =>
                                                 : product.stock_quantity <=
                                                     product.alert_quantity
                                                   ? 'border-amber-200 bg-amber-50 text-amber-600'
-                                                  : 'border-violet-200 bg-violet-50 text-violet-600',
+                                                  : 'border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]',
                                         ]"
                                     >
                                         {{ product.stock_quantity }} Units
@@ -830,7 +830,7 @@ const serializedProductsList = computed(() =>
                                         variant="outline"
                                         @click="openImeiManageModal(product)"
                                         title="View IMEIs"
-                                        class="h-8 gap-1 border-violet-200 bg-violet-50 text-violet-600 hover:border-violet-400/50 hover:bg-violet-100"
+                                        class="h-8 gap-1 border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] hover:border-[#003B7D]/40 hover:bg-[#003B7D]/10"
                                     >
                                         <Smartphone class="h-3.5 w-3.5" />
                                         IMEIs ({{
@@ -936,11 +936,11 @@ const serializedProductsList = computed(() =>
                             :class="[
                                 'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-3 transition-all',
                                 productForm.is_serialized
-                                    ? 'border-violet-500 bg-violet-50 text-violet-600 shadow-[0_0_20px_rgba(139,92,246,0.15)]'
-                                    : 'border-gray-200 hover:border-violet-500/50',
+                                    ? 'border-[#003B7D] bg-[#003B7D]/5 text-[#003B7D] shadow-[0_0_20px_rgba(0,59,125,0.15)]'
+                                    : 'border-gray-200 hover:border-[#003B7D]/50',
                             ]"
                         >
-                            <Smartphone class="mb-1 h-6 w-6 text-violet-600" />
+                            <Smartphone class="mb-1 h-6 w-6 text-[#003B7D]" />
                             <span class="text-xs font-semibold"
                                 >Mobile Handset</span
                             >
@@ -954,11 +954,11 @@ const serializedProductsList = computed(() =>
                             :class="[
                                 'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 p-3 transition-all',
                                 !productForm.is_serialized
-                                    ? 'border-violet-500 bg-violet-50 text-violet-600 shadow-[0_0_20px_rgba(139,92,246,0.15)]'
-                                    : 'border-gray-200 hover:border-violet-500/50',
+                                    ? 'border-[#003B7D] bg-[#003B7D]/5 text-[#003B7D] shadow-[0_0_20px_rgba(0,59,125,0.15)]'
+                                    : 'border-gray-200 hover:border-[#003B7D]/50',
                             ]"
                         >
-                            <Tag class="mb-1 h-6 w-6 text-violet-600" />
+                            <Tag class="mb-1 h-6 w-6 text-[#003B7D]" />
                             <span class="text-xs font-semibold"
                                 >Accessory / Spare Part</span
                             >
@@ -1123,10 +1123,10 @@ const serializedProductsList = computed(() =>
                         v-if="!editingProduct && productForm.is_serialized"
                     >
                         <div
-                            class="mt-3 space-y-3 rounded-lg border border-violet-200 bg-violet-500/[0.04] p-3"
+                            class="mt-3 space-y-3 rounded-lg border border-[#003B7D]/20 bg-[#003B7D]/5 p-3"
                         >
                             <div
-                                class="flex items-center gap-1.5 text-xs font-semibold text-violet-600"
+                                class="flex items-center gap-1.5 text-xs font-semibold text-[#003B7D]"
                             >
                                 <Smartphone class="h-4 w-4" />
                                 Add First Handset Unit (Optional Initial IMEI)
@@ -1239,7 +1239,7 @@ const serializedProductsList = computed(() =>
                         <Button
                             type="submit"
                             :disabled="productForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             {{
                                 productForm.processing
@@ -1260,14 +1260,14 @@ const serializedProductsList = computed(() =>
                 <DialogHeader>
                     <DialogTitle class="flex items-center justify-between">
                         <span class="flex items-center gap-2">
-                            <Smartphone class="h-5 w-5 text-violet-600" />
+                            <Smartphone class="h-5 w-5 text-[#003B7D]" />
                             IMEI Management &bull; {{ activeImeiProduct?.name }}
                         </span>
                         <div class="mr-6 flex gap-2">
                             <Button
                                 size="sm"
                                 @click="openAddSingleImeiModal()"
-                                class="h-8 gap-1 bg-[#003b7d] text-xs text-white shadow-sm hover:bg-[#0f4c81]"
+                                class="h-8 gap-1 bg-[#003B7D] text-xs text-white shadow-sm hover:bg-[#002b5c]"
                             >
                                 <Plus class="h-3.5 w-3.5" /> Single IMEI
                             </Button>
@@ -1357,7 +1357,7 @@ const serializedProductsList = computed(() =>
                                         <span
                                             :class="
                                                 imeiItem.condition === 'new'
-                                                    ? 'font-semibold text-violet-600'
+                                                    ? 'font-semibold text-[#003B7D]'
                                                     : 'text-amber-600'
                                             "
                                         >
@@ -1392,7 +1392,7 @@ const serializedProductsList = computed(() =>
                                             :class="[
                                                 'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase',
                                                 imeiItem.status === 'in_stock'
-                                                    ? 'border-violet-200 bg-violet-50 text-violet-600'
+                                                    ? 'border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
                                                     : imeiItem.status === 'sold'
                                                       ? 'border-sky-400/25 bg-sky-400/10 text-sky-600'
                                                       : 'border-amber-200 bg-amber-50 text-amber-600',
@@ -1594,7 +1594,7 @@ const serializedProductsList = computed(() =>
                         <Button
                             type="submit"
                             :disabled="singleImeiForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             {{
                                 singleImeiForm.processing
@@ -1741,7 +1741,7 @@ const serializedProductsList = computed(() =>
                         <Button
                             type="submit"
                             :disabled="editImeiForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             Save Changes
                         </Button>
@@ -1755,7 +1755,7 @@ const serializedProductsList = computed(() =>
             <DialogContent class="max-h-[85vh] max-w-2xl overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
-                        <Layers class="h-5 w-5 text-violet-600" />
+                        <Layers class="h-5 w-5 text-[#003B7D]" />
                         Bulk IMEI Inward Entry
                     </DialogTitle>
                     <DialogDescription>
@@ -1887,7 +1887,7 @@ const serializedProductsList = computed(() =>
                                 :class="[
                                     'rounded px-2.5 py-1 text-xs font-medium transition-colors',
                                     bulkImeiMode === 'textarea'
-                                        ? 'bg-violet-100 text-violet-600 shadow-sm'
+                                        ? 'bg-[#003B7D]/10 text-[#003B7D] shadow-sm'
                                         : 'text-muted-foreground',
                                 ]"
                             >
@@ -1899,7 +1899,7 @@ const serializedProductsList = computed(() =>
                                 :class="[
                                     'rounded px-2.5 py-1 text-xs font-medium transition-colors',
                                     bulkImeiMode === 'rows'
-                                        ? 'bg-violet-100 text-violet-600 shadow-sm'
+                                        ? 'bg-[#003B7D]/10 text-[#003B7D] shadow-sm'
                                         : 'text-muted-foreground',
                                 ]"
                             >
@@ -1922,7 +1922,7 @@ const serializedProductsList = computed(() =>
 358901234567890
 358901234567891, 358901234567892
 358901234567893"
-                            class="w-full rounded-md border border-gray-200 bg-transparent p-3 font-mono text-xs focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                            class="w-full rounded-md border border-gray-200 bg-transparent p-3 font-mono text-xs focus:ring-2 focus:ring-[#003B7D] focus:outline-none"
                         ></textarea>
                         <p class="text-muted-foreground text-[11px]">
                             You can directly scan barcodes line-by-line or paste
@@ -1990,7 +1990,7 @@ const serializedProductsList = computed(() =>
                         <Button
                             type="submit"
                             :disabled="bulkImeiForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             {{
                                 bulkImeiForm.processing

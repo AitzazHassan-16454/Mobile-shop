@@ -53,7 +53,7 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                         :class="[
                             'w-full justify-start',
                             {
-                                'bg-[#003b7d]/10 text-[#003b7d]':
+                                'bg-[#003B7D]/10 text-[#003B7D]':
                                     isCurrentOrParentUrl(item.href),
                             },
                         ]"

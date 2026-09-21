@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle,
+    ArrowLeft,
+    Barcode,
     Check,
     CheckCircle,
     CreditCard,
     DollarSign,
+    History,
     Layers,
+    Maximize2,
+    Minimize2,
+    Minus,
+    Pause,
+    Play,
     Plus,
     Printer,
     QrCode,
@@ -15,13 +23,18 @@ import {
     Search,
     ShoppingCart,
     Smartphone,
+    Store,
     Tag,
     Trash2,
+    User,
     UserCheck,
     UserPlus,
     Wallet,
+    X,
+    Zap,
 } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +54,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Toaster } from '@/components/ui/sonner';
+import { dashboard } from '@/routes';
 import pos from '@/routes/pos';
 import type { Team } from '@/types';
 
@@ -133,6 +148,16 @@ interface CompletedSale {
     items: CompletedSaleItem[];
 }
 
+interface HeldSale {
+    id: string;
+    customer_id: string;
+    customer_name: string;
+    cart: CartItem[];
+    discount: number | string;
+    total: number;
+    held_at: string;
+}
+
 const props = defineProps<{
     products: ProductItem[];
     customers: CustomerItem[];
@@ -144,6 +169,39 @@ const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
 );
+const dashboardUrl = computed(() => dashboard(currentTeamSlug.value).url);
+const currentShopName = computed(
+    () =>
+        props.shopInfo?.name ||
+        (page.props.currentTeam as Team | undefined)?.name ||
+        'Faizan Mobiles & Reparing Mobile',
+);
+
+const isFullscreen = ref(false);
+
+const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+        document.documentElement
+            .requestFullscreen()
+            .then(() => {
+                isFullscreen.value = true;
+            })
+            .catch(() => {});
+    } else {
+        if (document.exitFullscreen) {
+            document
+                .exitFullscreen()
+                .then(() => {
+                    isFullscreen.value = false;
+                })
+                .catch(() => {});
+        }
+    }
+};
+
+const handleFullscreenChange = () => {
+    isFullscreen.value = !!document.fullscreenElement;
+};
 
 // POS Cart State
 const cart = ref<CartItem[]>([]);
@@ -158,11 +216,17 @@ const activeCategoryTab = ref('all');
 const isPaymentModalOpen = ref(false);
 const isCustomerModalOpen = ref(false);
 const isReceiptModalOpen = ref(false);
+const isHeldSalesModalOpen = ref(false);
+const isMethodSelectionPromptOpen = ref(false);
 const activeReceipt = ref<CompletedSale | null>(props.latestSale || null);
 
 // Payment Tender state
-const paymentMethod = ref<string>('cash');
+const paymentMethod = ref<string>('');
+const paymentMethodError = ref(false);
 const paidInput = ref<number | string>('');
+
+// Held Sales list (Boson Studio Hold Cart Feature)
+const heldSales = ref<HeldSale[]>([]);
 
 // Split Payment Details
 const splitAmounts = ref({
@@ -179,6 +243,57 @@ const customerForm = useForm({
     phone: '',
     address: '',
 });
+
+const paymentMethodsList = [
+    {
+        id: 'cash',
+        label: 'Cash',
+        icon: DollarSign,
+        color: 'text-emerald-600',
+        activeBg:
+            'border-emerald-500 bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/30 shadow-xs',
+    },
+    {
+        id: 'jazzcash',
+        label: 'JazzCash',
+        icon: Smartphone,
+        color: 'text-red-600',
+        activeBg:
+            'border-red-500 bg-red-50/80 text-red-950 ring-1 ring-red-500/30 shadow-xs',
+    },
+    {
+        id: 'easypaisa',
+        label: 'Easypaisa',
+        icon: Wallet,
+        color: 'text-emerald-600',
+        activeBg:
+            'border-emerald-500 bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/30 shadow-xs',
+    },
+    {
+        id: 'bank',
+        label: 'Bank Transfer',
+        icon: CreditCard,
+        color: 'text-blue-600',
+        activeBg:
+            'border-blue-500 bg-blue-50/80 text-blue-950 ring-1 ring-blue-500/30 shadow-xs',
+    },
+    {
+        id: 'udhaar',
+        label: 'Udhaar (Khata)',
+        icon: UserCheck,
+        color: 'text-amber-600',
+        activeBg:
+            'border-amber-500 bg-amber-50/80 text-amber-950 ring-1 ring-amber-500/30 shadow-xs',
+    },
+    {
+        id: 'split',
+        label: 'Split Pay',
+        icon: Layers,
+        color: 'text-indigo-600',
+        activeBg:
+            'border-indigo-500 bg-indigo-50/80 text-indigo-950 ring-1 ring-indigo-500/30 shadow-xs',
+    },
+];
 
 const categories = computed(() => {
     const set = new Set<string>();
@@ -221,6 +336,10 @@ const selectedCustomer = computed(() => {
     );
 });
 
+const totalItemsCount = computed(() => {
+    return cart.value.reduce((acc, item) => acc + item.quantity, 0);
+});
+
 const subtotal = computed(() => {
     return cart.value.reduce(
         (acc, item) => acc + item.quantity * item.unit_price,
@@ -256,6 +375,8 @@ watch(
             cart.value = [];
             discountInput.value = 0;
             paidInput.value = '';
+            paymentMethod.value = '';
+            paymentMethodError.value = false;
             selectedCustomerId.value = 'walk_in';
         }
     },
@@ -274,7 +395,7 @@ const handleScanSubmit = () => {
                     (i.imei_2 && i.imei_2.toLowerCase() === q.toLowerCase()),
             );
             if (matchedImei) {
-                addImeiToCart(p, matchedImei);
+                addProductToCart(p, matchedImei);
                 searchScanQuery.value = '';
                 return;
             }
@@ -288,74 +409,115 @@ const handleScanSubmit = () => {
             p.barcode.toLowerCase() === q.toLowerCase(),
     );
     if (matchedBarcodeProduct) {
-        addAccessoryToCart(matchedBarcodeProduct);
+        addProductToCart(matchedBarcodeProduct);
         searchScanQuery.value = '';
         return;
     }
 
     const matches = filteredCatalogProducts.value;
-    if (matches.length === 1 && !matches[0].is_serialized) {
-        addAccessoryToCart(matches[0]);
+    if (matches.length === 1) {
+        addProductToCart(matches[0]);
         searchScanQuery.value = '';
     }
 };
 
-const addImeiToCart = (product: ProductItem, imei: ProductImeiItem) => {
-    const key = `imei-${imei.id}`;
-    if (cart.value.some((item) => item.key === key)) {
-        alert(`IMEI "${imei.imei_1}" is already in the cart.`);
-        return;
-    }
-
-    cart.value.push({
-        key,
-        product_id: product.id,
-        product_imei_id: imei.id,
-        name: product.name,
-        brand: product.brand,
-        is_serialized: true,
-        imei_1: imei.imei_1,
-        imei_2: imei.imei_2,
-        color: imei.color,
-        storage: imei.storage,
-        condition: imei.condition,
-        pta_status: imei.pta_status,
-        quantity: 1,
-        unit_price: Number(product.sale_price),
-    });
-};
-
-const addAccessoryToCart = (product: ProductItem) => {
-    const key = `prod-${product.id}`;
-    const existing = cart.value.find((item) => item.key === key);
-
-    if (existing) {
-        if (
-            product.stock_quantity > 0 &&
-            existing.quantity >= product.stock_quantity
-        ) {
-            alert(
-                `Cannot add more than available stock (${product.stock_quantity}).`,
+const addProductToCart = (
+    product: ProductItem,
+    specificImei?: ProductImeiItem,
+) => {
+    if (product.is_serialized) {
+        const availableImei =
+            specificImei ||
+            product.in_stock_imeis?.find(
+                (imei) =>
+                    !cart.value.some(
+                        (item) => item.product_imei_id === imei.id,
+                    ),
             );
+
+        if (!availableImei) {
+            toast.error(`"${product.name}" is out of stock.`);
             return;
         }
-        existing.quantity += 1;
-    } else {
-        if (product.stock_quantity <= 0) {
-            alert(`"${product.name}" is out of stock.`);
+
+        const key = `imei-${availableImei.id}`;
+        if (cart.value.some((item) => item.key === key)) {
+            toast.error(`This item is already in the cart.`);
             return;
         }
+
         cart.value.push({
             key,
             product_id: product.id,
+            product_imei_id: availableImei.id,
             name: product.name,
             brand: product.brand,
-            is_serialized: false,
+            is_serialized: true,
             quantity: 1,
             unit_price: Number(product.sale_price),
-            max_stock: product.stock_quantity,
         });
+        toast.success(`Added: ${product.name}`);
+    } else {
+        const key = `prod-${product.id}`;
+        const existing = cart.value.find((item) => item.key === key);
+
+        if (existing) {
+            if (
+                product.stock_quantity > 0 &&
+                existing.quantity >= product.stock_quantity
+            ) {
+                toast.error(
+                    `Cannot add more than available stock (${product.stock_quantity}).`,
+                );
+                return;
+            }
+            existing.quantity += 1;
+            toast.success(`Added: ${product.name}`);
+        } else {
+            if (product.stock_quantity <= 0) {
+                toast.error(`"${product.name}" is out of stock.`);
+                return;
+            }
+            cart.value.push({
+                key,
+                product_id: product.id,
+                name: product.name,
+                brand: product.brand,
+                is_serialized: false,
+                quantity: 1,
+                unit_price: Number(product.sale_price),
+                max_stock: product.stock_quantity,
+            });
+            toast.success(`Added: ${product.name}`);
+        }
     }
+};
+
+const incrementCartItem = (item: CartItem) => {
+    if (item.is_serialized) {
+        const prod = props.products.find((p) => p.id === item.product_id);
+        if (prod) {
+            addProductToCart(prod);
+        }
+        return;
+    }
+    if (item.max_stock && item.quantity >= item.max_stock) {
+        toast.error(`Cannot exceed available stock of ${item.max_stock}.`);
+        return;
+    }
+    item.quantity += 1;
+};
+
+const decrementCartItem = (item: CartItem, index: number) => {
+    if (item.quantity > 1) {
+        item.quantity -= 1;
+    } else {
+        removeCartItem(index);
+    }
+};
+
+const setDiscountPreset = (amount: number) => {
+    discountInput.value = amount;
 };
 
 const removeCartItem = (index: number) => {
@@ -370,12 +532,109 @@ const clearCart = () => {
         cart.value = [];
         discountInput.value = 0;
         paidInput.value = '';
+        paymentMethod.value = '';
+        paymentMethodError.value = false;
     }
 };
 
-const openPaymentModal = () => {
+// Boson Studio POS Feature: Hold & Recall Sales
+const holdCurrentSale = () => {
+    if (cart.value.length === 0) {
+        toast.error('Cart is empty, nothing to hold.');
+        return;
+    }
+    const customerName = selectedCustomer.value?.name || 'Walk-in Customer';
+    heldSales.value.push({
+        id: 'HOLD-' + (heldSales.value.length + 1),
+        customer_id: selectedCustomerId.value,
+        customer_name: customerName,
+        cart: JSON.parse(JSON.stringify(cart.value)),
+        discount: discountInput.value,
+        total: netPayable.value,
+        held_at: new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+        }),
+    });
+    cart.value = [];
+    discountInput.value = 0;
+    paymentMethod.value = '';
+    selectedCustomerId.value = 'walk_in';
+    toast.success(`Sale for "${customerName}" placed on hold.`);
+};
+
+const recallHeldSale = (index: number) => {
+    const item = heldSales.value[index];
+    if (!item) return;
+
+    if (cart.value.length > 0) {
+        if (!confirm('Replace current cart with this held sale?')) return;
+    }
+
+    cart.value = JSON.parse(JSON.stringify(item.cart));
+    discountInput.value = item.discount;
+    selectedCustomerId.value = item.customer_id;
+    paymentMethod.value = '';
+    paymentMethodError.value = false;
+    heldSales.value.splice(index, 1);
+    isHeldSalesModalOpen.value = false;
+    toast.success(`Recalled held sale for "${item.customer_name}".`);
+};
+
+const removeHeldSale = (index: number) => {
+    heldSales.value.splice(index, 1);
+    toast.info('Held sale removed.');
+};
+
+// Fast Cash 1-tap checkout (Common in retail mobile shops)
+const quickCashCheckout = () => {
     if (cart.value.length === 0) return;
     paymentMethod.value = 'cash';
+    paidInput.value = netPayable.value;
+    submitCheckout();
+};
+
+const handleProceedToPayment = () => {
+    if (cart.value.length === 0) return;
+
+    if (!paymentMethod.value) {
+        paymentMethodError.value = true;
+        isMethodSelectionPromptOpen.value = true;
+        toast.error('Bara-e-meherbani pehle Payment Method select karein!');
+        return;
+    }
+
+    if (
+        paymentMethod.value === 'udhaar' &&
+        selectedCustomerId.value === 'walk_in'
+    ) {
+        alert('Please select a customer for Udhaar (Khata) checkout.');
+        return;
+    }
+
+    paymentMethodError.value = false;
+    openPaymentModal();
+};
+
+const selectMethodAndProceed = (methodId: string) => {
+    paymentMethod.value = methodId;
+    paymentMethodError.value = false;
+    isMethodSelectionPromptOpen.value = false;
+    if (methodId === 'udhaar' && selectedCustomerId.value === 'walk_in') {
+        alert('Please select a customer for Udhaar (Khata) checkout.');
+        return;
+    }
+    openPaymentModal();
+};
+
+const openPaymentModal = (method?: string) => {
+    if (cart.value.length === 0) return;
+    if (method) {
+        paymentMethod.value = method;
+    } else if (!paymentMethod.value) {
+        handleProceedToPayment();
+        return;
+    }
     paidInput.value = netPayable.value;
     splitAmounts.value = {
         cash: netPayable.value,
@@ -413,8 +672,11 @@ const submitCheckout = () => {
                 : Number(selectedCustomerId.value),
         payment_method: paymentMethod.value,
         discount_amount: discountAmount.value,
-        paid_amount: Number(paidInput.value) || 0,
-        payment_details:
+        paid_amount:
+            paymentMethod.value === 'udhaar'
+                ? Number(paidInput.value) || 0
+                : Number(paidInput.value) || netPayable.value,
+        split_details:
             paymentMethod.value === 'split' ? splitAmounts.value : null,
         items: cart.value.map((item) => ({
             product_id: item.product_id,
@@ -437,6 +699,7 @@ const submitCustomerForm = () => {
         onSuccess: () => {
             customerForm.reset();
             isCustomerModalOpen.value = false;
+            toast.success('Customer registered successfully.');
         },
     });
 };
@@ -444,7 +707,11 @@ const submitCustomerForm = () => {
 const handleGlobalKeydown = (e: KeyboardEvent) => {
     if (e.key === 'F1') {
         e.preventDefault();
-        clearCart();
+        if (cart.value.length > 0) {
+            holdCurrentSale();
+        } else if (heldSales.value.length > 0) {
+            isHeldSalesModalOpen.value = true;
+        }
     } else if (e.key === 'F2') {
         e.preventDefault();
         searchInputRef.value?.focus();
@@ -459,18 +726,20 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
         if (isPaymentModalOpen.value) {
             submitCheckout();
         } else if (cart.value.length > 0) {
-            openPaymentModal();
+            handleProceedToPayment();
         }
     }
 };
 
 onMounted(() => {
     window.addEventListener('keydown', handleGlobalKeydown);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
     searchInputRef.value?.focus();
 });
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleGlobalKeydown);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
 });
 
 const formatCurrency = (val: number | string) => {
@@ -488,151 +757,263 @@ const printReceipt = () => {
 </script>
 
 <template>
-    <Head title="Faizan Mobile POS" />
+    <Head :title="`${currentShopName} - POS Terminal`" />
 
-    <div class="flex h-[calc(100vh-4rem)] flex-col overflow-hidden bg-gray-100">
+    <div
+        class="relative flex h-screen min-h-screen w-screen flex-col overflow-hidden bg-[#edf2f8] text-slate-800 antialiased select-none"
+    >
+        <!-- Atmospheric Radial Ambient Lights -->
+        <div
+            class="pointer-events-none absolute -top-32 left-1/4 h-80 w-[600px] rounded-full bg-blue-400/10 blur-3xl"
+        ></div>
+        <div
+            class="pointer-events-none absolute right-1/4 -bottom-32 h-80 w-[600px] rounded-full bg-sky-300/10 blur-3xl"
+        ></div>
+
+        <!-- POS Top Navigation Bar -->
         <header
-            class="bg-card flex h-14 shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2 shadow-sm"
+            class="z-30 flex h-14 shrink-0 items-center justify-between border-b border-white/15 bg-gradient-to-r from-[#002654] via-[#003B7D] to-[#004e9c] px-4 shadow-[0_4px_20px_rgba(0,35,80,0.2)] backdrop-blur-2xl"
         >
             <div class="flex items-center gap-3">
-                <div class="flex items-center gap-2">
-                    <span
-                        class="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-[#003b7d]"
-                    ></span>
-                    <span
-                        class="text-sm font-black tracking-tight text-gray-900"
-                        >Faizan Mobile POS</span
-                    >
-                    <span
-                        class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-600 ring-1 ring-violet-200 ring-inset"
-                        >T-01</span
-                    >
-                </div>
-
-                <div
-                    class="hidden items-center gap-2 text-[10px] text-slate-500 lg:flex"
+                <Link
+                    :href="dashboardUrl"
+                    class="group inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white shadow-2xs backdrop-blur-md transition hover:border-white/35 hover:bg-white/20 active:scale-95"
+                    title="Return to Main Dashboard"
                 >
-                    <span
-                        class="font-bold tracking-[0.16em] text-slate-500 uppercase"
-                        >Hotkeys</span
-                    >
-                    <span
-                        class="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono font-bold text-slate-600"
-                        >F1 New</span
-                    >
-                    <span
-                        class="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono font-bold text-slate-600"
-                        >F2 Scan</span
-                    >
-                    <span
-                        class="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono font-bold text-slate-600"
-                        >F3 Khata</span
-                    >
-                    <span
-                        class="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono font-bold text-slate-600"
-                        >F4 Disc</span
-                    >
-                    <span
-                        class="rounded bg-violet-100 px-1.5 py-0.5 font-mono font-bold text-violet-600 ring-1 ring-violet-200 ring-inset"
-                        >Ctrl+Enter</span
-                    >
-                </div>
+                    <ArrowLeft
+                        class="h-3.5 w-3.5 text-blue-200 transition-transform group-hover:-translate-x-0.5 group-hover:text-white"
+                    />
+                    <span>Dashboard</span>
+                </Link>
             </div>
 
-            <button
-                @click="clearCart"
-                class="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-600 transition hover:bg-rose-100"
-            >
-                <RotateCcw class="h-3.5 w-3.5" />
-                Clear Cart
-            </button>
+            <!-- Header Right: Fullscreen & Clear Cart -->
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    @click="toggleFullscreen"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs backdrop-blur-md transition hover:border-white/35 hover:bg-white/20 active:scale-95"
+                    :title="
+                        isFullscreen
+                            ? 'Exit Fullscreen'
+                            : 'Enter Fullscreen mode'
+                    "
+                >
+                    <Minimize2
+                        v-if="isFullscreen"
+                        class="h-3.5 w-3.5 text-blue-200"
+                    />
+                    <Maximize2 v-else class="h-3.5 w-3.5 text-blue-200" />
+                    <span>{{ isFullscreen ? 'Windowed' : 'Fullscreen' }}</span>
+                </button>
+
+                <button
+                    type="button"
+                    @click="clearCart"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/30 bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-100 shadow-2xs backdrop-blur-md transition hover:border-rose-400/50 hover:bg-rose-500/30 hover:text-white active:scale-95"
+                    title="Reset / Clear Cart"
+                >
+                    <RotateCcw class="h-3.5 w-3.5 text-rose-300" />
+                    <span>Clear Cart</span>
+                </button>
+            </div>
         </header>
 
-        <div class="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-12">
+        <!-- Main Workspace Body: Two Frosted Glass Decks -->
+        <div
+            class="relative z-10 grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-12"
+        >
+            <!-- LEFT DECK: Cart & Scanner Bar (col-span-7) -->
             <div
-                class="flex flex-col overflow-hidden border-r border-gray-200 bg-gray-50 lg:col-span-7"
+                class="flex flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_8px_32px_rgba(0,25,60,0.06)] backdrop-blur-2xl lg:col-span-7"
             >
-                <div class="space-y-3 border-b border-gray-200 bg-gray-50 p-3">
+                <!-- Scanner & Customer Khata Header -->
+                <div
+                    class="space-y-2.5 border-b border-slate-200/70 bg-white/60 p-3 backdrop-blur-md"
+                >
+                    <!-- Barcode/IMEI Scanner Input -->
                     <div class="relative">
-                        <Search
-                            class="absolute top-2.5 left-3 h-4 w-4 text-slate-500"
-                        />
+                        <div
+                            class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
+                        >
+                            <Barcode class="h-4 w-4 text-[#003B7D]" />
+                        </div>
                         <input
                             ref="searchInputRef"
                             v-model="searchScanQuery"
                             @keydown.enter.prevent="handleScanSubmit"
                             type="text"
-                            placeholder="Scan IMEI, accessory barcode or product name..."
-                            class="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pr-4 pl-9 text-xs font-medium text-gray-900 placeholder:text-slate-500 focus:border-violet-500/70 focus:ring-2 focus:ring-violet-200 focus:outline-none"
+                            placeholder="Scan IMEI, accessory barcode or search product name..."
+                            class="w-full rounded-2xl border border-slate-200/80 bg-white/90 py-2.5 pr-20 pl-9 text-xs font-semibold text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 focus:border-[#003B7D] focus:ring-3 focus:ring-[#003B7D]/15 focus:outline-none"
                         />
+                        <div
+                            class="absolute inset-y-0 right-0 flex items-center gap-1.5 pr-2.5"
+                        >
+                            <button
+                                v-if="searchScanQuery"
+                                type="button"
+                                @click="searchScanQuery = ''"
+                                class="rounded-lg p-0.5 text-slate-400 hover:text-slate-600"
+                            >
+                                <X class="h-3.5 w-3.5" />
+                            </button>
+                            <span
+                                class="rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-500"
+                            >
+                                F2
+                            </span>
+                        </div>
                     </div>
 
-                    <div class="flex items-center justify-between gap-2">
+                    <!-- Customer Selection & Add Customer Button -->
+                    <div class="flex items-center gap-2">
                         <div class="flex flex-1 items-center gap-2">
-                            <span class="eyebrow text-slate-500">Customer</span>
+                            <div
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-100 text-slate-600"
+                            >
+                                <User class="h-3.5 w-3.5" />
+                            </div>
                             <Select v-model="selectedCustomerId" class="flex-1">
                                 <SelectTrigger
-                                    class="h-9 border-gray-200 bg-gray-50 text-xs text-slate-600"
+                                    class="h-9 rounded-xl border-slate-200/80 bg-white/90 text-xs font-medium text-slate-700 shadow-2xs"
                                 >
                                     <SelectValue
-                                        placeholder="Walk-in customer"
+                                        placeholder="Walk-in Customer (Cash)"
                                     />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="walk_in"
-                                        >Walk-in Customer (Cash)</SelectItem
-                                    >
+                                <SelectContent
+                                    class="rounded-2xl border-white/80 bg-white/95 shadow-xl backdrop-blur-xl"
+                                >
+                                    <SelectItem value="walk_in">
+                                        <span class="font-bold"
+                                            >Walk-in Customer</span
+                                        >
+                                        (Standard Cash Sale)
+                                    </SelectItem>
                                     <SelectItem
                                         v-for="c in customers"
                                         :key="c.id"
                                         :value="String(c.id)"
                                     >
-                                        {{ c.name }} ({{ c.phone }})
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold">{{
+                                                c.name
+                                            }}</span>
+                                            <span
+                                                class="text-[10px] text-slate-400"
+                                                >({{ c.phone }})</span
+                                            >
+                                            <span
+                                                v-if="
+                                                    Number(c.current_balance) >
+                                                    0
+                                                "
+                                                class="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 ring-1 ring-amber-600/20"
+                                            >
+                                                Khata:
+                                                {{
+                                                    formatCurrency(
+                                                        c.current_balance,
+                                                    )
+                                                }}
+                                            </span>
+                                        </div>
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
+                        <!-- Add Customer Modal Trigger (F3) -->
                         <button
+                            type="button"
                             @click="isCustomerModalOpen = true"
-                            class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-gray-100"
+                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+                            title="Register New Customer (F3)"
                         >
-                            <UserPlus class="h-3.5 w-3.5 text-violet-600" />
-                            Add
+                            <UserPlus class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <span>+ Khata</span>
+                            <span
+                                class="rounded bg-slate-100 px-1 font-mono text-[9px] text-slate-500"
+                                >F3</span
+                            >
                         </button>
                     </div>
                 </div>
 
-                <div class="flex-1 overflow-y-auto p-2">
+                <!-- Cart Items Table Area -->
+                <div class="flex-1 overflow-y-auto p-3">
                     <table class="w-full border-collapse text-left text-xs">
                         <thead
-                            class="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase"
+                            class="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-100/90 text-[10px] font-black tracking-[0.14em] text-slate-500 uppercase backdrop-blur-md"
                         >
                             <tr>
-                                <th class="px-3 py-2">Item</th>
-                                <th class="w-24 px-3 py-2 text-right">Price</th>
-                                <th class="w-20 px-3 py-2 text-center">Qty</th>
-                                <th class="w-28 px-3 py-2 text-right">Total</th>
-                                <th class="w-10 px-3 py-2 text-center"></th>
+                                <th
+                                    class="w-8 rounded-l-xl px-2 py-2.5 text-center"
+                                >
+                                    #
+                                </th>
+                                <th class="px-3 py-2.5">
+                                    Item & Specifications
+                                </th>
+                                <th class="w-24 px-3 py-2.5 text-right">
+                                    Price
+                                </th>
+                                <th class="w-24 px-3 py-2.5 text-center">
+                                    Qty
+                                </th>
+                                <th class="w-28 px-3 py-2.5 text-right">
+                                    Subtotal
+                                </th>
+                                <th
+                                    class="w-10 rounded-r-xl px-2 py-2.5 text-center"
+                                ></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody class="divide-y divide-slate-100">
                             <tr v-if="cart.length === 0">
-                                <td
-                                    colspan="5"
-                                    class="py-16 text-center text-slate-500"
-                                >
-                                    <ShoppingCart
-                                        class="mx-auto mb-3 h-10 w-10 text-slate-600"
-                                    />
+                                <td colspan="6" class="py-20 text-center">
                                     <div
-                                        class="text-sm font-black text-slate-600"
+                                        class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200/80 text-slate-400 shadow-inner"
+                                    >
+                                        <ShoppingCart class="h-7 w-7" />
+                                    </div>
+                                    <div
+                                        class="text-sm font-black text-slate-700"
                                     >
                                         Cart is empty
                                     </div>
-                                    <div class="mt-1 text-xs">
-                                        Scan an IMEI or add products to begin
-                                        checkout.
+                                    <div class="mt-1 text-xs text-slate-400">
+                                        Scan an IMEI / barcode or click an item
+                                        from catalog to start.
+                                    </div>
+                                    <div
+                                        class="mt-4 flex items-center justify-center gap-2"
+                                    >
+                                        <button
+                                            type="button"
+                                            @click="searchInputRef?.focus()"
+                                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50"
+                                        >
+                                            <Barcode
+                                                class="h-3.5 w-3.5 text-[#003B7D]"
+                                            />
+                                            <span>Focus Scanner (F2)</span>
+                                        </button>
+                                        <button
+                                            v-if="heldSales.length > 0"
+                                            type="button"
+                                            @click="isHeldSalesModalOpen = true"
+                                            class="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100"
+                                        >
+                                            <History
+                                                class="h-3.5 w-3.5 text-amber-700"
+                                            />
+                                            <span
+                                                >Recall Held Sale ({{
+                                                    heldSales.length
+                                                }})</span
+                                            >
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -640,84 +1021,73 @@ const printReceipt = () => {
                             <tr
                                 v-for="(item, idx) in cart"
                                 :key="item.key"
-                                class="hover:bg-gray-50"
+                                class="group transition-colors hover:bg-blue-50/40"
                             >
-                                <td class="px-3 py-2.5">
-                                    <div
-                                        class="text-sm font-black text-gray-900"
-                                    >
-                                        {{ item.name }}
-                                    </div>
-                                    <div
-                                        v-if="item.is_serialized"
-                                        class="mt-1 space-y-0.5"
-                                    >
-                                        <div
-                                            class="tnum text-[11px] font-bold text-violet-600"
-                                        >
-                                            IMEI 1: {{ item.imei_1 }}
-                                        </div>
-                                        <div
-                                            v-if="item.imei_2"
-                                            class="tnum text-[10px] text-slate-500"
-                                        >
-                                            IMEI 2: {{ item.imei_2 }}
-                                        </div>
-                                        <div
-                                            class="flex items-center gap-1.5 text-[10px] text-slate-500"
-                                        >
-                                            <span
-                                                class="font-semibold text-slate-600"
-                                                >{{
-                                                    item.storage || 'Standard'
-                                                }}</span
-                                            >
-                                            <span>•</span>
-                                            <span>{{
-                                                item.color || 'Standard'
-                                            }}</span>
-                                            <span>•</span>
-                                            <span
-                                                class="font-bold text-violet-600 uppercase"
-                                                >{{ item.pta_status }}</span
-                                            >
-                                        </div>
-                                    </div>
-                                    <div
-                                        v-else
-                                        class="text-[10px] text-slate-500"
-                                    >
-                                        Accessory item
-                                    </div>
-                                </td>
-
-                                <td class="px-3 py-2.5 text-right">
-                                    <input
-                                        v-model.number="item.unit_price"
-                                        type="number"
-                                        step="0.01"
-                                        class="tnum w-20 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-right text-xs font-bold text-gray-900 outline-none focus:border-violet-500/70"
-                                    />
-                                </td>
-
-                                <td class="px-3 py-2.5 text-center">
-                                    <span
-                                        v-if="item.is_serialized"
-                                        class="tnum text-xs font-bold text-slate-600"
-                                        >1</span
-                                    >
-                                    <input
-                                        v-else
-                                        v-model.number="item.quantity"
-                                        type="number"
-                                        min="1"
-                                        :max="item.max_stock"
-                                        class="tnum w-14 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-center text-xs font-bold text-gray-900 outline-none focus:border-violet-500/70"
-                                    />
-                                </td>
-
                                 <td
-                                    class="tnum px-3 py-2.5 text-right text-sm font-black text-gray-900"
+                                    class="px-2 py-3 text-center font-mono text-[10px] text-slate-400"
+                                >
+                                    {{ idx + 1 }}
+                                </td>
+
+                                <td class="px-3 py-3">
+                                    <div class="flex items-baseline gap-2">
+                                        <span
+                                            class="text-xs font-extrabold text-slate-900"
+                                            >{{ item.name }}</span
+                                        >
+                                        <span
+                                            class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 uppercase"
+                                            >{{ item.brand }}</span
+                                        >
+                                    </div>
+                                </td>
+
+                                <!-- Unit Price (Inline Editable for Bargaining) -->
+                                <td class="px-3 py-3 text-right">
+                                    <div class="relative inline-block">
+                                        <input
+                                            v-model.number="item.unit_price"
+                                            type="number"
+                                            step="1"
+                                            class="tnum w-24 rounded-xl border border-slate-200/90 bg-white/90 px-2 py-1 text-right text-xs font-black text-slate-900 shadow-2xs focus:border-[#003B7D] focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none"
+                                        />
+                                    </div>
+                                </td>
+
+                                <!-- Quantity Stepper Column -->
+                                <td class="px-3 py-3 text-center">
+                                    <div
+                                        class="inline-flex items-center gap-1 rounded-xl border border-slate-200/80 bg-white p-0.5 shadow-2xs"
+                                    >
+                                        <button
+                                            type="button"
+                                            @click="
+                                                decrementCartItem(item, idx)
+                                            "
+                                            class="flex h-5 w-5 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+                                        >
+                                            <Minus class="h-3 w-3" />
+                                        </button>
+                                        <input
+                                            v-model.number="item.quantity"
+                                            type="number"
+                                            min="1"
+                                            :max="item.max_stock"
+                                            class="tnum w-8 text-center text-xs font-black text-slate-900 focus:outline-none"
+                                        />
+                                        <button
+                                            type="button"
+                                            @click="incrementCartItem(item)"
+                                            class="flex h-5 w-5 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+                                        >
+                                            <Plus class="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                </td>
+
+                                <!-- Line Total -->
+                                <td
+                                    class="tnum px-3 py-3 text-right text-xs font-black text-slate-900"
                                 >
                                     {{
                                         formatCurrency(
@@ -726,12 +1096,15 @@ const printReceipt = () => {
                                     }}
                                 </td>
 
-                                <td class="px-3 py-2.5 text-center">
+                                <!-- Trash Action -->
+                                <td class="px-2 py-3 text-center">
                                     <button
+                                        type="button"
                                         @click="removeCartItem(idx)"
-                                        class="text-slate-500 transition hover:text-rose-600"
+                                        class="flex h-7 w-7 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 active:scale-90"
+                                        title="Remove item"
                                     >
-                                        <Trash2 class="h-4 w-4" />
+                                        <Trash2 class="h-3.5 w-3.5" />
                                     </button>
                                 </td>
                             </tr>
@@ -740,175 +1113,347 @@ const printReceipt = () => {
                 </div>
             </div>
 
+            <!-- RIGHT DECK: Checkout Summary & Product Catalog (col-span-5) -->
             <div
-                class="flex flex-col overflow-hidden bg-transparent lg:col-span-5"
+                class="flex h-full flex-col gap-3 overflow-hidden lg:col-span-5"
             >
-                <div class="pos-readout m-3 rounded-3xl p-5">
+                <!-- Redesigned Apple iOS Glassmorphic Checkout Summary Card -->
+                <div
+                    class="pos-readout relative flex shrink-0 flex-col justify-between overflow-hidden rounded-3xl border border-white/85 bg-white/85 p-4 shadow-[0_12px_36px_rgba(0,35,80,0.06)] backdrop-blur-2xl transition-all"
+                >
+                    <!-- Top Row: Section Header & Items Count -->
                     <div
-                        class="flex items-center justify-between text-xs text-slate-600"
-                    >
-                        <span class="eyebrow text-slate-600"
-                            >Total Net Payable</span
-                        >
-                        <span
-                            class="rounded-full bg-gray-100 px-2 py-1 font-mono text-[10px] font-bold text-gray-900"
-                            >{{ cart.length }} items</span
-                        >
-                    </div>
-
-                    <div class="mt-4 flex items-baseline justify-between">
-                        <span class="text-lg font-bold text-slate-600"
-                            >PKR</span
-                        >
-                        <span
-                            class="text-gradient-brand tnum text-5xl font-black tracking-tight"
-                            >{{
-                                formatCurrency(netPayable)
-                                    .replace('PKR', '')
-                                    .trim()
-                            }}</span
-                        >
-                    </div>
-
-                    <div
-                        class="mt-5 flex items-center justify-between border-t border-gray-200 pt-3 text-xs"
+                        class="flex items-center justify-between border-b border-slate-100 pb-2.5"
                     >
                         <div class="flex items-center gap-2">
-                            <span class="text-slate-600">Discount</span>
-                            <input
-                                id="discount-input"
-                                v-model="discountInput"
-                                type="number"
-                                placeholder="0"
-                                class="tnum w-24 rounded-lg border border-gray-200 bg-gray-100 px-2 py-1 text-right text-xs font-bold text-gray-900 placeholder:text-slate-500"
-                            />
+                            <div
+                                class="flex h-7 w-7 items-center justify-center rounded-xl bg-[#003B7D]/10 text-[#003B7D]"
+                            >
+                                <Receipt class="h-3.5 w-3.5" />
+                            </div>
+                            <div>
+                                <h3
+                                    class="text-xs font-black tracking-tight text-slate-900 uppercase"
+                                >
+                                    Checkout Summary
+                                </h3>
+                                <span class="text-[10px] text-slate-400"
+                                    >Order calculation & billing</span
+                                >
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span
+                                class="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-700"
+                            >
+                                {{ cart.length }} items (Qty:
+                                {{ totalItemsCount }})
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Middle: Breakdown & Liquid Net Payable Card -->
+                    <div class="space-y-2 py-2">
+                        <!-- Subtotal row -->
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-medium text-slate-500"
+                                >Subtotal Amount</span
+                            >
+                            <span class="tnum font-bold text-slate-800">{{
+                                formatCurrency(subtotal)
+                            }}</span>
                         </div>
 
-                        <button
-                            @click="openPaymentModal"
-                            :disabled="cart.length === 0"
-                            class="inline-flex items-center gap-2 rounded-xl bg-[#003b7d] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#0f4c81] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <CreditCard class="h-4 w-4" />
-                            Checkout
-                        </button>
-                    </div>
-                </div>
-
-                <div class="border-b border-gray-200 bg-gray-50 px-3 pt-1 pb-2">
-                    <div class="flex items-center gap-1.5 overflow-x-auto">
-                        <button
-                            v-for="cat in categories"
-                            :key="cat"
-                            @click="activeCategoryTab = cat"
-                            :class="[
-                                activeCategoryTab === cat
-                                    ? 'bg-[#003b7d] text-white'
-                                    : 'bg-gray-50 text-slate-600 hover:bg-gray-100',
-                                'rounded-full px-3 py-1.5 text-[10px] font-bold whitespace-nowrap capitalize transition',
-                            ]"
-                        >
-                            {{ cat }}
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex-1 overflow-y-auto p-3">
-                    <div class="grid grid-cols-2 gap-2.5">
+                        <!-- Discount row with quick chips and input -->
                         <div
-                            v-for="p in filteredCatalogProducts"
-                            :key="p.id"
-                            class="bg-card flex cursor-pointer flex-col justify-between rounded-2xl border border-gray-200 p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-[0_16px_40px_rgba(139,92,246,0.12)]"
-                            @click="
-                                p.is_serialized ? null : addAccessoryToCart(p)
-                            "
+                            class="flex items-center justify-between gap-2 text-xs"
                         >
-                            <div>
-                                <div
-                                    class="mb-2 flex items-center justify-between text-[10px] font-bold uppercase"
-                                >
-                                    <span class="text-violet-600">{{
-                                        p.brand
-                                    }}</span>
-                                    <span
+                            <div
+                                class="flex items-center gap-1.5 font-medium text-slate-500"
+                            >
+                                <Tag class="h-3.5 w-3.5 text-[#003B7D]" />
+                                <span>Discount</span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5">
+                                <div class="flex items-center gap-1">
+                                    <button
+                                        v-for="amt in [0, 500, 1000]"
+                                        :key="amt"
+                                        type="button"
+                                        @click="setDiscountPreset(amt)"
                                         :class="[
-                                            p.is_serialized
-                                                ? 'bg-violet-100 text-violet-600'
-                                                : 'bg-sky-100 text-sky-600',
-                                            'rounded-full px-1.5 py-0.5',
+                                            Number(discountInput) === amt
+                                                ? 'bg-[#003B7D] font-bold text-white shadow-2xs'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80',
+                                            'rounded-lg px-2 py-0.5 text-[10px] transition active:scale-95',
                                         ]"
                                     >
+                                        {{ amt === 0 ? '0' : `${amt / 1000}k` }}
+                                    </button>
+                                </div>
+                                <input
+                                    id="discount-input"
+                                    v-model="discountInput"
+                                    type="number"
+                                    placeholder="0"
+                                    class="tnum w-20 rounded-xl border border-slate-200/80 bg-slate-50 px-2 py-1 text-right text-xs font-bold text-slate-900 shadow-inner focus:border-[#003B7D] focus:bg-white focus:outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Total Net Payable Display Card -->
+                        <div
+                            class="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#001f4d] via-[#003B7D] to-[#0055b3] p-3.5 text-white shadow-[0_12px_28px_-6px_rgba(0,59,125,0.35)]"
+                        >
+                            <!-- Specular glow bubbles -->
+                            <div
+                                class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-sky-400/20 blur-xl"
+                            ></div>
+                            <div
+                                class="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-blue-600/30 blur-xl"
+                            ></div>
+
+                            <div
+                                class="relative z-10 flex items-baseline justify-between"
+                            >
+                                <div>
+                                    <div
+                                        class="text-[9px] font-black tracking-[0.16em] text-blue-200 uppercase"
+                                    >
+                                        Total Net Payable
+                                    </div>
+                                    <div class="text-[10px] text-blue-200/80">
+                                        Final Amount Due
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span
+                                        class="mr-1 text-xs font-bold text-blue-200"
+                                        >PKR</span
+                                    >
+                                    <span
+                                        class="tnum text-3xl font-black tracking-tight text-white drop-shadow-xs md:text-4xl"
+                                    >
                                         {{
-                                            p.is_serialized
-                                                ? 'Handset'
-                                                : 'Accessory'
+                                            formatCurrency(netPayable)
+                                                .replace('PKR', '')
+                                                .trim()
                                         }}
                                     </span>
                                 </div>
-                                <h3
-                                    class="line-clamp-1 text-xs font-black text-gray-900"
-                                >
-                                    {{ p.name }}
-                                </h3>
-                                <div
-                                    class="tnum mt-2 text-sm font-black text-gray-900"
-                                >
-                                    {{ formatCurrency(p.sale_price) }}
-                                </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <div
-                                v-if="p.is_serialized"
-                                class="mt-3 space-y-1.5"
+                    <!-- Bottom: Payment Method Selection & Proceed CTA -->
+                    <div class="space-y-2 border-t border-slate-100 pt-2.5">
+                        <!-- Heading with selection indicator -->
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-[10px] font-black tracking-wider text-slate-700 uppercase"
                             >
-                                <div
-                                    class="text-[9px] font-bold tracking-[0.12em] text-slate-500 uppercase"
+                                Payment Method:
+                            </span>
+                            <span
+                                v-if="paymentMethod"
+                                class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-600/20"
+                            >
+                                <Check class="h-3 w-3" />
+                                Selected:
+                                {{
+                                    paymentMethodsList.find(
+                                        (m) => m.id === paymentMethod,
+                                    )?.label
+                                }}
+                            </span>
+                            <span
+                                v-else
+                                :class="[
+                                    paymentMethodError
+                                        ? 'animate-pulse bg-rose-50 font-bold text-rose-600 ring-1 ring-rose-500/30'
+                                        : 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20',
+                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                                ]"
+                            >
+                                * Select Method First
+                            </span>
+                        </div>
+
+                        <!-- Payment Method Interactive Buttons Grid -->
+                        <div
+                            :class="[
+                                paymentMethodError && !paymentMethod
+                                    ? 'rounded-2xl bg-rose-50/50 p-1 ring-2 ring-rose-500/40'
+                                    : '',
+                                'grid grid-cols-3 gap-1.5',
+                            ]"
+                        >
+                            <button
+                                v-for="pm in paymentMethodsList"
+                                :key="pm.id"
+                                type="button"
+                                @click="
+                                    paymentMethod = pm.id;
+                                    paymentMethodError = false;
+                                "
+                                :class="[
+                                    paymentMethod === pm.id
+                                        ? 'border-[#003B7D] bg-[#003B7D] font-bold text-white shadow-xs'
+                                        : 'border-slate-200/80 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                                    'flex items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[11px] font-semibold transition active:scale-95',
+                                ]"
+                            >
+                                <component
+                                    :is="pm.icon"
+                                    :class="[
+                                        'h-3.5 w-3.5',
+                                        paymentMethod === pm.id
+                                            ? 'text-white'
+                                            : pm.color,
+                                    ]"
+                                />
+                                <span class="truncate">{{ pm.label }}</span>
+                            </button>
+                        </div>
+
+                        <!-- Action Buttons Row: Proceed, Quick Cash, and Hold -->
+                        <div class="space-y-1.5 pt-1">
+                            <!-- Proceed to Payment Button -->
+                            <button
+                                type="button"
+                                @click="handleProceedToPayment"
+                                :disabled="cart.length === 0"
+                                :class="[
+                                    paymentMethod
+                                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.35)] hover:from-emerald-400 hover:to-teal-500'
+                                        : 'bg-gradient-to-r from-[#003B7D] to-[#0055b3] shadow-[0_10px_25px_-5px_rgba(0,59,125,0.3)] hover:from-[#002f66] hover:to-[#00448f]',
+                                    'group flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none',
+                                ]"
+                            >
+                                <CreditCard
+                                    class="h-4 w-4 transition-transform group-hover:scale-110"
+                                />
+                                <span>{{
+                                    paymentMethod
+                                        ? `Proceed with ${paymentMethodsList.find((m) => m.id === paymentMethod)?.label} (Ctrl+Enter)`
+                                        : 'Proceed to Payment (Ctrl+Enter)'
+                                }}</span>
+                            </button>
+
+                            <!-- Secondary Row: Quick Cash & Hold Sale -->
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <button
+                                    type="button"
+                                    @click="quickCashCheckout"
+                                    :disabled="cart.length === 0"
+                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300/80 bg-emerald-50/80 px-3 py-2 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 active:scale-95 disabled:opacity-40"
+                                    title="Instant exact cash transaction"
                                 >
-                                    Select IMEI
-                                </div>
-                                <div
-                                    v-if="
-                                        !p.in_stock_imeis ||
-                                        p.in_stock_imeis.length === 0
-                                    "
-                                    class="text-[10px] text-rose-600 italic"
+                                    <Zap class="h-3.5 w-3.5 text-emerald-600" />
+                                    <span>Quick Cash Pay</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    @click="holdCurrentSale"
+                                    :disabled="cart.length === 0"
+                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/80 bg-amber-50/80 px-3 py-2 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100 active:scale-95 disabled:opacity-40"
+                                    title="Suspend/Hold this cart for later"
                                 >
-                                    Out of stock
-                                </div>
-                                <div
-                                    v-else
-                                    class="max-h-24 space-y-1 overflow-y-auto"
-                                >
-                                    <button
-                                        v-for="imei in p.in_stock_imeis"
-                                        :key="imei.id"
-                                        @click.stop="addImeiToCart(p, imei)"
-                                        class="flex w-full items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-left transition hover:bg-violet-50"
+                                    <Pause class="h-3.5 w-3.5 text-amber-600" />
+                                    <span>Hold Sale (F1)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Catalog Deck -->
+                <div
+                    class="flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_8px_32px_rgba(0,25,60,0.06)] backdrop-blur-2xl"
+                >
+                    <!-- Category Segmented Filter Tabs -->
+                    <div
+                        class="border-b border-slate-200/70 bg-white/60 p-2.5 backdrop-blur-md"
+                    >
+                        <div
+                            class="no-scrollbar flex items-center gap-1 overflow-x-auto"
+                        >
+                            <button
+                                v-for="cat in categories"
+                                :key="cat"
+                                @click="activeCategoryTab = cat"
+                                :class="[
+                                    activeCategoryTab === cat
+                                        ? 'bg-[#003B7D] text-white shadow-2xs'
+                                        : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900',
+                                    'rounded-xl px-3 py-1.5 text-[11px] font-bold whitespace-nowrap capitalize transition-all duration-150',
+                                ]"
+                            >
+                                {{ cat }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Catalog Grid -->
+                    <div class="flex-1 overflow-y-auto p-3">
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div
+                                v-for="p in filteredCatalogProducts"
+                                :key="p.id"
+                                class="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#003B7D]/40 hover:shadow-md active:scale-[0.99]"
+                                @click="addProductToCart(p)"
+                            >
+                                <div>
+                                    <div
+                                        class="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase"
                                     >
                                         <span
-                                            class="tnum text-[10px] font-bold text-slate-600"
-                                            >{{ imei.imei_1 }}</span
+                                            class="font-extrabold text-[#003B7D]"
+                                            >{{ p.brand }}</span
                                         >
                                         <span
-                                            class="text-[8px] font-bold text-violet-600 uppercase"
-                                            >{{ imei.pta_status }}</span
+                                            class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600"
                                         >
-                                    </button>
+                                            Stock:
+                                            <strong
+                                                class="tnum text-slate-900"
+                                                >{{
+                                                    p.is_serialized
+                                                        ? p.in_stock_imeis
+                                                              ?.length || 0
+                                                        : p.stock_quantity
+                                                }}</strong
+                                            >
+                                        </span>
+                                    </div>
+
+                                    <h3
+                                        class="line-clamp-1 text-xs font-black text-slate-900 group-hover:text-[#003B7D]"
+                                    >
+                                        {{ p.name }}
+                                    </h3>
+
+                                    <div
+                                        class="tnum mt-1.5 text-xs font-black text-[#003B7D]"
+                                    >
+                                        {{ formatCurrency(p.sale_price) }}
+                                    </div>
                                 </div>
-                            </div>
-                            <div
-                                v-else
-                                class="mt-3 flex items-center justify-between text-[10px] text-slate-500"
-                            >
-                                <span
-                                    >Stock:
-                                    <strong class="tnum text-gray-900">{{
-                                        p.stock_quantity
-                                    }}</strong></span
+
+                                <div
+                                    class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]"
                                 >
-                                <span class="font-bold text-violet-600"
-                                    >+ Add</span
-                                >
+                                    <span class="text-slate-400"
+                                        >Tap to add</span
+                                    >
+                                    <span
+                                        class="inline-flex items-center gap-0.5 font-black text-[#003B7D] group-hover:underline"
+                                    >
+                                        + Add to Cart
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -916,115 +1461,277 @@ const printReceipt = () => {
             </div>
         </div>
 
+        <!-- Checkout / Payment Modal -->
         <Dialog v-model:open="isPaymentModalOpen">
-            <DialogContent class="max-w-lg">
+            <DialogContent
+                class="max-w-lg rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
+            >
                 <DialogHeader>
-                    <DialogTitle class="text-lg font-black text-gray-900"
-                        >Complete Checkout</DialogTitle
+                    <DialogTitle
+                        class="flex items-center gap-2 text-lg font-black text-slate-900"
                     >
+                        <div
+                            class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#003B7D] text-white"
+                        >
+                            <CreditCard class="h-4 w-4" />
+                        </div>
+                        <span>Complete Sale Transaction</span>
+                    </DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">
+                        Confirm payment method and tender received from
+                        customer.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div class="space-y-4 py-2">
+                    <!-- Payment Methods Grid -->
                     <div class="grid grid-cols-3 gap-2">
                         <button
-                            v-for="method in [
-                                'cash',
-                                'jazzcash',
-                                'easypaisa',
-                                'bank',
-                                'udhaar',
-                                'split',
-                            ]"
-                            :key="method"
+                            v-for="pm in paymentMethodsList"
+                            :key="pm.id"
                             type="button"
-                            @click="paymentMethod = method"
+                            @click="paymentMethod = pm.id"
                             :class="[
-                                paymentMethod === method
-                                    ? 'bg-[#003b7d] text-white'
-                                    : 'bg-gray-50 text-slate-600 hover:bg-gray-100',
-                                'rounded-xl px-3 py-2 text-[11px] font-bold capitalize transition',
+                                paymentMethod === pm.id
+                                    ? pm.activeBg
+                                    : 'border-slate-200/80 bg-slate-50 text-slate-600 hover:bg-slate-100',
+                                'flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3 text-xs font-bold transition active:scale-95',
                             ]"
                         >
-                            {{ method }}
+                            <component
+                                :is="pm.icon"
+                                :class="['h-4 w-4', pm.color]"
+                            />
+                            <span>{{ pm.label }}</span>
                         </button>
                     </div>
 
-                    <div v-if="paymentMethod !== 'split'" class="space-y-1.5">
-                        <Label
-                            class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                            >Tender Received (PKR)</Label
-                        >
-                        <input
-                            v-model="paidInput"
-                            type="number"
-                            step="0.01"
-                            placeholder="Enter received amount"
-                            class="tnum w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-lg font-black text-gray-900 outline-none focus:border-violet-500/70"
-                        />
-                        <div class="flex items-center gap-1.5 pt-1">
+                    <!-- Tender Received (if not split) -->
+                    <div v-if="paymentMethod !== 'split'" class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <Label
+                                class="text-[11px] font-black tracking-[0.14em] text-slate-500 uppercase"
+                            >
+                                Tender Received (PKR)
+                            </Label>
+                            <span class="text-xs font-bold text-slate-400">
+                                Due: {{ formatCurrency(netPayable) }}
+                            </span>
+                        </div>
+
+                        <div class="relative">
+                            <input
+                                v-model="paidInput"
+                                type="number"
+                                step="1"
+                                placeholder="Enter cash received"
+                                class="tnum w-full rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-2xl font-black text-slate-900 shadow-inner focus:border-[#003B7D] focus:bg-white focus:ring-3 focus:ring-[#003B7D]/20 focus:outline-none"
+                            />
+                        </div>
+
+                        <!-- Quick Cash Note Chips -->
+                        <div class="flex flex-wrap items-center gap-1.5 pt-1">
                             <button
                                 type="button"
                                 @click="setExactPayment"
-                                class="rounded-md bg-gray-50 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:bg-gray-100"
+                                class="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95"
                             >
-                                Exact
+                                Exact: {{ formatCurrency(netPayable) }}
                             </button>
                             <button
+                                v-for="preset in [500, 1000, 5000, 10000]"
+                                :key="preset"
                                 type="button"
-                                @click="setTenderPreset(1000)"
-                                class="rounded-md bg-gray-50 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:bg-gray-100"
+                                @click="setTenderPreset(preset)"
+                                class="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95"
                             >
-                                1000
-                            </button>
-                            <button
-                                type="button"
-                                @click="setTenderPreset(5000)"
-                                class="rounded-md bg-gray-50 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:bg-gray-100"
-                            >
-                                5000
-                            </button>
-                            <button
-                                type="button"
-                                @click="setTenderPreset(10000)"
-                                class="rounded-md bg-gray-50 px-2 py-1 text-[10px] font-bold text-slate-600 transition hover:bg-gray-100"
-                            >
-                                10000
+                                Rs. {{ preset }}
                             </button>
                         </div>
                     </div>
 
+                    <!-- Split Payment Form -->
                     <div
-                        class="space-y-2 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-xs"
+                        v-else
+                        class="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3"
                     >
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Net Payable</span>
-                            <span class="tnum font-black text-gray-900">{{
-                                formatCurrency(netPayable)
-                            }}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-slate-500">Tender Received</span>
-                            <span class="tnum font-black text-violet-600">{{
-                                formatCurrency(paidInput)
-                            }}</span>
-                        </div>
                         <div
-                            v-if="paymentMethod !== 'udhaar'"
-                            class="flex items-center justify-between border-t border-gray-200 pt-2 text-sm font-black"
+                            class="text-xs font-black tracking-wide text-slate-700 uppercase"
                         >
-                            <span>Change Return</span>
-                            <span class="tnum text-violet-600">{{
-                                formatCurrency(changeToReturn)
-                            }}</span>
+                            Split Payment Amounts:
                         </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <span class="font-bold text-slate-600"
+                                    >Cash:</span
+                                >
+                                <input
+                                    v-model.number="splitAmounts.cash"
+                                    type="number"
+                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
+                                />
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-600"
+                                    >JazzCash:</span
+                                >
+                                <input
+                                    v-model.number="splitAmounts.jazzcash"
+                                    type="number"
+                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
+                                />
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-600"
+                                    >Easypaisa:</span
+                                >
+                                <input
+                                    v-model.number="splitAmounts.easypaisa"
+                                    type="number"
+                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
+                                />
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-600"
+                                    >Bank:</span
+                                >
+                                <input
+                                    v-model.number="splitAmounts.bank"
+                                    type="number"
+                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Change to Return / Khata Balance Summary Card -->
+                    <div
+                        v-if="paymentMethod !== 'udhaar'"
+                        class="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-950"
+                    >
+                        <div>
+                            <div
+                                class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase"
+                            >
+                                Change to Return
+                            </div>
+                            <div class="text-xs text-emerald-800">
+                                Give customer back from cash drawer
+                            </div>
+                        </div>
+                        <span class="tnum text-2xl font-black text-emerald-700">
+                            {{ formatCurrency(changeToReturn) }}
+                        </span>
+                    </div>
+
+                    <div
+                        v-else
+                        class="flex items-center justify-between rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-950"
+                    >
+                        <div>
+                            <div
+                                class="text-[10px] font-bold tracking-wider text-amber-700 uppercase"
+                            >
+                                Added to Customer Khata
+                            </div>
+                            <div class="text-xs text-amber-800">
+                                Customer:
+                                {{ selectedCustomer?.name || 'Walk-in' }}
+                            </div>
+                        </div>
+                        <span class="tnum text-2xl font-black text-amber-700">
+                            {{ formatCurrency(remainingKhataBalance) }}
+                        </span>
+                    </div>
+                </div>
+
+                <DialogFooter class="flex items-center justify-between pt-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="isPaymentModalOpen = false"
+                        class="rounded-xl"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        @click="submitCheckout"
+                        class="rounded-xl bg-[#003B7D] px-5 text-white shadow-md hover:bg-[#002b5c]"
+                    >
+                        <Printer class="mr-1.5 h-4 w-4" />
+                        Complete Sale & Print
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Boson Studio Feature: Held Sales Dialog -->
+        <Dialog v-model:open="isHeldSalesModalOpen">
+            <DialogContent
+                class="max-w-md rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
+            >
+                <DialogHeader>
+                    <DialogTitle
+                        class="flex items-center gap-2 text-lg font-black text-slate-900"
+                    >
                         <div
-                            v-else
-                            class="flex items-center justify-between border-t border-gray-200 pt-2 text-sm font-black text-amber-600"
+                            class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700"
                         >
-                            <span>Khata Balance</span>
-                            <span class="tnum">{{
-                                formatCurrency(remainingKhataBalance)
-                            }}</span>
+                            <History class="h-4 w-4" />
+                        </div>
+                        <span>Held / Suspended Sales</span>
+                    </DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">
+                        Recall previously suspended carts to continue customer
+                        billing:
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="max-h-80 space-y-2 overflow-y-auto py-2">
+                    <div
+                        v-if="heldSales.length === 0"
+                        class="py-8 text-center text-xs text-slate-400"
+                    >
+                        No sales currently on hold.
+                    </div>
+                    <div
+                        v-for="(held, idx) in heldSales"
+                        :key="held.id"
+                        class="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3 transition hover:bg-slate-100"
+                    >
+                        <div>
+                            <div class="text-xs font-bold text-slate-900">
+                                {{ held.customer_name }}
+                            </div>
+                            <div class="text-[10px] text-slate-400">
+                                {{ held.cart.length }} items • Held at
+                                {{ held.held_at }}
+                            </div>
+                            <div
+                                class="tnum mt-0.5 text-xs font-black text-[#003B7D]"
+                            >
+                                {{ formatCurrency(held.total) }}
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                @click="recallHeldSale(idx)"
+                                class="inline-flex items-center gap-1 rounded-xl bg-[#003B7D] px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#002b5c]"
+                            >
+                                <Play class="h-3 w-3" />
+                                <span>Recall</span>
+                            </button>
+                            <button
+                                type="button"
+                                @click="removeHeldSale(idx)"
+                                class="rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                title="Delete held cart"
+                            >
+                                <Trash2 class="h-3.5 w-3.5" />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1033,26 +1740,97 @@ const printReceipt = () => {
                     <Button
                         type="button"
                         variant="outline"
-                        @click="isPaymentModalOpen = false"
-                        >Cancel</Button
+                        @click="isHeldSalesModalOpen = false"
+                        class="w-full rounded-xl"
                     >
-                    <Button
-                        type="button"
-                        @click="submitCheckout"
-                        class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
-                    >
-                        <Printer class="h-4 w-4" /> Complete & Print
+                        Close
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <Dialog v-model:open="isCustomerModalOpen">
-            <DialogContent class="max-w-md">
+        <!-- Method Selection Prompt Modal (pops up if user proceeds to payment without selecting method) -->
+        <Dialog v-model:open="isMethodSelectionPromptOpen">
+            <DialogContent
+                class="max-w-md rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
+            >
                 <DialogHeader>
-                    <DialogTitle class="text-lg font-black text-gray-900"
-                        >Register Customer</DialogTitle
+                    <DialogTitle
+                        class="flex items-center gap-2.5 text-lg font-black text-slate-900"
                     >
+                        <div
+                            class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600"
+                        >
+                            <CreditCard class="h-5 w-5" />
+                        </div>
+                        <span>Payment Method Select Karein</span>
+                    </DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">
+                        Proceed karne se pehle payment method select karein:
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="grid grid-cols-2 gap-2.5 py-4">
+                    <button
+                        v-for="pm in paymentMethodsList"
+                        :key="pm.id"
+                        type="button"
+                        @click="selectMethodAndProceed(pm.id)"
+                        class="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 transition-all hover:-translate-y-0.5 hover:border-[#003B7D] hover:bg-blue-50/50 hover:shadow-md active:scale-95"
+                    >
+                        <div
+                            class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-2xs transition-transform group-hover:scale-110"
+                        >
+                            <component
+                                :is="pm.icon"
+                                :class="['h-5 w-5', pm.color]"
+                            />
+                        </div>
+                        <div class="text-center">
+                            <div
+                                class="text-xs font-black text-slate-800 group-hover:text-[#003B7D]"
+                            >
+                                {{ pm.label }}
+                            </div>
+                            <div class="text-[10px] text-slate-400">
+                                {{
+                                    pm.id === 'cash'
+                                        ? 'Cash payment'
+                                        : pm.id === 'udhaar'
+                                          ? 'Customer ledger'
+                                          : 'Digital transfer'
+                                }}
+                            </div>
+                        </div>
+                    </button>
+                </div>
+
+                <DialogFooter class="pt-1">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="isMethodSelectionPromptOpen = false"
+                        class="w-full rounded-xl"
+                    >
+                        Cancel
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Register Customer Modal -->
+        <Dialog v-model:open="isCustomerModalOpen">
+            <DialogContent
+                class="max-w-md rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
+            >
+                <DialogHeader>
+                    <DialogTitle class="text-lg font-black text-slate-900">
+                        Register Customer
+                    </DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">
+                        Create a quick customer profile to link sales and
+                        maintain Khata credit ledger.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <form
@@ -1063,36 +1841,44 @@ const printReceipt = () => {
                         <Label
                             for="cust_name"
                             class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                            >Customer Name</Label
                         >
+                            Customer Name
+                        </Label>
                         <Input
                             id="cust_name"
                             v-model="customerForm.name"
                             placeholder="Full Name"
+                            class="rounded-xl"
+                            required
                         />
                     </div>
                     <div class="space-y-1.5">
                         <Label
                             for="cust_phone"
                             class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                            >Mobile Number</Label
                         >
+                            Mobile Number
+                        </Label>
                         <Input
                             id="cust_phone"
                             v-model="customerForm.phone"
                             placeholder="03001234567"
+                            class="rounded-xl"
+                            required
                         />
                     </div>
                     <div class="space-y-1.5">
                         <Label
                             for="cust_address"
                             class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                            >Address</Label
                         >
+                            Address
+                        </Label>
                         <Input
                             id="cust_address"
                             v-model="customerForm.address"
                             placeholder="City / Area"
+                            class="rounded-xl"
                         />
                     </div>
 
@@ -1101,12 +1887,14 @@ const printReceipt = () => {
                             type="button"
                             variant="outline"
                             @click="isCustomerModalOpen = false"
-                            >Cancel</Button
+                            class="rounded-xl"
                         >
+                            Cancel
+                        </Button>
                         <Button
                             type="submit"
                             :disabled="customerForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="rounded-xl bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             Save Customer
                         </Button>
@@ -1115,36 +1903,49 @@ const printReceipt = () => {
             </DialogContent>
         </Dialog>
 
+        <!-- Thermal Receipt Print Modal -->
         <Dialog v-model:open="isReceiptModalOpen">
-            <DialogContent class="max-w-sm p-4">
+            <DialogContent
+                class="max-w-sm rounded-3xl border border-slate-200/80 bg-white p-5 shadow-2xl"
+            >
                 <DialogHeader class="no-print">
-                    <DialogTitle class="text-center text-sm font-black"
-                        >Thermal Invoice</DialogTitle
+                    <DialogTitle
+                        class="text-center text-sm font-black text-slate-900"
                     >
+                        Thermal Invoice Receipt
+                    </DialogTitle>
                 </DialogHeader>
 
                 <div
                     id="thermal-receipt"
-                    class="space-y-3 bg-white p-2 font-mono text-[11px] leading-tight text-black"
+                    class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 font-mono text-[11px] leading-tight text-black"
                 >
-                    <div class="border-b pb-2 text-center">
+                    <div
+                        class="border-b border-dashed border-slate-300 pb-2 text-center"
+                    >
                         <div class="text-sm font-black uppercase">
                             {{ shopInfo.name }}
                         </div>
-                        <div class="text-[10px]">{{ shopInfo.address }}</div>
-                        <div class="text-[10px]">Ph: {{ shopInfo.phone }}</div>
+                        <div class="text-[10px] text-slate-600">
+                            {{ shopInfo.address }}
+                        </div>
+                        <div class="text-[10px] text-slate-600">
+                            Ph: {{ shopInfo.phone }}
+                        </div>
                     </div>
 
-                    <div class="space-y-0.5 border-b pb-2 text-[10px]">
+                    <div
+                        class="space-y-0.5 border-b border-dashed border-slate-300 pb-2 text-[10px]"
+                    >
                         <div class="flex justify-between">
-                            <span>Invoice #</span
-                            ><span class="font-bold">{{
+                            <span>Invoice #:</span>
+                            <span class="font-bold">{{
                                 activeReceipt?.invoice_no
                             }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Date</span
-                            ><span>{{
+                            <span>Date:</span>
+                            <span>{{
                                 activeReceipt?.created_at
                                     ? new Date(
                                           activeReceipt.created_at,
@@ -1153,8 +1954,8 @@ const printReceipt = () => {
                             }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Cashier</span
-                            ><span>{{
+                            <span>Cashier:</span>
+                            <span>{{
                                 activeReceipt?.cashier?.name || 'Admin'
                             }}</span>
                         </div>
@@ -1162,47 +1963,46 @@ const printReceipt = () => {
                             v-if="activeReceipt?.customer"
                             class="flex justify-between font-bold"
                         >
-                            <span>Customer</span
-                            ><span>{{ activeReceipt.customer.name }}</span>
+                            <span>Customer:</span>
+                            <span>{{ activeReceipt.customer.name }}</span>
                         </div>
                     </div>
 
-                    <div class="space-y-1.5 border-b pb-2">
-                        <div class="flex justify-between text-[10px] font-bold">
-                            <span>ITEM</span><span>AMOUNT</span>
+                    <div
+                        class="space-y-1.5 border-b border-dashed border-slate-300 pb-2"
+                    >
+                        <div
+                            class="flex justify-between text-[10px] font-black uppercase"
+                        >
+                            <span>ITEM</span>
+                            <span>AMOUNT</span>
                         </div>
                         <div
                             v-for="item in activeReceipt?.items"
                             :key="item.id"
-                            class="space-y-0.5 border-t pt-1"
+                            class="space-y-0.5 border-t border-slate-200 pt-1"
                         >
                             <div class="text-[11px] font-bold">
                                 {{ item.product.brand }} {{ item.product.name }}
                             </div>
-                            <div
-                                v-if="item.product_imei"
-                                class="text-[11px] font-extrabold"
-                            >
-                                IMEI 1: {{ item.product_imei.imei_1 }}
-                                <div v-if="item.product_imei.imei_2">
-                                    IMEI 2: {{ item.product_imei.imei_2 }}
-                                </div>
-                            </div>
                             <div class="flex justify-between text-[10px]">
-                                <span
-                                    >{{ item.quantity }} x
-                                    {{ formatCurrency(item.unit_price) }}</span
-                                ><span class="font-bold">{{
-                                    formatCurrency(item.line_total)
-                                }}</span>
+                                <span>
+                                    {{ item.quantity }} x
+                                    {{ formatCurrency(item.unit_price) }}
+                                </span>
+                                <span class="font-bold">
+                                    {{ formatCurrency(item.line_total) }}
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="space-y-1 border-b pb-2 text-[11px]">
+                    <div
+                        class="space-y-1 border-b border-dashed border-slate-300 pb-2 text-[11px]"
+                    >
                         <div class="flex justify-between">
-                            <span>Subtotal</span
-                            ><span>{{
+                            <span>Subtotal:</span>
+                            <span>{{
                                 formatCurrency(activeReceipt?.total_amount || 0)
                             }}</span>
                         </div>
@@ -1210,8 +2010,8 @@ const printReceipt = () => {
                             v-if="Number(activeReceipt?.discount_amount) > 0"
                             class="flex justify-between"
                         >
-                            <span>Discount</span
-                            ><span
+                            <span>Discount:</span>
+                            <span
                                 >-{{
                                     formatCurrency(
                                         activeReceipt?.discount_amount || 0,
@@ -1219,17 +2019,34 @@ const printReceipt = () => {
                                 }}</span
                             >
                         </div>
-                        <div
-                            class="flex justify-between text-xs font-extrabold"
-                        >
-                            <span>Net</span
-                            ><span>{{
+                        <div class="flex justify-between text-xs font-black">
+                            <span>Net Total:</span>
+                            <span>{{
                                 formatCurrency(activeReceipt?.net_amount || 0)
+                            }}</span>
+                        </div>
+                        <div class="flex justify-between text-[10px]">
+                            <span>Paid:</span>
+                            <span>{{
+                                formatCurrency(activeReceipt?.paid_amount || 0)
+                            }}</span>
+                        </div>
+                        <div
+                            v-if="Number(activeReceipt?.change_amount) > 0"
+                            class="flex justify-between text-[10px] font-bold text-emerald-700"
+                        >
+                            <span>Change Return:</span>
+                            <span>{{
+                                formatCurrency(
+                                    activeReceipt?.change_amount || 0,
+                                )
                             }}</span>
                         </div>
                     </div>
 
-                    <div class="space-y-1 pt-1 text-center text-[9px]">
+                    <div
+                        class="space-y-1 pt-1 text-center text-[9px] text-slate-600"
+                    >
                         <div class="font-bold uppercase">
                             {{ shopInfo.return_policy }}
                         </div>
@@ -1242,17 +2059,21 @@ const printReceipt = () => {
                         type="button"
                         variant="outline"
                         @click="isReceiptModalOpen = false"
-                        >Close</Button
+                        class="rounded-xl"
                     >
+                        Close
+                    </Button>
                     <Button
                         type="button"
                         @click="printReceipt"
-                        class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                        class="rounded-xl bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                     >
-                        <Printer class="h-4 w-4" /> Print
+                        <Printer class="mr-1.5 h-4 w-4" /> Print Receipt
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <Toaster />
     </div>
 </template>

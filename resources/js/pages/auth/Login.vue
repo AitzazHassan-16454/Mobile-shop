@@ -33,7 +33,7 @@ defineProps<{
 
     <div
         v-if="status"
-        class="mb-4 rounded-xl border border-[#003b7d]/20 bg-[#003b7d]/5 px-4 py-3 text-center text-sm font-medium text-[#003b7d]"
+        class="mb-4 rounded-xl border border-[#003B7D]/20 bg-[#003B7D]/5 px-4 py-3 text-center text-sm font-medium text-[#003B7D]"
     >
         {{ status }}
     </div>
@@ -65,8 +65,8 @@ defineProps<{
                     autofocus
                     :tabindex="1"
                     autocomplete="username"
-                    placeholder="admin"
-                    class="h-12 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200"
+                    placeholder="Username"
+                    class="h-12 border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
                 />
                 <InputError :message="errors.name" />
             </div>
@@ -81,7 +81,7 @@ defineProps<{
                     <TextLink
                         v-if="canResetPassword"
                         :href="request()"
-                        class="text-sm font-medium text-violet-600 transition-colors hover:text-violet-600"
+                        class="text-sm font-medium text-[#003B7D] transition-colors hover:text-[#003B7D]"
                         :tabindex="5"
                     >
                         Forgot password?
@@ -94,7 +94,7 @@ defineProps<{
                     :tabindex="2"
                     autocomplete="current-password"
                     placeholder="Password"
-                    class="h-12 border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003b7d]/60 focus-visible:ring-violet-200 placeholder:disabled:opacity-50 [[&_button]_button]:text-slate-500"
+                    class="h-12 border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60 [[&_button]_button]:text-gray-500"
                 />
                 <InputError :message="errors.password" />
             </div>
@@ -108,7 +108,7 @@ defineProps<{
                         id="remember"
                         name="remember"
                         :tabindex="3"
-                        class="border-gray-200 data-[state=checked]:border-[#003b7d] data-[state=checked]:bg-[#003b7d]"
+                        class="border-gray-300 data-[state=checked]:border-[#003B7D] data-[state=checked]:bg-[#003B7D]"
                     />
                     <span>Keep me signed in</span>
                 </Label>
@@ -116,20 +116,20 @@ defineProps<{
 
             <Button
                 type="submit"
-                class="mt-2 h-12 w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
+                class="mt-4 block w-full rounded-md border-2 border-transparent bg-[#003B7D] px-3 py-1.5 text-sm font-bold text-white transition-colors duration-150 hover:bg-[#002b5c] disabled:opacity-70 lg:text-base"
                 :tabindex="4"
                 :disabled="processing"
                 data-test="login-button"
             >
                 <Spinner v-if="processing" />
-                {{ processing ? 'Opening workspace...' : 'Enter workspace' }}
+                {{ processing ? 'Opening workspace...' : 'Login' }}
             </Button>
         </div>
 
         <div
-            class="flex items-center justify-center gap-2 text-xs text-slate-500"
+            class="flex items-center justify-center gap-2 text-xs text-gray-500"
         >
-            <span class="h-1.5 w-1.5 rounded-full bg-[#003b7d] shadow-sm" />
+            <span class="h-1.5 w-1.5 rounded-full bg-[#003B7D] shadow-sm" />
             Secure shop access
         </div>
     </Form>

@@ -31,7 +31,7 @@ const currentTeam = computed(() => page.props.currentTeam as Team | null);
                 <DropdownMenuTrigger as-child>
                     <SidebarMenuButton
                         size="lg"
-                        class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        class="rounded-xl border border-white/10 bg-white/5 p-2 text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:border-white/20 hover:bg-white/10 data-[state=open]:bg-white/15 data-[state=open]:text-white"
                         data-test="sidebar-menu-button"
                     >
                         <UserInfo :user="user" :team="currentTeam" on-dark />
@@ -39,7 +39,7 @@ const currentTeam = computed(() => page.props.currentTeam as Team | null);
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
-                    class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                    class="w-(--reka-dropdown-menu-trigger-width) min-w-56"
                     :side="
                         isMobile
                             ? 'bottom'

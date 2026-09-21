@@ -60,7 +60,7 @@ defineOptions({
 
             <div class="flex items-center">
                 <Button
-                    class="w-full rounded-xl bg-[#003b7d] font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:opacity-70"
+                    class="w-full rounded-md border-2 border-transparent bg-[#003B7D] px-3 py-1.5 text-sm font-bold text-white transition-colors duration-150 hover:bg-[#002b5c] disabled:opacity-70 lg:text-base"
                     :disabled="processing"
                     data-test="confirm-password-button"
                 >

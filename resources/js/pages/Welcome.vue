@@ -18,14 +18,14 @@ const dashboardUrl = computed(() =>
     >
         <div class="bg-grid-brand pointer-events-none absolute inset-0"></div>
         <div
-            class="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_500px_at_12%_-8%,rgba(0,59,125,0.08),transparent_60%),radial-gradient(820px_620px_at_50%_118%,rgba(0,59,125,0.05),transparent_62%)]"
+            class="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_500px_at_12%_-8%,rgba(7,28,61,0.08),transparent_60%),radial-gradient(820px_620px_at_50%_118%,rgba(7,28,61,0.05),transparent_62%)]"
         ></div>
 
         <div class="relative mx-auto max-w-6xl">
             <header class="mb-10 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div
-                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003b7d] text-white shadow-sm"
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003B7D] text-white shadow-sm"
                     >
                         <AppLogoIcon class="h-6 w-6 fill-current" />
                     </div>
@@ -43,14 +43,14 @@ const dashboardUrl = computed(() =>
                     <Link
                         v-if="$page.props.auth.user"
                         :href="dashboardUrl"
-                        class="inline-flex items-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:border-[#003b7d]/40 hover:text-[#003b7d]"
+                        class="inline-flex items-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:border-[#003B7D]/40 hover:text-[#003B7D]"
                     >
                         Dashboard
                     </Link>
                     <Link
                         v-else
                         :href="login()"
-                        class="inline-flex items-center rounded-xl bg-[#003b7d] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#0f4c81]"
+                        class="inline-flex items-center rounded-xl bg-[#003B7D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#002b5c]"
                     >
                         Log in
                     </Link>
@@ -58,14 +58,14 @@ const dashboardUrl = computed(() =>
             </header>
 
             <main
-                class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl shadow-[#003b7d]/5"
+                class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl shadow-[#003B7D]/5"
             >
                 <div
                     class="grid items-center gap-6 p-6 md:p-10 lg:grid-cols-[1.1fr_0.9fr]"
                 >
                     <div>
                         <div
-                            class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#003b7d]/20 bg-[#003b7d]/5 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-[#003b7d] uppercase"
+                            class="mb-5 inline-flex items-center gap-2 rounded-full border border-[#003B7D]/20 bg-[#003B7D]/5 px-3 py-1 text-[10px] font-black tracking-[0.18em] text-[#003B7D] uppercase"
                         >
                             Smart retail operations
                         </div>
@@ -87,14 +87,14 @@ const dashboardUrl = computed(() =>
                             <Link
                                 v-if="$page.props.auth.user"
                                 :href="dashboardUrl"
-                                class="inline-flex items-center rounded-xl bg-[#003b7d] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f4c81]"
+                                class="inline-flex items-center rounded-xl bg-[#003B7D] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#002b5c]"
                             >
                                 Open dashboard
                             </Link>
                             <Link
                                 v-else
                                 :href="login()"
-                                class="inline-flex items-center rounded-xl bg-[#003b7d] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#0f4c81]"
+                                class="inline-flex items-center rounded-xl bg-[#003B7D] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#002b5c]"
                             >
                                 Get started
                             </Link>
@@ -110,7 +110,7 @@ const dashboardUrl = computed(() =>
                                 class="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
                             >
                                 <div
-                                    class="tnum text-2xl font-black text-[#003b7d]"
+                                    class="tnum text-2xl font-black text-[#003B7D]"
                                 >
                                     2.4x
                                 </div>
@@ -124,7 +124,7 @@ const dashboardUrl = computed(() =>
                                 class="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
                             >
                                 <div
-                                    class="tnum text-2xl font-black text-[#003b7d]"
+                                    class="tnum text-2xl font-black text-[#003B7D]"
                                 >
                                     99.2%
                                 </div>
@@ -138,7 +138,7 @@ const dashboardUrl = computed(() =>
                                 class="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
                             >
                                 <div
-                                    class="tnum text-2xl font-black text-[#003b7d]"
+                                    class="tnum text-2xl font-black text-[#003B7D]"
                                 >
                                     24/7
                                 </div>
@@ -153,7 +153,7 @@ const dashboardUrl = computed(() =>
 
                     <div class="relative">
                         <div
-                            class="rounded-3xl border border-gray-200 bg-gradient-to-br from-white to-gray-100 p-5 shadow-lg shadow-[#003b7d]/5"
+                            class="rounded-3xl border border-gray-200 bg-gradient-to-br from-white to-gray-100 p-5 shadow-lg shadow-[#003B7D]/5"
                         >
                             <div class="rounded-2xl bg-white p-4">
                                 <div class="flex items-center justify-between">
@@ -209,19 +209,19 @@ const dashboardUrl = computed(() =>
                                     class="mt-6 flex items-end gap-2 rounded-xl bg-gray-50 p-3"
                                 >
                                     <div
-                                        class="h-10 w-8 rounded-t-xl bg-[#003b7d]/40"
+                                        class="h-10 w-8 rounded-t-xl bg-[#003B7D]/40"
                                     ></div>
                                     <div
                                         class="h-16 w-8 rounded-t-xl bg-sky-400/50"
                                     ></div>
                                     <div
-                                        class="h-12 w-8 rounded-t-xl bg-[#5b8def]/60"
+                                        class="h-12 w-8 rounded-t-xl bg-[#77b6ff]/60"
                                     ></div>
                                     <div
                                         class="h-20 w-8 rounded-t-xl bg-sky-300/60"
                                     ></div>
                                     <div
-                                        class="h-14 w-8 rounded-t-xl bg-[#003b7d]/50"
+                                        class="h-14 w-8 rounded-t-xl bg-[#003B7D]/50"
                                     ></div>
                                     <div
                                         class="h-24 w-8 rounded-t-xl bg-[#00458f]/70"

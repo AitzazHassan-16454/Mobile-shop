@@ -24,10 +24,10 @@ const { isCurrentUrl } = useCurrentUrl();
                     as-child
                     :tooltip="item.title"
                     :class="[
-                        'flex h-12 w-full items-center rounded-md px-3',
+                        'flex h-11 w-full items-center rounded-xl px-3 transition-all duration-200',
                         isCurrentUrl(item.href)
-                            ? 'bg-white text-[#003b7d] hover:bg-white hover:text-[#003b7d] focus-visible:bg-white focus-visible:text-[#003b7d]'
-                            : 'text-white hover:bg-white hover:text-[#003b7d] focus-visible:bg-white focus-visible:text-[#003b7d]',
+                            ? 'bg-white/95 font-black text-[#003B7D] shadow-[0_4px_16px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,1)] ring-1 ring-white/50 hover:bg-white hover:text-[#003B7D]'
+                            : 'font-semibold text-white/80 hover:bg-white/12 hover:text-white hover:backdrop-blur-md',
                     ]"
                 >
                     <Link

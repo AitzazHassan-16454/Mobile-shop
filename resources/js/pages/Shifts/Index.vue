@@ -145,13 +145,13 @@ const printShiftSlip = () => {
     <div class="w-full space-y-6 p-6">
         <!-- Header -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
+            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
         >
             <div>
                 <h1
                     class="flex items-center gap-2 text-2xl font-bold text-gray-900"
                 >
-                    <Receipt class="h-7 w-7 text-violet-600" />
+                    <Receipt class="h-7 w-7 text-[#003B7D]" />
                     Shift & Cash Drawer Management
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
@@ -170,7 +170,7 @@ const printShiftSlip = () => {
                 </button>
                 <button
                     @click="showCloseShiftModal = true"
-                    class="flex items-center gap-2 rounded-lg bg-[#003b7d] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                    class="flex items-center gap-2 rounded-lg bg-[#003B7D] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
                 >
                     <CheckCircle2 class="h-4 w-4" />
                     Close Shift & Reconcile
@@ -181,7 +181,7 @@ const printShiftSlip = () => {
         <!-- Active Shift Section -->
         <div
             v-if="activeShift"
-            class="space-y-6 rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+            class="space-y-6 rounded-2xl border border-gray-200 bg-gray-50 p-6 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
         >
             <div
                 class="flex items-center justify-between border-b border-gray-200 pb-4"
@@ -189,10 +189,10 @@ const printShiftSlip = () => {
                 <div class="flex items-center gap-3">
                     <span class="relative flex h-3 w-3">
                         <span
-                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-violet-400 opacity-75"
+                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#003B7D]/60 opacity-75"
                         ></span>
                         <span
-                            class="relative inline-flex h-3 w-3 rounded-full bg-[#003b7d]"
+                            class="relative inline-flex h-3 w-3 rounded-full bg-[#003B7D]"
                         ></span>
                     </span>
                     <div>
@@ -232,14 +232,14 @@ const printShiftSlip = () => {
                 </div>
 
                 <div
-                    class="rounded-xl border border-violet-200 bg-violet-50 p-4"
+                    class="rounded-xl border border-[#003B7D]/20 bg-[#003B7D]/5 p-4"
                 >
                     <span
-                        class="block text-xs font-medium tracking-wider text-violet-600 uppercase"
+                        class="block text-xs font-medium tracking-wider text-[#003B7D] uppercase"
                         >Cash Sales</span
                     >
                     <span
-                        class="tnum mt-1 block text-xl font-bold text-violet-600"
+                        class="tnum mt-1 block text-xl font-bold text-[#003B7D]"
                         >+ Rs
                         {{ activeShift.cash_sales.toLocaleString() }}</span
                     >
@@ -269,7 +269,7 @@ const printShiftSlip = () => {
                 </div>
 
                 <div
-                    class="col-span-2 rounded-xl border border-[#003b7d] bg-[#003b7d] p-4 shadow-sm"
+                    class="col-span-2 rounded-xl border border-[#003B7D] bg-[#003B7D] p-4 shadow-sm"
                 >
                     <span
                         class="block text-xs font-semibold tracking-wider text-blue-200 uppercase"
@@ -362,16 +362,16 @@ const printShiftSlip = () => {
         <!-- No Active Shift / Open Shift Section -->
         <div
             v-else
-            class="space-y-6 rounded-2xl border border-violet-200 bg-gradient-to-br from-[#1b0f38] to-slate-900 p-8 text-gray-900 shadow-xl"
+            class="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)]"
         >
             <div class="flex items-start gap-4">
                 <div
-                    class="rounded-xl border border-violet-200 bg-violet-50 p-3 text-violet-600"
+                    class="flex h-11 w-11 items-center justify-center rounded-xl bg-[#003B7D]/10 text-[#003B7D] ring-1 ring-[#003B7D]/20 ring-inset"
                 >
-                    <Wallet class="h-8 w-8" />
+                    <Wallet class="h-6 w-6" />
                 </div>
                 <div>
-                    <h2 class="text-xl font-bold">
+                    <h2 class="text-lg font-black tracking-tight text-gray-900">
                         No Register Shift Currently Open
                     </h2>
                     <p class="mt-1 text-sm text-slate-500">
@@ -387,7 +387,7 @@ const printShiftSlip = () => {
             >
                 <div>
                     <label
-                        class="mb-2 block text-xs font-semibold tracking-wider text-violet-600 uppercase"
+                        class="mb-2 block text-[10px] font-black tracking-[0.18em] text-[#003B7D] uppercase"
                     >
                         Opening Float Cash (Rs)
                     </label>
@@ -403,7 +403,7 @@ const printShiftSlip = () => {
                             min="0"
                             required
                             placeholder="5000"
-                            class="tnum w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pr-4 pl-10 text-lg font-semibold text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-violet-500/70 focus-visible:ring-2 focus-visible:ring-violet-200"
+                            class="tnum w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pr-4 pl-10 text-lg font-semibold text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-[#003B7D]/70 focus-visible:ring-2 focus-visible:ring-[#003B7D]/20"
                         />
                     </div>
                     <p
@@ -417,7 +417,7 @@ const printShiftSlip = () => {
                 <button
                     type="submit"
                     :disabled="openShiftForm.processing"
-                    class="w-full rounded-xl bg-[#003b7d] py-3 text-center font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                    class="w-full rounded-xl bg-[#003B7D] py-3 text-center font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
                 >
                     Start Shift & Open Register
                 </button>
@@ -426,10 +426,10 @@ const printShiftSlip = () => {
 
         <!-- Past Shifts History -->
         <div
-            class="bg-card space-y-4 rounded-2xl border border-gray-200 p-6 shadow-[0_1px_2px_rgba(2,43,90,0.06)]"
+            class="bg-card space-y-4 rounded-2xl border border-gray-200 p-6 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)]"
         >
             <h2 class="flex items-center gap-2 text-lg font-bold text-gray-900">
-                <Clock class="h-5 w-5 text-violet-600" />
+                <Clock class="h-5 w-5 text-[#003B7D]" />
                 Recent Shifts History
             </h2>
 
@@ -484,7 +484,7 @@ const printShiftSlip = () => {
                                 Rs {{ shift.opening_float.toLocaleString() }}
                             </td>
                             <td
-                                class="tnum px-4 py-3 font-semibold text-violet-600"
+                                class="tnum px-4 py-3 font-semibold text-[#003B7D]"
                             >
                                 Rs {{ shift.expected_cash.toLocaleString() }}
                             </td>
@@ -503,7 +503,7 @@ const printShiftSlip = () => {
                                         shift.discrepancy < 0
                                             ? 'rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-600'
                                             : shift.discrepancy > 0
-                                              ? 'rounded border border-violet-200 bg-violet-50 px-2 py-0.5 text-violet-600'
+                                              ? 'rounded border border-[#003B7D]/20 bg-[#003B7D]/5 px-2 py-0.5 text-[#003B7D]'
                                               : 'text-slate-500',
                                     ]"
                                 >
@@ -521,7 +521,7 @@ const printShiftSlip = () => {
                                 <span
                                     :class="[
                                         shift.status === 'open'
-                                            ? 'border border-violet-200 bg-violet-50 text-violet-600'
+                                            ? 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
                                             : 'border border-gray-200 bg-gray-50 text-slate-600',
                                         'rounded-full px-2 py-0.5 text-xs font-semibold capitalize',
                                     ]"
@@ -566,7 +566,7 @@ const printShiftSlip = () => {
                     <select
                         v-model="expenseForm.category"
                         required
-                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-violet-500/70 focus-visible:ring-2 focus-visible:ring-violet-200"
+                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-[#003B7D]/70 focus-visible:ring-2 focus-visible:ring-[#003B7D]/20"
                     >
                         <option
                             v-for="cat in categories"
@@ -589,7 +589,7 @@ const printShiftSlip = () => {
                         min="0.01"
                         required
                         placeholder="e.g. 500"
-                        class="tnum w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-violet-500/70 focus-visible:ring-2 focus-visible:ring-violet-200"
+                        class="tnum w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-[#003B7D]/70 focus-visible:ring-2 focus-visible:ring-[#003B7D]/20"
                     />
                 </div>
 
@@ -601,7 +601,7 @@ const printShiftSlip = () => {
                         v-model="expenseForm.notes"
                         rows="2"
                         placeholder="e.g. Tea & lunch for staff"
-                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-violet-500/70 focus-visible:ring-2 focus-visible:ring-violet-200"
+                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-[#003B7D]/70 focus-visible:ring-2 focus-visible:ring-[#003B7D]/20"
                     ></textarea>
                 </div>
 
@@ -616,7 +616,7 @@ const printShiftSlip = () => {
                     <button
                         type="submit"
                         :disabled="expenseForm.processing"
-                        class="rounded-lg bg-[#003b7d] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#0f4c81] disabled:opacity-50"
+                        class="rounded-lg bg-[#003B7D] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#002b5c] disabled:opacity-50"
                     >
                         Record Expense
                     </button>
@@ -659,7 +659,7 @@ const printShiftSlip = () => {
                 </div>
                 <div class="flex justify-between text-xs text-slate-500">
                     <span>Net Cash Sales + Wasooli:</span>
-                    <span class="tnum font-medium text-violet-600"
+                    <span class="tnum font-medium text-[#003B7D]"
                         >+ Rs
                         {{
                             (
@@ -677,7 +677,7 @@ const printShiftSlip = () => {
                     >
                 </div>
                 <div
-                    class="flex justify-between border-t border-violet-200 pt-2 text-sm font-bold text-violet-100"
+                    class="flex justify-between border-t border-[#003B7D]/20 pt-2 text-sm font-bold text-blue-100"
                 >
                     <span>Expected Cash in Register:</span>
                     <span class="tnum text-lg"
@@ -701,7 +701,7 @@ const printShiftSlip = () => {
                         min="0"
                         required
                         placeholder="Enter counted physical cash..."
-                        class="tnum w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-lg font-bold text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-violet-500/70 focus-visible:ring-2 focus-visible:ring-violet-200"
+                        class="tnum w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-lg font-bold text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-[#003B7D]/70 focus-visible:ring-2 focus-visible:ring-[#003B7D]/20"
                     />
                 </div>
 
@@ -713,7 +713,7 @@ const printShiftSlip = () => {
                         liveDiscrepancy < 0
                             ? 'border border-rose-200 bg-rose-50 text-rose-600'
                             : liveDiscrepancy > 0
-                              ? 'border border-violet-200 bg-violet-50 text-violet-600'
+                              ? 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
                               : 'border border-gray-200 bg-gray-50 text-slate-600',
                     ]"
                 >
@@ -735,7 +735,7 @@ const printShiftSlip = () => {
                         v-model="closeShiftForm.notes"
                         rows="2"
                         placeholder="Add reason for cash shortage or discrepancy..."
-                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-violet-500/70 focus-visible:ring-2 focus-visible:ring-violet-200"
+                        class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-slate-500 focus:outline-none focus-visible:border-[#003B7D]/70 focus-visible:ring-2 focus-visible:ring-[#003B7D]/20"
                     ></textarea>
                 </div>
 
@@ -750,7 +750,7 @@ const printShiftSlip = () => {
                     <button
                         type="submit"
                         :disabled="closeShiftForm.processing"
-                        class="rounded-lg bg-[#003b7d] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                        class="rounded-lg bg-[#003B7D] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
                     >
                         Confirm & Close Shift
                     </button>

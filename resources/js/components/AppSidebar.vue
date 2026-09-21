@@ -141,7 +141,7 @@ const footerNavItems = computed<NavItem[]>(() => [
     <Sidebar
         collapsible="icon"
         variant="sidebar"
-        class="bg-sidebar text-sidebar-foreground border-r border-white/10"
+        class="text-sidebar-foreground border-r border-white/12 bg-[#002654]/90 shadow-[8px_0_36px_rgba(0,18,51,0.25)] backdrop-blur-2xl"
     >
         <SidebarHeader class="relative bg-transparent px-3 py-3">
             <SidebarMenu>

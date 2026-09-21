@@ -25,7 +25,7 @@ defineProps<Props>();
             <SidebarMenu class="gap-1.5">
                 <SidebarMenuItem v-for="item in items" :key="item.title">
                     <SidebarMenuButton
-                        class="h-12 rounded-md px-3 text-blue-100 transition-colors hover:bg-white hover:text-[#003b7d]"
+                        class="h-12 rounded-md px-3 text-blue-100 transition-colors hover:bg-white hover:text-[#003B7D]"
                         as-child
                     >
                         <a

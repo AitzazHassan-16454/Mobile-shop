@@ -12,7 +12,7 @@ const props = withDefaults(
         size: 190,
         thickness: 22,
         colors: () => [
-            '#8b5cf6',
+            '#003B7D',
             '#22d3ee',
             '#34d399',
             '#f59e0b',

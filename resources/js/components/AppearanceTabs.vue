@@ -22,7 +22,7 @@ const tabs = [
             :class="[
                 'flex items-center rounded-md px-3.5 py-1.5 transition-all',
                 appearance === value
-                    ? 'bg-[#003b7d] text-white shadow-sm'
+                    ? 'bg-[#003B7D] text-white shadow-sm'
                     : 'text-slate-600 hover:bg-white hover:text-slate-900',
             ]"
         >

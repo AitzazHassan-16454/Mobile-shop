@@ -135,14 +135,14 @@ defineOptions({
 
     <div class="flex h-full flex-1 flex-col gap-6 p-6">
         <section
-            class="bg-card/60 flex flex-col gap-4 rounded-2xl border border-gray-200 p-5 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+            class="bg-card/60 flex flex-col gap-4 rounded-2xl border border-gray-200 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
         >
             <div>
                 <p class="eyebrow mb-2">Purchasing desk</p>
                 <h1
                     class="flex items-center gap-2 text-2xl font-bold text-gray-900"
                 >
-                    <Store class="h-7 w-7 text-violet-600" /> Suppliers &
+                    <Store class="h-7 w-7 text-[#003B7D]" /> Suppliers &
                     Payables
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
@@ -151,7 +151,7 @@ defineOptions({
                 </p>
             </div>
             <Button
-                class="gap-2 bg-[#003b7d] font-bold text-white shadow-sm hover:bg-[#0f4c81]"
+                class="gap-2 bg-[#003B7D] font-bold text-white shadow-sm hover:bg-[#002b5c]"
                 @click="showCreate = !showCreate"
                 ><Plus class="h-4 w-4" /> Add Supplier</Button
             >
@@ -159,12 +159,12 @@ defineOptions({
 
         <section
             v-if="showCreate"
-            class="rounded-2xl border border-violet-200 bg-violet-500/[0.04] p-5 backdrop-blur-xl"
+            class="rounded-2xl border border-[#003B7D]/20 bg-[#003B7D]/5 p-5 backdrop-blur-xl"
         >
             <div
                 class="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-900"
             >
-                <Building2 class="h-5 w-5 text-violet-600" /> New supplier
+                <Building2 class="h-5 w-5 text-[#003B7D]" /> New supplier
                 profile
             </div>
             <form
@@ -212,7 +212,7 @@ defineOptions({
                 </div>
                 <div class="flex items-end">
                     <Button
-                        class="w-full bg-[#003b7d] font-semibold text-white shadow-sm hover:bg-[#0f4c81]"
+                        class="w-full bg-[#003B7D] font-semibold text-white shadow-sm hover:bg-[#002b5c]"
                         :disabled="createForm.processing"
                         >Save supplier</Button
                     >
@@ -256,7 +256,7 @@ defineOptions({
                 <p class="text-xs tracking-wider text-slate-500 uppercase">
                     Supplier credits
                 </p>
-                <p class="tnum mt-2 text-2xl font-bold text-violet-600">
+                <p class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
                     {{ money(summary.total_credits) }}
                 </p>
             </div>
@@ -319,7 +319,7 @@ defineOptions({
                                     :class="
                                         Number(supplier.current_balance) > 0
                                             ? 'text-amber-600'
-                                            : 'text-violet-600'
+                                            : 'text-[#003B7D]'
                                     "
                                     >{{
                                         money(
@@ -350,7 +350,7 @@ defineOptions({
                                     ><Button
                                         size="sm"
                                         variant="outline"
-                                        class="border-violet-200 bg-violet-50 text-violet-600 hover:bg-violet-100"
+                                        class="border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] hover:bg-[#003B7D]/10"
                                         @click="
                                             setEntry(supplier.id, 'payment')
                                         "
@@ -381,7 +381,7 @@ defineOptions({
                                         placeholder="Bill / ref #"
                                     /><Button
                                         size="sm"
-                                        class="bg-[#003b7d] text-white hover:bg-[#0f4c81]"
+                                        class="bg-[#003B7D] text-white hover:bg-[#002b5c]"
                                         :disabled="entryForm.processing"
                                         >Save</Button
                                     >

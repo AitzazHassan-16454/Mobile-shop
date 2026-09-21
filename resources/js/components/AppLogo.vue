@@ -10,7 +10,7 @@ const name = usePage().props.name || 'Faizan Mobile';
         <div
             class="flex size-9 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-white/40"
         >
-            <Smartphone class="size-4.5 text-[#003b7d]" />
+            <Smartphone class="size-4.5 text-[#003B7D]" />
         </div>
         <div class="grid flex-1 text-left leading-tight">
             <span

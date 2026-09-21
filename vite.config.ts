@@ -11,10 +11,10 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.ts'],
             refresh: true,
-            detectTls: false,
+            // detectTls: false,
             fonts: [
-                bunny('Outfit', {
-                    weights: [400, 500, 600, 700, 800, 900],
+                bunny('Roboto', {
+                    weights: [300, 400, 500, 600, 700],
                 }),
             ],
         }),

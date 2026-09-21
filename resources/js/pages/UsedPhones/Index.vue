@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
-    AlertShield,
     CheckCircle,
     DollarSign,
     FileCheck,
@@ -210,13 +209,13 @@ const formatCurrency = (val: number | string) => {
     <div class="flex h-full flex-1 flex-col gap-6 p-6">
         <!-- Header Banner -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
         >
             <div>
                 <h1
                     class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900"
                 >
-                    <ShieldCheck class="h-7 w-7 text-violet-600" />
+                    <ShieldCheck class="h-7 w-7 text-[#003B7D]" />
                     Used Phone Purchase & Legal Affidavit Log
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
@@ -227,7 +226,7 @@ const formatCurrency = (val: number | string) => {
             <div>
                 <Button
                     @click="openCreateModal"
-                    class="gap-2 bg-[#003b7d] font-semibold text-white shadow-sm hover:bg-[#0f4c81]"
+                    class="gap-2 bg-[#003B7D] font-semibold text-white shadow-sm hover:bg-[#002b5c]"
                 >
                     <Plus class="h-4 w-4" /> Buy Used Phone (Affidavit Entry)
                 </Button>
@@ -237,14 +236,14 @@ const formatCurrency = (val: number | string) => {
         <!-- Summary Metrics -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Purchased Units</span
                     >
-                    <Smartphone class="h-5 w-5 text-violet-600" />
+                    <Smartphone class="h-5 w-5 text-[#003B7D]" />
                 </div>
                 <div class="mt-2 text-2xl font-bold text-gray-900">
                     {{ summary.total_purchases }}
@@ -255,16 +254,16 @@ const formatCurrency = (val: number | string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Total Payout Amount</span
                     >
-                    <DollarSign class="h-5 w-5 text-violet-600" />
+                    <DollarSign class="h-5 w-5 text-[#003B7D]" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-violet-600">
+                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
                     {{ formatCurrency(summary.total_payout) }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
@@ -273,7 +272,7 @@ const formatCurrency = (val: number | string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
@@ -291,7 +290,7 @@ const formatCurrency = (val: number | string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span
@@ -309,7 +308,7 @@ const formatCurrency = (val: number | string) => {
 
         <!-- Filter Bar -->
         <div
-            class="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+            class="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
         >
             <div class="relative max-w-md flex-1">
                 <Search
@@ -318,7 +317,7 @@ const formatCurrency = (val: number | string) => {
                 <Input
                     v-model="search"
                     placeholder="Search by voucher #, seller name, CNIC, phone or IMEI..."
-                    class="border-gray-200 bg-gray-50 pl-9 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                    class="border-gray-200 bg-gray-50 pl-9 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                 />
             </div>
         </div>
@@ -355,7 +354,7 @@ const formatCurrency = (val: number | string) => {
                             class="transition-colors hover:bg-gray-50"
                         >
                             <td class="px-4 py-3 font-mono">
-                                <div class="text-sm font-bold text-violet-600">
+                                <div class="text-sm font-bold text-[#003B7D]">
                                     {{ item.voucher_no }}
                                 </div>
                                 <div class="text-muted-foreground text-[11px]">
@@ -378,7 +377,7 @@ const formatCurrency = (val: number | string) => {
                                     S/O: {{ item.seller_father_name }}
                                 </div>
                                 <div
-                                    class="mt-0.5 font-mono font-semibold text-violet-600/90"
+                                    class="mt-0.5 font-mono font-semibold text-[#003B7D]/90"
                                 >
                                     CNIC: {{ item.seller_cnic }}
                                 </div>
@@ -392,7 +391,7 @@ const formatCurrency = (val: number | string) => {
                                     {{ item.device_model }}
                                 </div>
                                 <div
-                                    class="font-mono text-[11px] font-semibold text-violet-600/90"
+                                    class="font-mono text-[11px] font-semibold text-[#003B7D]/90"
                                 >
                                     IMEI 1: {{ item.imei_1 }}
                                 </div>
@@ -417,7 +416,7 @@ const formatCurrency = (val: number | string) => {
 
                             <td class="px-4 py-3">
                                 <span
-                                    class="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 font-semibold text-violet-600"
+                                    class="inline-flex items-center gap-1 rounded-full border border-[#003B7D]/20 bg-[#003B7D]/5 px-2.5 py-0.5 font-semibold text-[#003B7D]"
                                 >
                                     <FileCheck class="h-3.5 w-3.5" /> Affidavit
                                     Signed
@@ -433,7 +432,7 @@ const formatCurrency = (val: number | string) => {
                                         variant="outline"
                                         @click="openVoucherModal(item)"
                                         title="Print Legal Affidavit Voucher"
-                                        class="h-8 gap-1 border-violet-200 text-violet-600 hover:border-violet-400/50 hover:bg-violet-50"
+                                        class="h-8 gap-1 border-[#003B7D]/20 text-[#003B7D] hover:border-[#003B7D]/40 hover:bg-[#003B7D]/5"
                                     >
                                         <Printer class="h-3.5 w-3.5" />
                                         Affidavit
@@ -494,7 +493,7 @@ const formatCurrency = (val: number | string) => {
             <DialogContent class="max-h-[85vh] max-w-2xl overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
-                        <ShieldCheck class="h-5 w-5 text-violet-600" />
+                        <ShieldCheck class="h-5 w-5 text-[#003B7D]" />
                         Used Phone Purchase & Legal Affidavit Intake
                     </DialogTitle>
                     <DialogDescription>
@@ -512,7 +511,7 @@ const formatCurrency = (val: number | string) => {
                         class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
                     >
                         <div
-                            class="flex items-center gap-1.5 font-bold text-violet-600"
+                            class="flex items-center gap-1.5 font-bold text-[#003B7D]"
                         >
                             <User class="h-4 w-4" /> Seller Identification
                             Details
@@ -527,7 +526,7 @@ const formatCurrency = (val: number | string) => {
                                     id="seller_name"
                                     v-model="purchaseForm.seller_name"
                                     placeholder="Name as per CNIC"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.seller_name"
@@ -544,7 +543,7 @@ const formatCurrency = (val: number | string) => {
                                     id="seller_father"
                                     v-model="purchaseForm.seller_father_name"
                                     placeholder="Father Name"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                             </div>
                         </div>
@@ -559,7 +558,7 @@ const formatCurrency = (val: number | string) => {
                                     v-model="purchaseForm.seller_cnic"
                                     placeholder="e.g. 35201-1234567-1"
                                     font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.seller_cnic"
@@ -577,7 +576,7 @@ const formatCurrency = (val: number | string) => {
                                     v-model="purchaseForm.seller_phone"
                                     placeholder="03001234567"
                                     font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.seller_phone"
@@ -597,7 +596,7 @@ const formatCurrency = (val: number | string) => {
                                 id="seller_address"
                                 v-model="purchaseForm.seller_address"
                                 placeholder="Full Home Address"
-                                class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                             />
                         </div>
                     </div>
@@ -607,7 +606,7 @@ const formatCurrency = (val: number | string) => {
                         class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
                     >
                         <div
-                            class="flex items-center gap-1.5 font-bold text-violet-600"
+                            class="flex items-center gap-1.5 font-bold text-[#003B7D]"
                         >
                             <Smartphone class="h-4 w-4" /> Device & IMEI
                             Specifications
@@ -620,7 +619,7 @@ const formatCurrency = (val: number | string) => {
                                     id="dev_model"
                                     v-model="purchaseForm.device_model"
                                     placeholder="e.g. Samsung Galaxy S21 Ultra"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.device_model"
@@ -637,7 +636,7 @@ const formatCurrency = (val: number | string) => {
                                     id="dev_brand"
                                     v-model="purchaseForm.brand"
                                     placeholder="e.g. Samsung"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                             </div>
                         </div>
@@ -650,7 +649,7 @@ const formatCurrency = (val: number | string) => {
                                     v-model="purchaseForm.imei_1"
                                     placeholder="15-digit IMEI"
                                     font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.imei_1"
@@ -666,7 +665,7 @@ const formatCurrency = (val: number | string) => {
                                     v-model="purchaseForm.imei_2"
                                     placeholder="Optional IMEI 2"
                                     font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                             </div>
                         </div>
@@ -677,7 +676,7 @@ const formatCurrency = (val: number | string) => {
                                 <Input
                                     v-model="purchaseForm.color"
                                     placeholder="e.g. Black"
-                                    class="h-8 border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="h-8 border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                             </div>
                             <div>
@@ -685,7 +684,7 @@ const formatCurrency = (val: number | string) => {
                                 <Input
                                     v-model="purchaseForm.storage"
                                     placeholder="e.g. 128GB"
-                                    class="h-8 border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                    class="h-8 border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                                 />
                             </div>
                             <div>
@@ -728,7 +727,7 @@ const formatCurrency = (val: number | string) => {
                                 step="0.01"
                                 v-model="purchaseForm.purchase_amount"
                                 placeholder="0.00"
-                                class="tnum border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-violet-500/70 focus-visible:ring-violet-200"
+                                class="tnum border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                             />
                             <span
                                 v-if="purchaseForm.errors.purchase_amount"
@@ -764,7 +763,7 @@ const formatCurrency = (val: number | string) => {
                             id="auto_stock"
                             type="checkbox"
                             v-model="purchaseForm.auto_add_stock"
-                            class="rounded border-gray-200 bg-gray-50 accent-violet-500"
+                            class="rounded border-gray-200 bg-gray-50 accent-[#003B7D]"
                         />
                         <Label
                             for="auto_stock"
@@ -784,7 +783,7 @@ const formatCurrency = (val: number | string) => {
                         <Button
                             type="submit"
                             :disabled="purchaseForm.processing"
-                            class="bg-[#003b7d] font-semibold text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] font-semibold text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             {{
                                 purchaseForm.processing
@@ -945,7 +944,7 @@ const formatCurrency = (val: number | string) => {
                     <Button
                         type="button"
                         @click="printVoucher"
-                        class="gap-1 bg-[#003b7d] font-semibold text-white shadow-sm hover:bg-[#0f4c81]"
+                        class="gap-1 bg-[#003B7D] font-semibold text-white shadow-sm hover:bg-[#002b5c]"
                     >
                         <Printer class="h-4 w-4" /> Print Affidavit Voucher
                     </Button>

@@ -276,13 +276,13 @@ const formatCurrency = (val: number | string) => {
     <div class="flex h-full flex-1 flex-col gap-6 p-6">
         <!-- Header Banner -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between"
         >
             <div>
                 <h1
                     class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900"
                 >
-                    <Users class="h-7 w-7 text-violet-600" />
+                    <Users class="h-7 w-7 text-[#003B7D]" />
                     Customer Khata Directory & Wasooli Ledger
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
@@ -293,7 +293,7 @@ const formatCurrency = (val: number | string) => {
             <div>
                 <Button
                     @click="openCreateCustomerModal"
-                    class="gap-2 bg-[#003b7d] font-bold text-white shadow-sm hover:bg-[#0f4c81]"
+                    class="gap-2 bg-[#003B7D] font-bold text-white shadow-sm hover:bg-[#002b5c]"
                 >
                     <UserPlus class="h-4 w-4" /> + Add Customer to Khata
                 </Button>
@@ -303,11 +303,11 @@ const formatCurrency = (val: number | string) => {
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Total Customers</span>
-                    <Users class="h-5 w-5 text-violet-600" />
+                    <Users class="h-5 w-5 text-[#003B7D]" />
                 </div>
                 <div class="tnum mt-2 text-2xl font-bold text-gray-900">
                     {{ summary.total_customers }}
@@ -318,7 +318,7 @@ const formatCurrency = (val: number | string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Total Shop Receivables (Udhaar)</span>
@@ -333,13 +333,13 @@ const formatCurrency = (val: number | string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl"
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Total Customer Advances</span>
-                    <ArrowUpRight class="h-5 w-5 text-violet-600" />
+                    <ArrowUpRight class="h-5 w-5 text-[#003B7D]" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-violet-600">
+                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
                     {{ formatCurrency(summary.total_advances) }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
@@ -350,7 +350,7 @@ const formatCurrency = (val: number | string) => {
 
         <!-- Search & Filter Bar -->
         <div
-            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_1px_2px_rgba(2,43,90,0.06)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
+            class="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl md:flex-row md:items-center md:justify-between"
         >
             <div class="relative max-w-md flex-1">
                 <Search
@@ -415,9 +415,7 @@ const formatCurrency = (val: number | string) => {
                                 <div
                                     class="text-foreground flex items-center gap-2 text-sm font-bold"
                                 >
-                                    <UserCheck
-                                        class="h-4 w-4 text-violet-600"
-                                    />
+                                    <UserCheck class="h-4 w-4 text-[#003B7D]" />
                                     {{ customer.name }}
                                 </div>
                             </td>
@@ -443,7 +441,7 @@ const formatCurrency = (val: number | string) => {
                                             ? 'text-amber-600'
                                             : Number(customer.current_balance) <
                                                 0
-                                              ? 'text-violet-600'
+                                              ? 'text-[#003B7D]'
                                               : 'text-muted-foreground',
                                     ]"
                                 >
@@ -472,7 +470,7 @@ const formatCurrency = (val: number | string) => {
                                         variant="default"
                                         @click="openWasooliModal(customer)"
                                         title="Receive Wasooli Payment"
-                                        class="h-8 gap-1 bg-violet-600 text-gray-900 hover:bg-violet-700"
+                                        class="h-8 gap-1 bg-[#003B7D] text-gray-900 hover:bg-[#002b5c]"
                                     >
                                         <Wallet class="h-3.5 w-3.5" /> Wasooli
                                     </Button>
@@ -482,7 +480,7 @@ const formatCurrency = (val: number | string) => {
                                         variant="outline"
                                         @click="openLedgerModal(customer)"
                                         title="View Statement History"
-                                        class="h-8 gap-1 border-violet-200 text-violet-600 hover:border-violet-400/50 hover:bg-violet-50"
+                                        class="h-8 gap-1 border-[#003B7D]/20 text-[#003B7D] hover:border-[#003B7D]/40 hover:bg-[#003B7D]/5"
                                     >
                                         <History class="h-3.5 w-3.5" />
                                         Statement
@@ -629,7 +627,7 @@ const formatCurrency = (val: number | string) => {
                         <Button
                             type="submit"
                             :disabled="customerForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             {{
                                 editingCustomer
@@ -647,7 +645,7 @@ const formatCurrency = (val: number | string) => {
             <DialogContent class="max-w-md">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
-                        <Wallet class="h-5 w-5 text-violet-600" />
+                        <Wallet class="h-5 w-5 text-[#003B7D]" />
                         Receive Wasooli Payment &bull;
                         {{ activeCustomerForWasooli?.name }}
                     </DialogTitle>
@@ -726,7 +724,7 @@ const formatCurrency = (val: number | string) => {
                         <Button
                             type="submit"
                             :disabled="wasooliForm.processing"
-                            class="bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                         >
                             Receive Wasooli & Print Slip
                         </Button>
@@ -740,7 +738,7 @@ const formatCurrency = (val: number | string) => {
             <DialogContent class="max-h-[85vh] max-w-3xl overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle class="flex items-center gap-2">
-                        <History class="h-5 w-5 text-violet-600" />
+                        <History class="h-5 w-5 text-[#003B7D]" />
                         Khata Statement &bull; {{ activeLedgerCustomer?.name }}
                     </DialogTitle>
                     <DialogDescription>
@@ -814,7 +812,7 @@ const formatCurrency = (val: number | string) => {
                                                 entry.type === 'sale'
                                                     ? 'border-amber-200 bg-amber-50 text-amber-600'
                                                     : entry.type === 'payment'
-                                                      ? 'border-violet-200 bg-violet-50 text-violet-600'
+                                                      ? 'border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
                                                       : 'border-sky-200 bg-sky-50 text-sky-600',
                                             ]"
                                         >
@@ -830,7 +828,7 @@ const formatCurrency = (val: number | string) => {
                                         <span
                                             :class="
                                                 entry.type === 'payment'
-                                                    ? 'text-violet-600'
+                                                    ? 'text-[#003B7D]'
                                                     : 'text-amber-600'
                                             "
                                         >
@@ -914,7 +912,7 @@ const formatCurrency = (val: number | string) => {
 
                     <div class="space-y-1 border-b pb-2 text-xs">
                         <div
-                            class="flex justify-between font-bold text-violet-800"
+                            class="flex justify-between font-bold text-[#002b5c]"
                         >
                             <span>Amount Received:</span>
                             <span>{{
@@ -960,7 +958,7 @@ const formatCurrency = (val: number | string) => {
                     <Button
                         type="button"
                         @click="printReceipt"
-                        class="gap-1 bg-[#003b7d] text-white shadow-sm hover:bg-[#0f4c81]"
+                        class="gap-1 bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
                     >
                         <Printer class="h-4 w-4" /> Print Wasooli Receipt
                     </Button>
