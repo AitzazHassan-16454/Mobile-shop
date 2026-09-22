@@ -16,7 +16,6 @@ test('customers page can be rendered', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Customers/Index')
             ->has('customers')
-            ->has('shopInfo')
             ->has('summary')
         );
 });

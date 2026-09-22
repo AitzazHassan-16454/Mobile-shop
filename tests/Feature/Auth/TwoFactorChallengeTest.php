@@ -15,15 +15,21 @@ test('two factor challenge redirects to login when not authenticated', function 
 });
 
 test('two factor challenge can be rendered', function () {
-    Features::twoFactorAuthentication([
-        'confirm' => true,
-        'confirmPassword' => true,
+    config([
+        'fortify.features' => array_merge(config('fortify.features', []), [
+            Features::twoFactorAuthentication([
+                'confirm' => true,
+                'confirmPassword' => true,
+            ]),
+        ]),
     ]);
 
-    $user = User::factory()->withTwoFactor()->create();
+    $user = User::factory()->withTwoFactor()->create([
+        'name' => 'two-factor-user',
+    ]);
 
-    $this->post(route('login'), [
-        'email' => $user->email,
+    $this->post(route('login.store'), [
+        'name' => 'two-factor-user',
         'password' => 'password',
     ]);
 

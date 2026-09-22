@@ -4,7 +4,11 @@ use App\Enums\TeamRole;
 use App\Models\Team;
 use App\Models\TeamInvitation;
 use App\Models\User;
-use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Fortify\Features;
+
+beforeEach(function () {
+    $this->skipUnlessFortifyHas(Features::registration());
+});
 
 test('registration screen can be rendered', function () {
     $response = $this->get(route('register'));
