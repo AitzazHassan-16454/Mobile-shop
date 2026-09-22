@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
-    ArrowLeftRight,
     BadgePercent,
     Boxes,
     Building2,
-    CalendarClock,
     Database,
     LayoutGrid,
+    Package,
     Receipt,
+    RotateCcw,
+    Ruler,
+    ShoppingBag,
     ShoppingCart,
     SlidersHorizontal,
     Store,
     Tags,
     Users,
-    Wallet,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -64,22 +65,14 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         icon: LayoutGrid,
         items: [
             { title: 'Customers', href: teamUrl('/customers'), icon: Users },
-            {
-                title: 'All Payments',
-                href: teamUrl('/all-payments'),
-                icon: Wallet,
-            },
-            {
-                title: 'Yearly Dues',
-                href: teamUrl('/yearly-dues'),
-                icon: CalendarClock,
-            },
         ],
     },
     {
-        title: 'Sales',
+        title: 'Sales & POS',
         icon: ShoppingCart,
         items: [
+            { title: 'Sales History & Direct Sale', href: teamUrl('/sales'), icon: ShoppingBag },
+            { title: 'Sale Returns', href: teamUrl('/sales-returns'), icon: RotateCcw },
             { title: 'Expenses', href: teamUrl('/expenses'), icon: Receipt },
         ],
     },
@@ -87,12 +80,13 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         title: 'Products',
         icon: Boxes,
         items: [
-            { title: 'Categories', href: teamUrl('/categories'), icon: Tags },
             {
-                title: 'Stock Transfer',
-                href: teamUrl('/stock-transfers'),
-                icon: ArrowLeftRight,
+                title: 'Products & Stock',
+                href: teamUrl('/products'),
+                icon: Package,
             },
+            { title: 'Categories', href: teamUrl('/categories'), icon: Tags },
+            { title: 'Units', href: teamUrl('/units'), icon: Ruler },
             {
                 title: 'Stock Adjustments',
                 href: teamUrl('/stock-adjustments'),

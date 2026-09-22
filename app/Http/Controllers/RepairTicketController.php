@@ -19,6 +19,10 @@ class RepairTicketController extends Controller
     {
         $search = trim($request->input('search', ''));
         $statusFilter = $request->input('status', 'all');
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [10, 15, 25, 50, 100, 250, 500], true)) {
+            $perPage = 15;
+        }
 
         $query = RepairTicket::query();
 
@@ -36,7 +40,7 @@ class RepairTicketController extends Controller
             $query->where('status', $statusFilter);
         }
 
-        $tickets = $query->latest()->paginate(15)->withQueryString();
+        $tickets = $query->latest()->paginate($perPage)->withQueryString();
 
         $spareParts = Product::query()
             ->where('is_serialized', false)
@@ -65,6 +69,7 @@ class RepairTicketController extends Controller
             'filters' => [
                 'search' => $search,
                 'status' => $statusFilter,
+                'per_page' => $perPage,
             ],
             'summary' => $summary,
             'latestRepair' => session('latest_repair'),

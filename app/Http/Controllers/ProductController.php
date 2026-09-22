@@ -73,7 +73,12 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->latest()->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        if ($perPage <= 0 || $perPage > 500) {
+            $perPage = 15;
+        }
+
+        $products = $query->latest()->paginate($perPage)->withQueryString();
 
         $categories = Product::query()
             ->select('category')
@@ -103,13 +108,14 @@ class ProductController extends Controller
             'total_stock_value' => round($totalStockValueSerialized + $totalStockValueAccessories, 2),
         ];
 
-        return Inertia::render('Inventory/Index', [
+        return Inertia::render('Products/Index', [
             'products' => $products,
             'filters' => [
                 'search' => $search,
                 'type' => $type,
                 'category' => $category,
                 'stock_status' => $stockStatus,
+                'per_page' => $perPage,
             ],
             'categories' => $categories,
             'brands' => $brands,
@@ -172,20 +178,26 @@ class ProductController extends Controller
     public function update(Request $request, string $currentTeam, Product $product): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'brand' => ['required', 'string', 'max:255'],
-            'category' => ['required', 'string', 'max:255'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'brand' => ['sometimes', 'required', 'string', 'max:255'],
+            'category' => ['sometimes', 'required', 'string', 'max:255'],
             'barcode' => ['nullable', 'string', 'max:255', 'unique:products,barcode,'.$product->id],
-            'is_serialized' => ['required', 'boolean'],
-            'sale_price' => ['required', 'numeric', 'min:0'],
+            'is_serialized' => ['sometimes', 'required', 'boolean'],
+            'sale_price' => ['sometimes', 'required', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'stock_quantity' => ['nullable', 'integer', 'min:0'],
-            'alert_quantity' => ['required', 'integer', 'min:0'],
+            'alert_quantity' => ['sometimes', 'required', 'integer', 'min:0'],
         ]);
 
-        if (! $validated['is_serialized']) {
-            $validated['cost_price'] = $validated['cost_price'] ?? 0.00;
-            $validated['stock_quantity'] = $validated['stock_quantity'] ?? 0;
+        $isSerialized = $validated['is_serialized'] ?? $product->is_serialized;
+
+        if (! $isSerialized) {
+            if (array_key_exists('cost_price', $validated)) {
+                $validated['cost_price'] = $validated['cost_price'] ?? 0.00;
+            }
+            if (array_key_exists('stock_quantity', $validated)) {
+                $validated['stock_quantity'] = $validated['stock_quantity'] ?? 0;
+            }
         } else {
             $validated['cost_price'] = 0.00;
             $validated['stock_quantity'] = 0;

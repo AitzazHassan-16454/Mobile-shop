@@ -15,7 +15,13 @@ class SupplierController extends Controller
     public function index(Request $request, string $currentTeam): Response
     {
         $search = trim($request->input('search', ''));
-        $query = Supplier::query()->with(['ledgers' => fn ($ledgerQuery) => $ledgerQuery->latest()->limit(10)]);
+        $balanceFilter = $request->input('balance_filter', 'all');
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [10, 15, 25, 50, 100, 250, 500], true)) {
+            $perPage = 15;
+        }
+
+        $query = Supplier::query()->with(['ledgers' => fn ($ledgerQuery) => $ledgerQuery->latest()->limit(50)]);
 
         if ($search !== '') {
             $query->where(function ($supplierQuery) use ($search) {
@@ -25,9 +31,21 @@ class SupplierController extends Controller
             });
         }
 
+        if ($balanceFilter === 'payable') {
+            $query->where('current_balance', '>', 0);
+        } elseif ($balanceFilter === 'advance') {
+            $query->where('current_balance', '<', 0);
+        } elseif ($balanceFilter === 'zero') {
+            $query->where('current_balance', 0);
+        }
+
         return Inertia::render('Suppliers/Index', [
-            'suppliers' => $query->latest()->paginate(15)->withQueryString(),
-            'filters' => ['search' => $search],
+            'suppliers' => $query->latest()->paginate($perPage)->withQueryString(),
+            'filters' => [
+                'search' => $search,
+                'balance_filter' => $balanceFilter,
+                'per_page' => $perPage,
+            ],
             'summary' => [
                 'total_suppliers' => Supplier::count(),
                 'total_payables' => (float) Supplier::where('current_balance', '>', 0)->sum('current_balance'),
@@ -44,10 +62,19 @@ class SupplierController extends Controller
             'phone' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
             'opening_balance' => ['nullable', 'numeric'],
+            'balance_type' => ['nullable', 'string', 'in:due,advance'],
         ]);
 
         DB::transaction(function () use ($validated): void {
-            $openingBalance = (float) ($validated['opening_balance'] ?? 0);
+            $rawBalance = (float) ($validated['opening_balance'] ?? 0);
+            $balanceType = $validated['balance_type'] ?? 'due';
+
+            if ($balanceType === 'advance' && $rawBalance > 0) {
+                $openingBalance = -$rawBalance;
+            } else {
+                $openingBalance = $rawBalance;
+            }
+
             $supplier = Supplier::create([
                 'name' => $validated['name'],
                 'company' => $validated['company'] ?? null,
@@ -63,7 +90,9 @@ class SupplierController extends Controller
                     'amount' => abs($openingBalance),
                     'balance_after' => $openingBalance,
                     'reference_id' => 'OPENING',
-                    'notes' => 'Opening supplier payable balance',
+                    'notes' => $openingBalance > 0
+                        ? 'Opening Balance (Payable / Udhaar)'
+                        : 'Opening Balance (Advance / Peshgi)',
                 ]);
             }
         });

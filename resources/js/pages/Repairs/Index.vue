@@ -13,13 +13,14 @@ import {
     Printer,
     QrCode,
     Search,
+    SlidersHorizontal,
     Smartphone,
     Trash2,
     User,
     Wrench,
     XCircle,
 } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +31,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -42,6 +50,71 @@ import {
 import { useConfirm } from '@/composables/useConfirm';
 import repairs from '@/routes/repairs';
 import type { Team } from '@/types';
+
+// Table Column Customizer State
+const defaultVisibleColumns = {
+    ticket: true,
+    customer: true,
+    device: true,
+    problem: true,
+    cost: true,
+    status: true,
+    actions: true,
+};
+
+const visibleColumns = ref({ ...defaultVisibleColumns });
+
+const repairColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+    ticket: 'Ticket # & Date',
+    customer: 'Customer Details',
+    device: 'Device & Security',
+    problem: 'Problem / Complaint',
+    cost: 'Est. Cost & Balance',
+    status: 'Status',
+    actions: 'Actions',
+};
+
+const STORAGE_KEY = 'faizan_mobile_repairs_table_columns_v1';
+const PER_PAGE_STORAGE_KEY = 'faizan_mobile_repairs_per_page_v1';
+
+onMounted(() => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+        }
+        const savedPerPage = localStorage.getItem(PER_PAGE_STORAGE_KEY);
+        if (savedPerPage && Number(savedPerPage) !== perPage.value) {
+            perPage.value = Number(savedPerPage);
+            applyFilters();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+});
+
+const toggleRepairColumn = (key: string) => {
+    const k = key as keyof typeof defaultVisibleColumns;
+    visibleColumns.value[k] = !visibleColumns.value[k];
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns.value));
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const resetColumns = () => {
+    visibleColumns.value = { ...defaultVisibleColumns };
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const activeColumnCount = computed(() => {
+    return Object.values(visibleColumns.value).filter(Boolean).length;
+});
 
 const { confirm } = useConfirm();
 
@@ -106,6 +179,7 @@ const props = defineProps<{
     filters: {
         search: string;
         status: string;
+        per_page?: number;
     };
     summary: SummaryStats;
     latestRepair?: RepairTicketItem | null;
@@ -136,9 +210,15 @@ defineOptions({
 // Search & Filter
 const search = ref(props.filters.search || '');
 const selectedStatusTab = ref(props.filters.status || 'all');
+const perPage = ref(props.filters.per_page || 15);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const applyFilters = () => {
+    try {
+        localStorage.setItem(PER_PAGE_STORAGE_KEY, String(perPage.value));
+    } catch (e) {
+        console.error(e);
+    }
     router.get(
         repairs.index(currentTeamSlug.value).url,
         {
@@ -147,10 +227,15 @@ const applyFilters = () => {
                 selectedStatusTab.value !== 'all'
                     ? selectedStatusTab.value
                     : undefined,
+            per_page: perPage.value,
         },
         { preserveState: true, replace: true },
     );
 };
+
+watch(perPage, () => {
+    applyFilters();
+});
 
 watch(search, () => {
     if (searchTimeout) clearTimeout(searchTimeout);
@@ -418,29 +503,94 @@ const getStatusBadgeClass = (status: string) => {
                 />
             </div>
 
-            <!-- Status Tabs -->
-            <div class="no-scrollbar flex gap-1 overflow-x-auto pb-1 text-xs">
-                <button
-                    v-for="st in [
-                        'all',
-                        'received',
-                        'in_diagnosis',
-                        'waiting_parts',
-                        'ready',
-                        'delivered',
-                        'cancelled',
-                    ]"
-                    :key="st"
-                    @click="selectedStatusTab = st"
-                    :class="[
-                        'rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap capitalize transition-colors',
-                        selectedStatusTab === st
-                            ? 'bg-[#003B7D] font-semibold text-white shadow-sm'
-                            : 'bg-muted hover:bg-muted/80 text-muted-foreground',
-                    ]"
-                >
-                    {{ st.replace('_', ' ') }}
-                </button>
+            <!-- Status Tabs & Columns Dropdown -->
+            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-3 md:border-t-0 md:pt-0">
+                <div class="no-scrollbar flex gap-1 overflow-x-auto pb-1 text-xs">
+                    <button
+                        v-for="st in [
+                            'all',
+                            'received',
+                            'in_diagnosis',
+                            'waiting_parts',
+                            'ready',
+                            'delivered',
+                            'cancelled',
+                        ]"
+                        :key="st"
+                        @click="selectedStatusTab = st"
+                        :class="[
+                            'rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap capitalize transition-colors',
+                            selectedStatusTab === st
+                                ? 'bg-[#003B7D] font-semibold text-white shadow-sm'
+                                : 'bg-muted hover:bg-muted/80 text-muted-foreground',
+                        ]"
+                    >
+                        {{ st.replace('_', ' ') }}
+                    </button>
+                </div>
+
+                <!-- Table Columns Dropdown -->
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 gap-1.5 text-xs font-semibold whitespace-nowrap"
+                        >
+                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <span>Columns</span>
+                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                                {{ activeColumnCount }}/7
+                            </span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
+                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                            <span>Table Columns</span>
+                            <button
+                                type="button"
+                                @click="resetColumns"
+                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                            >
+                                Reset All
+                            </button>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator class="my-1" />
+                        <div
+                            v-for="(label, key) in repairColumnLabels"
+                            :key="key"
+                            @click.stop="toggleRepairColumn(key)"
+                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-gray-100 cursor-pointer select-none transition-colors"
+                        >
+                            <span>{{ label }}</span>
+                            <input
+                                type="checkbox"
+                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                @change="toggleRepairColumn(key)"
+                                @click.stop
+                                class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                            />
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <!-- Per-Page Selection -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-slate-500">Show:</span>
+                    <select
+                        v-model="perPage"
+                        @change="applyFilters"
+                        class="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                    >
+                        <option :value="10">10</option>
+                        <option :value="15">15</option>
+                        <option :value="25">25</option>
+                        <option :value="50">50</option>
+                        <option :value="100">100</option>
+                        <option :value="250">250</option>
+                        <option :value="500">500 / All</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -452,13 +602,13 @@ const getStatusBadgeClass = (status: string) => {
                         class="bg-muted/50 text-muted-foreground font-semibold uppercase"
                     >
                         <tr>
-                            <th class="px-4 py-3">Ticket # & Date</th>
-                            <th class="px-4 py-3">Customer Details</th>
-                            <th class="px-4 py-3">Device & Security</th>
-                            <th class="px-4 py-3">Problem / Complaint</th>
-                            <th class="px-4 py-3">Est. Cost & Balance</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3 text-right">Actions</th>
+                            <th v-if="visibleColumns.ticket" class="px-4 py-3">Ticket # & Date</th>
+                            <th v-if="visibleColumns.customer" class="px-4 py-3">Customer Details</th>
+                            <th v-if="visibleColumns.device" class="px-4 py-3">Device & Security</th>
+                            <th v-if="visibleColumns.problem" class="px-4 py-3">Problem / Complaint</th>
+                            <th v-if="visibleColumns.cost" class="px-4 py-3">Est. Cost & Balance</th>
+                            <th v-if="visibleColumns.status" class="px-4 py-3">Status</th>
+                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-border divide-y">
@@ -476,7 +626,7 @@ const getStatusBadgeClass = (status: string) => {
                             :key="ticket.id"
                             class="transition-colors hover:bg-gray-50"
                         >
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.ticket" class="px-4 py-3">
                                 <div
                                     class="tnum font-mono text-sm font-bold text-[#003B7D]"
                                 >
@@ -491,7 +641,7 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.customer" class="px-4 py-3">
                                 <div class="text-foreground text-sm font-bold">
                                     {{ ticket.customer_name }}
                                 </div>
@@ -500,7 +650,7 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.device" class="px-4 py-3">
                                 <div class="text-foreground font-semibold">
                                     {{ ticket.device_model }}
                                 </div>
@@ -519,7 +669,7 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td class="max-w-xs px-4 py-3">
+                            <td v-if="visibleColumns.problem" class="max-w-xs px-4 py-3">
                                 <div
                                     class="text-foreground line-clamp-2 font-medium"
                                 >
@@ -533,7 +683,7 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.cost" class="px-4 py-3">
                                 <div class="tnum text-foreground font-bold">
                                     {{ formatCurrency(ticket.estimated_cost) }}
                                 </div>
@@ -556,7 +706,7 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.status" class="px-4 py-3">
                                 <Select
                                     :model-value="ticket.status"
                                     @update:model-value="
@@ -591,7 +741,7 @@ const getStatusBadgeClass = (status: string) => {
                                 </Select>
                             </td>
 
-                            <td class="px-4 py-3 text-right">
+                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
                                 <div
                                     class="flex items-center justify-end gap-1"
                                 >

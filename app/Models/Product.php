@@ -43,6 +43,11 @@ class Product extends Model
         return $this->hasMany(ProductImei::class)->where('status', 'in_stock');
     }
 
+    public function availableImeis(): HasMany
+    {
+        return $this->hasMany(ProductImei::class)->where('status', 'in_stock');
+    }
+
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);

@@ -18,6 +18,10 @@ class UsedPhonePurchaseController extends Controller
     public function index(Request $request, string $currentTeam): Response
     {
         $search = trim($request->input('search', ''));
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [10, 15, 25, 50, 100, 250, 500], true)) {
+            $perPage = 15;
+        }
 
         $query = UsedPhonePurchase::query();
 
@@ -33,7 +37,7 @@ class UsedPhonePurchaseController extends Controller
             });
         }
 
-        $purchases = $query->latest()->paginate(15)->withQueryString();
+        $purchases = $query->latest()->paginate($perPage)->withQueryString();
 
         $shopInfo = [
             'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Faizan Mobile & POS',
@@ -51,6 +55,7 @@ class UsedPhonePurchaseController extends Controller
             'shopInfo' => $shopInfo,
             'filters' => [
                 'search' => $search,
+                'per_page' => $perPage,
             ],
             'summary' => $summary,
             'latestPurchase' => session('latest_purchase'),

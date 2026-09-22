@@ -45,6 +45,35 @@ class PosController extends Controller
         ]);
     }
 
+    public function getProductsApi(Request $request, string $currentTeam)
+    {
+        $query = Product::query()
+            ->with(['inStockImeis' => function ($q) {
+                $q->orderBy('created_at', 'desc');
+            }]);
+
+        if ($search = trim($request->input('search', ''))) {
+            $query->where(function ($q) use ($search): void {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('brand', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhereHas('inStockImeis', function ($iq) use ($search): void {
+                        $iq->where('imei_1', 'like', "%{$search}%")
+                            ->orWhere('imei_2', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($category = $request->input('category')) {
+            if ($category !== 'all') {
+                $query->where('category', $category);
+            }
+        }
+
+        return response()->json($query->orderBy('name', 'asc')->get());
+    }
+
     public function storeCustomer(Request $request, string $currentTeam): RedirectResponse
     {
         $validated = $request->validate([

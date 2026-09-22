@@ -35,6 +35,7 @@ import {
 } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import ThermalReceipt from '@/components/ThermalReceipt.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -214,6 +215,55 @@ const discountInput = ref<number | string>(0);
 const searchScanQuery = ref('');
 const searchInputRef = ref<HTMLInputElement | null>(null);
 
+// Live API Search Dropdown State
+const searchApiResults = ref<ProductItem[]>([]);
+const isSearchingApi = ref(false);
+const showSearchDropdown = ref(false);
+let apiSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const performApiSearch = async (query: string) => {
+    const q = query.trim();
+    if (!q) {
+        searchApiResults.value = [];
+        showSearchDropdown.value = false;
+        return;
+    }
+    isSearchingApi.value = true;
+    showSearchDropdown.value = true;
+
+    try {
+        const url = `/${currentTeamSlug.value}/pos/products?search=${encodeURIComponent(q)}`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (res.ok) {
+            const data = await res.json();
+            searchApiResults.value = Array.isArray(data) ? data : [];
+        }
+    } catch (err) {
+        console.error('POS Live Search Error:', err);
+    } finally {
+        isSearchingApi.value = false;
+    }
+};
+
+watch(searchScanQuery, (newVal) => {
+    if (apiSearchDebounceTimer) clearTimeout(apiSearchDebounceTimer);
+    if (!newVal.trim()) {
+        searchApiResults.value = [];
+        showSearchDropdown.value = false;
+        return;
+    }
+    apiSearchDebounceTimer = setTimeout(() => {
+        performApiSearch(newVal);
+    }, 150);
+});
+
+const selectApiProduct = (product: ProductItem, specificImei?: ProductImeiItem) => {
+    addProductToCart(product, specificImei);
+    searchScanQuery.value = '';
+    searchApiResults.value = [];
+    showSearchDropdown.value = false;
+};
+
 const activeCategoryTab = ref('all');
 
 // Modals
@@ -301,33 +351,44 @@ const paymentMethodsList = [
 
 const categories = computed(() => {
     const set = new Set<string>();
-    props.products.forEach((p) => set.add(p.category));
+    (props.products || []).forEach((p) => {
+        if (p.category) set.add(p.category);
+    });
     return ['all', ...Array.from(set)];
 });
 
 const filteredCatalogProducts = computed(() => {
-    let list = props.products;
-    if (activeCategoryTab.value !== 'all') {
+    let list = props.products || [];
+    const q = searchScanQuery.value.trim().toLowerCase();
+
+    // Filter by category tab if selected and no search query is active
+    if (activeCategoryTab.value !== 'all' && !q) {
         list = list.filter((p) => p.category === activeCategoryTab.value);
     }
-    const q = searchScanQuery.value.trim().toLowerCase();
+
     if (!q) return list;
 
     return list.filter((p) => {
-        const matchName = p.name.toLowerCase().includes(q);
-        const matchBrand = p.brand.toLowerCase().includes(q);
-        const matchBarcode = p.barcode
-            ? p.barcode.toLowerCase().includes(q)
-            : false;
-        const matchImei = p.in_stock_imeis
-            ? p.in_stock_imeis.some(
-                  (i) =>
-                      i.imei_1.toLowerCase().includes(q) ||
+        const name = (p.name || '').toLowerCase();
+        const brand = (p.brand || '').toLowerCase();
+        const category = (p.category || '').toLowerCase();
+        const barcode = (p.barcode || '').toLowerCase();
+
+        const matchName = name.includes(q);
+        const matchBrand = brand.includes(q);
+        const matchCategory = category.includes(q);
+        const matchBarcode = barcode.includes(q);
+
+        const imeis = p.in_stock_imeis || (p as any).inStockImeis || [];
+        const matchImei = Array.isArray(imeis)
+            ? imeis.some(
+                  (i: any) =>
+                      (i.imei_1 && i.imei_1.toLowerCase().includes(q)) ||
                       (i.imei_2 && i.imei_2.toLowerCase().includes(q)),
               )
             : false;
 
-        return matchName || matchBrand || matchBarcode || matchImei;
+        return matchName || matchBrand || matchCategory || matchBarcode || matchImei;
     });
 });
 
@@ -891,6 +952,54 @@ const printReceipt = () => {
                                 F2
                             </span>
                         </div>
+
+                        <!-- Live API Search Dropdown -->
+                        <div
+                            v-if="showSearchDropdown && searchScanQuery.trim()"
+                            class="absolute top-full left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-2xl backdrop-blur-xl divide-y divide-slate-100"
+                        >
+                            <div v-if="isSearchingApi" class="flex items-center justify-center p-3 text-xs text-slate-500 gap-2 font-medium">
+                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#003B7D] border-t-transparent"></span>
+                                Searching product catalog...
+                            </div>
+
+                            <div v-else-if="searchApiResults.length === 0" class="p-3 text-center text-xs font-medium text-slate-500">
+                                No matching products found for "<span class="font-bold text-slate-800">{{ searchScanQuery }}</span>"
+                            </div>
+
+                            <div
+                                v-else
+                                v-for="item in searchApiResults"
+                                :key="item.id"
+                                @click="selectApiProduct(item)"
+                                class="group flex cursor-pointer items-center justify-between p-2.5 rounded-xl transition-colors hover:bg-blue-50/80"
+                            >
+                                <div class="flex-1 min-w-0 pr-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-black text-slate-900 group-hover:text-[#003B7D] truncate">
+                                            {{ item.brand ? item.brand + ' ' : '' }}{{ item.name }}
+                                        </span>
+                                        <span v-if="item.category" class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 uppercase">
+                                            {{ item.category }}
+                                        </span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-2">
+                                        <span v-if="item.barcode">Barcode: {{ item.barcode }}</span>
+                                        <span v-if="item.is_serialized" class="font-semibold text-blue-600">
+                                            {{ (item.in_stock_imeis || item.inStockImeis || []).length }} IMEIs in stock
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <div class="text-xs font-black text-[#003B7D]">
+                                        Rs. {{ Number(item.sale_price).toLocaleString('en-PK') }}
+                                    </div>
+                                    <div class="text-[9px] font-bold text-slate-500">
+                                        Stock: {{ item.is_serialized ? (item.in_stock_imeis || item.inStockImeis || []).length : item.stock_quantity }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Customer Selection & Add Customer Button -->
@@ -1397,95 +1506,6 @@ const printReceipt = () => {
                     </div>
                 </div>
 
-                <!-- Product Catalog Deck -->
-                <div
-                    class="flex flex-1 flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_8px_32px_rgba(0,25,60,0.06)] backdrop-blur-2xl"
-                >
-                    <!-- Category Segmented Filter Tabs -->
-                    <div
-                        class="border-b border-slate-200/70 bg-white/60 p-2.5 backdrop-blur-md"
-                    >
-                        <div
-                            class="no-scrollbar flex items-center gap-1 overflow-x-auto"
-                        >
-                            <button
-                                v-for="cat in categories"
-                                :key="cat"
-                                @click="activeCategoryTab = cat"
-                                :class="[
-                                    activeCategoryTab === cat
-                                        ? 'bg-[#003B7D] text-white shadow-2xs'
-                                        : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900',
-                                    'rounded-xl px-3 py-1.5 text-[11px] font-bold whitespace-nowrap capitalize transition-all duration-150',
-                                ]"
-                            >
-                                {{ cat }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Catalog Grid -->
-                    <div class="flex-1 overflow-y-auto p-3">
-                        <div class="grid grid-cols-2 gap-2.5">
-                            <div
-                                v-for="p in filteredCatalogProducts"
-                                :key="p.id"
-                                class="group relative flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#003B7D]/40 hover:shadow-md active:scale-[0.99]"
-                                @click="addProductToCart(p)"
-                            >
-                                <div>
-                                    <div
-                                        class="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase"
-                                    >
-                                        <span
-                                            class="font-extrabold text-[#003B7D]"
-                                            >{{ p.brand }}</span
-                                        >
-                                        <span
-                                            class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600"
-                                        >
-                                            Stock:
-                                            <strong
-                                                class="tnum text-slate-900"
-                                                >{{
-                                                    p.is_serialized
-                                                        ? p.in_stock_imeis
-                                                              ?.length || 0
-                                                        : p.stock_quantity
-                                                }}</strong
-                                            >
-                                        </span>
-                                    </div>
-
-                                    <h3
-                                        class="line-clamp-1 text-xs font-black text-slate-900 group-hover:text-[#003B7D]"
-                                    >
-                                        {{ p.name }}
-                                    </h3>
-
-                                    <div
-                                        class="tnum mt-1.5 text-xs font-black text-[#003B7D]"
-                                    >
-                                        {{ formatCurrency(p.sale_price) }}
-                                    </div>
-                                </div>
-
-                                <div
-                                    class="mt-2.5 flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]"
-                                >
-                                    <span class="text-slate-400"
-                                        >Tap to add</span
-                                    >
-                                    <span
-                                        class="inline-flex items-center gap-0.5 font-black text-[#003B7D] group-hover:underline"
-                                    >
-                                        + Add to Cart
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -1944,142 +1964,12 @@ const printReceipt = () => {
                     </DialogTitle>
                 </DialogHeader>
 
-                <div
-                    id="thermal-receipt"
-                    class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 font-mono text-[11px] leading-tight text-black"
-                >
-                    <div
-                        class="border-b border-dashed border-slate-300 pb-2 text-center"
-                    >
-                        <div class="text-sm font-black uppercase">
-                            {{ shopInfo.name }}
-                        </div>
-                        <div class="text-[10px] text-slate-600">
-                            {{ shopInfo.address }}
-                        </div>
-                        <div class="text-[10px] text-slate-600">
-                            Ph: {{ shopInfo.phone }}
-                        </div>
-                    </div>
-
-                    <div
-                        class="space-y-0.5 border-b border-dashed border-slate-300 pb-2 text-[10px]"
-                    >
-                        <div class="flex justify-between">
-                            <span>Invoice #:</span>
-                            <span class="font-bold">{{
-                                activeReceipt?.invoice_no
-                            }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Date:</span>
-                            <span>{{
-                                activeReceipt?.created_at
-                                    ? new Date(
-                                          activeReceipt.created_at,
-                                      ).toLocaleString('en-PK')
-                                    : ''
-                            }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Cashier:</span>
-                            <span>{{
-                                activeReceipt?.cashier?.name || 'Admin'
-                            }}</span>
-                        </div>
-                        <div
-                            v-if="activeReceipt?.customer"
-                            class="flex justify-between font-bold"
-                        >
-                            <span>Customer:</span>
-                            <span>{{ activeReceipt.customer.name }}</span>
-                        </div>
-                    </div>
-
-                    <div
-                        class="space-y-1.5 border-b border-dashed border-slate-300 pb-2"
-                    >
-                        <div
-                            class="flex justify-between text-[10px] font-black uppercase"
-                        >
-                            <span>ITEM</span>
-                            <span>AMOUNT</span>
-                        </div>
-                        <div
-                            v-for="item in activeReceipt?.items"
-                            :key="item.id"
-                            class="space-y-0.5 border-t border-slate-200 pt-1"
-                        >
-                            <div class="text-[11px] font-bold">
-                                {{ item.product.brand }} {{ item.product.name }}
-                            </div>
-                            <div class="flex justify-between text-[10px]">
-                                <span>
-                                    {{ item.quantity }} x
-                                    {{ formatCurrency(item.unit_price) }}
-                                </span>
-                                <span class="font-bold">
-                                    {{ formatCurrency(item.line_total) }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div
-                        class="space-y-1 border-b border-dashed border-slate-300 pb-2 text-[11px]"
-                    >
-                        <div class="flex justify-between">
-                            <span>Subtotal:</span>
-                            <span>{{
-                                formatCurrency(activeReceipt?.total_amount || 0)
-                            }}</span>
-                        </div>
-                        <div
-                            v-if="Number(activeReceipt?.discount_amount) > 0"
-                            class="flex justify-between"
-                        >
-                            <span>Discount:</span>
-                            <span
-                                >-{{
-                                    formatCurrency(
-                                        activeReceipt?.discount_amount || 0,
-                                    )
-                                }}</span
-                            >
-                        </div>
-                        <div class="flex justify-between text-xs font-black">
-                            <span>Net Total:</span>
-                            <span>{{
-                                formatCurrency(activeReceipt?.net_amount || 0)
-                            }}</span>
-                        </div>
-                        <div class="flex justify-between text-[10px]">
-                            <span>Paid:</span>
-                            <span>{{
-                                formatCurrency(activeReceipt?.paid_amount || 0)
-                            }}</span>
-                        </div>
-                        <div
-                            v-if="Number(activeReceipt?.change_amount) > 0"
-                            class="flex justify-between text-[10px] font-bold text-emerald-700"
-                        >
-                            <span>Change Return:</span>
-                            <span>{{
-                                formatCurrency(
-                                    activeReceipt?.change_amount || 0,
-                                )
-                            }}</span>
-                        </div>
-                    </div>
-
-                    <div
-                        class="space-y-1 pt-1 text-center text-[9px] text-slate-600"
-                    >
-                        <div class="font-bold uppercase">
-                            {{ shopInfo.return_policy }}
-                        </div>
-                        <div>*** Thank You For Shopping ***</div>
-                    </div>
+                <div class="py-2 overflow-y-auto max-h-[70vh]">
+                    <ThermalReceipt
+                        v-if="activeReceipt"
+                        :receipt="activeReceipt"
+                        :shop-info="shopInfo"
+                    />
                 </div>
 
                 <DialogFooter class="no-print flex justify-between pt-2">

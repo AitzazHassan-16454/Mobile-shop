@@ -15,7 +15,7 @@ test('inventory index page can be rendered', function () {
 
     $response->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Inventory/Index')
+            ->component('Products/Index')
             ->has('products')
             ->has('filters')
             ->has('summary')

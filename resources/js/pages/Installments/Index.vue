@@ -1,12 +1,79 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { CalendarClock, CircleDollarSign, Plus, Wallet } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { CalendarClock, CircleDollarSign, Plus, SlidersHorizontal, Wallet } from '@lucide/vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import installments from '@/routes/installments';
 import type { Team } from '@/types';
+
+// Table Column Customizer State
+const defaultVisibleColumns = {
+    customer: true,
+    plan: true,
+    next_due: true,
+    status: true,
+    collection: true,
+};
+
+const visibleColumns = ref({ ...defaultVisibleColumns });
+
+const installmentColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+    customer: 'Customer',
+    plan: 'Plan Details',
+    next_due: 'Next Due Date',
+    status: 'Status',
+    collection: 'Collection / Actions',
+};
+
+const STORAGE_KEY = 'faizan_mobile_installments_table_columns_v1';
+const PER_PAGE_STORAGE_KEY = 'faizan_mobile_installments_per_page_v1';
+
+onMounted(() => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+        }
+        const savedPerPage = localStorage.getItem(PER_PAGE_STORAGE_KEY);
+        if (savedPerPage && Number(savedPerPage) !== perPage.value) {
+            perPage.value = Number(savedPerPage);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+});
+
+const toggleInstallmentColumn = (key: string) => {
+    const k = key as keyof typeof defaultVisibleColumns;
+    visibleColumns.value[k] = !visibleColumns.value[k];
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns.value));
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const resetColumns = () => {
+    visibleColumns.value = { ...defaultVisibleColumns };
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const activeColumnCount = computed(() => {
+    return Object.values(visibleColumns.value).filter(Boolean).length;
+});
 
 interface Plan {
     id: number;
@@ -22,12 +89,28 @@ interface Plan {
 const props = defineProps<{
     plans: { data: Plan[] };
     customers: Array<{ id: number; name: string; phone: string }>;
+    filters?: { per_page?: number };
     summary: { active_plans: number; outstanding: number; collected: number };
 }>();
 const page = usePage();
 const team = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
 );
+const perPage = ref(props.filters?.per_page || 15);
+
+watch(perPage, (newPerPage) => {
+    try {
+        localStorage.setItem(PER_PAGE_STORAGE_KEY, String(newPerPage));
+    } catch (e) {
+        console.error(e);
+    }
+    router.get(
+        installments.index(team.value).url,
+        { per_page: newPerPage },
+        { preserveState: true, replace: true }
+    );
+});
+
 const showCreate = ref(false);
 const paymentPlan = ref<number | null>(null);
 const planForm = useForm({
@@ -221,17 +304,82 @@ defineOptions({
         <section
             class="bg-card/60 overflow-hidden rounded-2xl border border-gray-200 backdrop-blur-xl"
         >
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 class="text-base font-bold text-gray-900">Installment Contracts</h3>
+                <!-- Table Columns Dropdown -->
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 gap-1.5 text-xs font-semibold"
+                        >
+                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <span>Columns</span>
+                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                                {{ activeColumnCount }}/5
+                            </span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
+                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                            <span>Table Columns</span>
+                            <button
+                                type="button"
+                                @click="resetColumns"
+                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                            >
+                                Reset All
+                            </button>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator class="my-1" />
+                        <div
+                            v-for="(label, key) in installmentColumnLabels"
+                            :key="key"
+                            @click.stop="toggleInstallmentColumn(key)"
+                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-slate-100 cursor-pointer select-none transition-colors"
+                        >
+                            <span>{{ label }}</span>
+                            <input
+                                type="checkbox"
+                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                @change="toggleInstallmentColumn(key)"
+                                @click.stop
+                                class="h-4 w-4 rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                            />
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                <!-- Per-Page Selection -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-medium text-slate-500">Show:</span>
+                    <select
+                        v-model="perPage"
+                        class="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-2xs focus:border-[#003B7D] focus:outline-none"
+                    >
+                        <option :value="10">10</option>
+                        <option :value="15">15</option>
+                        <option :value="25">25</option>
+                        <option :value="50">50</option>
+                        <option :value="100">100</option>
+                        <option :value="250">250</option>
+                        <option :value="500">500 / All</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead
                         class="border-b border-gray-200 text-xs tracking-wider text-slate-500 uppercase"
                     >
                         <tr>
-                            <th class="px-5 py-4">Customer</th>
-                            <th class="px-5 py-4">Plan</th>
-                            <th class="px-5 py-4">Next due</th>
-                            <th class="px-5 py-4">Status</th>
-                            <th class="px-5 py-4 text-right">Collection</th>
+                            <th v-if="visibleColumns.customer" class="px-5 py-4">Customer</th>
+                            <th v-if="visibleColumns.plan" class="px-5 py-4">Plan</th>
+                            <th v-if="visibleColumns.next_due" class="px-5 py-4">Next due</th>
+                            <th v-if="visibleColumns.status" class="px-5 py-4">Status</th>
+                            <th v-if="visibleColumns.collection" class="px-5 py-4 text-right">Collection</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -240,7 +388,7 @@ defineOptions({
                             :key="plan.id"
                             class="text-slate-600 hover:bg-gray-50"
                         >
-                            <td class="px-5 py-4">
+                            <td v-if="visibleColumns.customer" class="px-5 py-4">
                                 <div class="font-semibold text-gray-900">
                                     {{ plan.customer.name }}
                                 </div>
@@ -248,7 +396,7 @@ defineOptions({
                                     {{ plan.customer.phone }}
                                 </div>
                             </td>
-                            <td class="px-5 py-4">
+                            <td v-if="visibleColumns.plan" class="px-5 py-4">
                                 <div class="tnum text-gray-900">
                                     {{ money(plan.monthly_amount) }} / month
                                 </div>
@@ -257,10 +405,10 @@ defineOptions({
                                     {{ plan.duration_months }} paid
                                 </div>
                             </td>
-                            <td class="tnum px-5 py-4 text-slate-500">
+                            <td v-if="visibleColumns.next_due" class="tnum px-5 py-4 text-slate-500">
                                 {{ plan.next_due_date }}
                             </td>
-                            <td class="px-5 py-4">
+                            <td v-if="visibleColumns.status" class="px-5 py-4">
                                 <span
                                     :class="
                                         plan.status === 'active'
@@ -270,7 +418,7 @@ defineOptions({
                                     >{{ plan.status }}</span
                                 >
                             </td>
-                            <td class="px-5 py-4 text-right">
+                            <td v-if="visibleColumns.collection" class="px-5 py-4 text-right">
                                 <Button
                                     size="sm"
                                     class="border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] hover:bg-[#003B7D]/10"

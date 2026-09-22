@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AppSetting;
 use App\Models\Customer;
 use App\Models\CustomerLedger;
 use Illuminate\Http\RedirectResponse;
@@ -38,7 +37,12 @@ class CustomerLedgerController extends Controller
             $query->where('current_balance', 0);
         }
 
-        $customers = $query->orderBy('name', 'asc')->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        if ($perPage <= 0 || $perPage > 500) {
+            $perPage = 15;
+        }
+
+        $customers = $query->orderBy('name', 'asc')->paginate($perPage)->withQueryString();
 
         $summary = [
             'total_customers' => Customer::count(),
@@ -51,6 +55,7 @@ class CustomerLedgerController extends Controller
             'filters' => [
                 'search' => $search,
                 'balance_filter' => $balanceFilter,
+                'per_page' => $perPage,
             ],
             'summary' => $summary,
         ]);

@@ -10,11 +10,12 @@ import {
     Printer,
     Search,
     ShieldCheck,
+    SlidersHorizontal,
     Smartphone,
     Trash2,
     User,
 } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +26,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,6 +45,69 @@ import {
 import { useConfirm } from '@/composables/useConfirm';
 import usedPhones from '@/routes/used-phones';
 import type { Team } from '@/types';
+
+// Table Column Customizer State
+const defaultVisibleColumns = {
+    voucher: true,
+    seller: true,
+    device: true,
+    cost: true,
+    legal: true,
+    actions: true,
+};
+
+const visibleColumns = ref({ ...defaultVisibleColumns });
+
+const usedPhoneColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+    voucher: 'Voucher # & Date',
+    seller: 'Seller Identification',
+    device: 'Device & IMEIs',
+    cost: 'Purchase Cost',
+    legal: 'Legal Status',
+    actions: 'Actions',
+};
+
+const STORAGE_KEY = 'faizan_mobile_used_phones_table_columns_v1';
+const PER_PAGE_STORAGE_KEY = 'faizan_mobile_used_phones_per_page_v1';
+
+onMounted(() => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+        }
+        const savedPerPage = localStorage.getItem(PER_PAGE_STORAGE_KEY);
+        if (savedPerPage && Number(savedPerPage) !== perPage.value) {
+            perPage.value = Number(savedPerPage);
+            applyFilters();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+});
+
+const toggleUsedPhoneColumn = (key: string) => {
+    const k = key as keyof typeof defaultVisibleColumns;
+    visibleColumns.value[k] = !visibleColumns.value[k];
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns.value));
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const resetColumns = () => {
+    visibleColumns.value = { ...defaultVisibleColumns };
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const activeColumnCount = computed(() => {
+    return Object.values(visibleColumns.value).filter(Boolean).length;
+});
 
 const { confirm } = useConfirm();
 
@@ -81,6 +152,7 @@ const props = defineProps<{
     shopInfo: ShopInfo;
     filters: {
         search: string;
+        per_page?: number;
     };
     summary: SummaryStats;
     latestPurchase?: UsedPurchaseItem | null;
@@ -109,15 +181,28 @@ defineOptions({
 });
 
 const search = ref(props.filters.search || '');
+const perPage = ref(props.filters.per_page || 15);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const applyFilters = () => {
+    try {
+        localStorage.setItem(PER_PAGE_STORAGE_KEY, String(perPage.value));
+    } catch (e) {
+        console.error(e);
+    }
     router.get(
         usedPhones.index(currentTeamSlug.value).url,
-        { search: search.value || undefined },
+        {
+            search: search.value || undefined,
+            per_page: perPage.value,
+        },
         { preserveState: true, replace: true },
     );
 };
+
+watch(perPage, () => {
+    applyFilters();
+});
 
 watch(search, () => {
     if (searchTimeout) clearTimeout(searchTimeout);
@@ -318,7 +403,7 @@ const formatCurrency = (val: number | string) => {
 
         <!-- Filter Bar -->
         <div
-            class="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+            class="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
         >
             <div class="relative max-w-md flex-1">
                 <Search
@@ -330,6 +415,69 @@ const formatCurrency = (val: number | string) => {
                     class="border-gray-200 bg-gray-50 pl-9 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                 />
             </div>
+
+            <!-- Table Columns Dropdown -->
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="h-8 gap-1.5 text-xs font-semibold whitespace-nowrap"
+                    >
+                        <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                        <span>Columns</span>
+                        <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                            {{ activeColumnCount }}/6
+                        </span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
+                    <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                        <span>Table Columns</span>
+                        <button
+                            type="button"
+                            @click="resetColumns"
+                            class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                        >
+                            Reset All
+                        </button>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator class="my-1" />
+                    <div
+                        v-for="(label, key) in usedPhoneColumnLabels"
+                        :key="key"
+                        @click.stop="toggleUsedPhoneColumn(key)"
+                        class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-gray-100 cursor-pointer select-none transition-colors"
+                    >
+                        <span>{{ label }}</span>
+                        <input
+                            type="checkbox"
+                            :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                            @change="toggleUsedPhoneColumn(key)"
+                            @click.stop
+                            class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                        />
+                    </div>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <!-- Per-Page Selection -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-medium text-slate-500">Show:</span>
+                <select
+                    v-model="perPage"
+                    @change="applyFilters"
+                    class="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                >
+                    <option :value="10">10</option>
+                    <option :value="15">15</option>
+                    <option :value="25">25</option>
+                    <option :value="50">50</option>
+                    <option :value="100">100</option>
+                    <option :value="250">250</option>
+                    <option :value="500">500 / All</option>
+                </select>
+            </div>
         </div>
 
         <!-- Purchases Log Table -->
@@ -340,12 +488,12 @@ const formatCurrency = (val: number | string) => {
                         class="bg-gray-50 font-semibold text-slate-500 uppercase"
                     >
                         <tr>
-                            <th class="px-4 py-3">Voucher # & Date</th>
-                            <th class="px-4 py-3">Seller Identification</th>
-                            <th class="px-4 py-3">Device & IMEIs</th>
-                            <th class="px-4 py-3">Purchase Cost</th>
-                            <th class="px-4 py-3">Legal Status</th>
-                            <th class="px-4 py-3 text-right">Actions</th>
+                            <th v-if="visibleColumns.voucher" class="px-4 py-3">Voucher # & Date</th>
+                            <th v-if="visibleColumns.seller" class="px-4 py-3">Seller Identification</th>
+                            <th v-if="visibleColumns.device" class="px-4 py-3">Device & IMEIs</th>
+                            <th v-if="visibleColumns.cost" class="px-4 py-3">Purchase Cost</th>
+                            <th v-if="visibleColumns.legal" class="px-4 py-3">Legal Status</th>
+                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -363,7 +511,7 @@ const formatCurrency = (val: number | string) => {
                             :key="item.id"
                             class="transition-colors hover:bg-gray-50"
                         >
-                            <td class="px-4 py-3 font-mono">
+                            <td v-if="visibleColumns.voucher" class="px-4 py-3 font-mono">
                                 <div class="text-sm font-bold text-[#003B7D]">
                                     {{ item.voucher_no }}
                                 </div>
@@ -376,7 +524,7 @@ const formatCurrency = (val: number | string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.seller" class="px-4 py-3">
                                 <div class="text-foreground text-sm font-bold">
                                     {{ item.seller_name }}
                                 </div>
@@ -396,7 +544,7 @@ const formatCurrency = (val: number | string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.device" class="px-4 py-3">
                                 <div class="text-foreground font-bold">
                                     {{ item.device_model }}
                                 </div>
@@ -414,6 +562,7 @@ const formatCurrency = (val: number | string) => {
                             </td>
 
                             <td
+                                v-if="visibleColumns.cost"
                                 class="tnum text-foreground px-4 py-3 text-sm font-extrabold"
                             >
                                 {{ formatCurrency(item.purchase_amount) }}
@@ -424,7 +573,7 @@ const formatCurrency = (val: number | string) => {
                                 </div>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.legal" class="px-4 py-3">
                                 <span
                                     class="inline-flex items-center gap-1 rounded-full border border-[#003B7D]/20 bg-[#003B7D]/5 px-2.5 py-0.5 font-semibold text-[#003B7D]"
                                 >
@@ -433,7 +582,7 @@ const formatCurrency = (val: number | string) => {
                                 </span>
                             </td>
 
-                            <td class="px-4 py-3 text-right">
+                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
                                 <div
                                     class="flex items-center justify-end gap-1"
                                 >

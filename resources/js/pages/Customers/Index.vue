@@ -3,13 +3,17 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowDownLeft,
     ArrowUpRight,
+    Check,
     Edit3,
     History,
+    MoreVertical,
     Plus,
     Search,
+    SlidersHorizontal,
     Trash2,
     Users,
     Wallet,
+    X,
 } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -21,6 +25,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -68,6 +81,7 @@ const props = defineProps<{
     filters: {
         search: string;
         balance_filter: string;
+        per_page?: number;
     };
     summary: {
         total_customers: number;
@@ -101,6 +115,20 @@ defineOptions({
 // Search & Filter
 const search = ref(props.filters.search || '');
 const selectedBalanceFilter = ref(props.filters.balance_filter || 'all');
+const perPage = ref<number>(Number(props.filters.per_page) || 15);
+
+const PER_PAGE_STORAGE_KEY = 'faizan_mobile_customers_per_page_v1';
+
+const changePerPage = (val?: number) => {
+    if (val) perPage.value = val;
+    try {
+        localStorage.setItem(PER_PAGE_STORAGE_KEY, perPage.value.toString());
+    } catch (e) {
+        console.error(e);
+    }
+    applyFilters();
+};
+
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const applyFilters = () => {
@@ -112,6 +140,7 @@ const applyFilters = () => {
                 selectedBalanceFilter.value !== 'all'
                     ? selectedBalanceFilter.value
                     : undefined,
+            per_page: perPage.value !== 15 ? perPage.value : undefined,
         },
         { preserveState: true, replace: true },
     );
@@ -127,6 +156,69 @@ watch(search, () => {
 watch(selectedBalanceFilter, () => {
     applyFilters();
 });
+
+// Column Visibility Controls
+const DEFAULT_VISIBLE_COLUMNS = {
+    name: true,
+    phone: true,
+    address: true,
+    balance: true,
+    actions: true,
+};
+
+const visibleColumns = ref({ ...DEFAULT_VISIBLE_COLUMNS });
+
+if (typeof window !== 'undefined') {
+    try {
+        const saved = localStorage.getItem('customers_visible_columns');
+        if (saved) {
+            visibleColumns.value = {
+                ...DEFAULT_VISIBLE_COLUMNS,
+                ...JSON.parse(saved),
+            };
+        }
+    } catch {
+        // ignore parse error
+    }
+}
+
+watch(
+    visibleColumns,
+    (val) => {
+        try {
+            localStorage.setItem(
+                'customers_visible_columns',
+                JSON.stringify(val),
+            );
+        } catch {
+            // ignore storage error
+        }
+    },
+    { deep: true },
+);
+
+const activeColumnCount = computed(
+    () => Object.values(visibleColumns.value).filter(Boolean).length,
+);
+
+const customerColumnLabels: Record<string, string> = {
+    name: 'Customer Name',
+    phone: 'Phone Number',
+    address: 'Address',
+    balance: 'Current Balance',
+    actions: 'Actions',
+};
+
+const toggleCustomerColumn = (key: string) => {
+    if (key in visibleColumns.value) {
+        visibleColumns.value[key as keyof typeof DEFAULT_VISIBLE_COLUMNS] =
+            !visibleColumns.value[key as keyof typeof DEFAULT_VISIBLE_COLUMNS];
+    }
+};
+
+const resetColumns = () => {
+    visibleColumns.value = { ...DEFAULT_VISIBLE_COLUMNS };
+};
 
 // Add / Edit Modal
 const isFormModalOpen = ref(false);
@@ -177,6 +269,41 @@ const submitForm = () => {
             },
         });
     }
+};
+
+// Inline Customer Cell Editing
+const inlineEditingCustomerId = ref<number | null>(null);
+const inlineCustomerForm = useForm({
+    name: '',
+    phone: '',
+    address: '',
+});
+
+const startInlineCustomerEdit = (customer: CustomerItem) => {
+    inlineEditingCustomerId.value = customer.id;
+    inlineCustomerForm.clearErrors();
+    inlineCustomerForm.name = customer.name;
+    inlineCustomerForm.phone = customer.phone;
+    inlineCustomerForm.address = customer.address || '';
+};
+
+const cancelInlineCustomerEdit = () => {
+    inlineEditingCustomerId.value = null;
+};
+
+const saveInlineCustomerEdit = () => {
+    if (!inlineEditingCustomerId.value) return;
+    inlineCustomerForm.put(
+        customerRoutes.update([
+            currentTeamSlug.value,
+            inlineEditingCustomerId.value,
+        ]).url,
+        {
+            onSuccess: () => {
+                inlineEditingCustomerId.value = null;
+            },
+        },
+    );
 };
 
 // Payment (Wasooli) Modal
@@ -340,18 +467,67 @@ const money = (val: number | string) => {
                 />
             </div>
 
-            <div class="w-44">
-                <Select v-model="selectedBalanceFilter">
-                    <SelectTrigger class="h-9 text-xs">
-                        <SelectValue placeholder="All Balances" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Balances</SelectItem>
-                        <SelectItem value="has_debt">Udhaar Only</SelectItem>
-                        <SelectItem value="advance">Advance Only</SelectItem>
-                        <SelectItem value="zero">Zero Balance</SelectItem>
-                    </SelectContent>
-                </Select>
+            <div class="flex items-center gap-2">
+                <div class="w-44">
+                    <Select v-model="selectedBalanceFilter">
+                        <SelectTrigger class="h-9 text-xs">
+                            <SelectValue placeholder="All Balances" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Balances</SelectItem>
+                            <SelectItem value="has_debt">Udhaar Only</SelectItem>
+                            <SelectItem value="advance">Advance Only</SelectItem>
+                            <SelectItem value="zero">Zero Balance</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <!-- Column Customizer Dropdown -->
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-9 gap-1.5 text-xs text-gray-700 dark:text-gray-300"
+                        >
+                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <span>Columns</span>
+                            <span
+                                class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
+                            >
+                                {{ activeColumnCount }}/5
+                            </span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-60 p-2 space-y-1">
+                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white px-1 py-1">
+                            <span>Table Columns</span>
+                            <button
+                                type="button"
+                                @click="resetColumns"
+                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                            >
+                                Reset All
+                            </button>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator class="my-1" />
+                        <div
+                            v-for="(label, key) in customerColumnLabels"
+                            :key="key"
+                            @click.stop="toggleCustomerColumn(key)"
+                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors"
+                        >
+                            <span>{{ label }}</span>
+                            <input
+                                type="checkbox"
+                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                @change="toggleCustomerColumn(key)"
+                                @click.stop
+                                class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                            />
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
 
@@ -365,11 +541,11 @@ const money = (val: number | string) => {
                         class="border-b border-gray-200 bg-gray-50 text-gray-600 uppercase dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
                     >
                         <tr>
-                            <th class="px-4 py-3 font-semibold">Name</th>
-                            <th class="px-4 py-3 font-semibold">Phone</th>
-                            <th class="px-4 py-3 font-semibold">Address</th>
-                            <th class="px-4 py-3 font-semibold">Balance</th>
-                            <th class="px-4 py-3 text-right font-semibold">
+                            <th v-if="visibleColumns.name" class="px-4 py-3 font-semibold">Name</th>
+                            <th v-if="visibleColumns.phone" class="px-4 py-3 font-semibold">Phone</th>
+                            <th v-if="visibleColumns.address" class="px-4 py-3 font-semibold">Address</th>
+                            <th v-if="visibleColumns.balance" class="px-4 py-3 font-semibold">Balance</th>
+                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right font-semibold">
                                 Actions
                             </th>
                         </tr>
@@ -379,7 +555,7 @@ const money = (val: number | string) => {
                     >
                         <tr v-if="customers.data.length === 0">
                             <td
-                                colspan="5"
+                                :colspan="activeColumnCount"
                                 class="px-4 py-8 text-center text-gray-500"
                             >
                                 No customers found.
@@ -391,25 +567,71 @@ const money = (val: number | string) => {
                             :key="customer.id"
                             class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
                         >
+                            <!-- Name -->
                             <td
+                                v-if="visibleColumns.name"
                                 class="px-4 py-3 font-semibold text-gray-900 dark:text-white"
                             >
-                                {{ customer.name }}
+                                <div v-if="inlineEditingCustomerId === customer.id">
+                                    <Input
+                                        v-model="inlineCustomerForm.name"
+                                        type="text"
+                                        class="h-7 text-xs font-semibold"
+                                        @keydown.enter.prevent="saveInlineCustomerEdit"
+                                        @keydown.escape.prevent="cancelInlineCustomerEdit"
+                                        autofocus
+                                    />
+                                </div>
+                                <div v-else class="flex items-center gap-1.5 group cursor-pointer" @click="startInlineCustomerEdit(customer)" title="Click to edit customer details inline">
+                                    <span>{{ customer.name }}</span>
+                                    <button class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#003B7D]" title="Edit Customer">
+                                        <Edit3 class="h-3 w-3" />
+                                    </button>
+                                </div>
                             </td>
 
+                            <!-- Phone -->
                             <td
+                                v-if="visibleColumns.phone"
                                 class="px-4 py-3 font-mono text-gray-600 dark:text-gray-300"
                             >
-                                {{ customer.phone }}
+                                <div v-if="inlineEditingCustomerId === customer.id">
+                                    <Input
+                                        v-model="inlineCustomerForm.phone"
+                                        type="text"
+                                        class="h-7 text-xs font-mono"
+                                        @keydown.enter.prevent="saveInlineCustomerEdit"
+                                        @keydown.escape.prevent="cancelInlineCustomerEdit"
+                                    />
+                                </div>
+                                <span v-else>{{ customer.phone }}</span>
                             </td>
 
+                            <!-- Address -->
                             <td
+                                v-if="visibleColumns.address"
                                 class="px-4 py-3 text-gray-500 dark:text-gray-400"
                             >
-                                {{ customer.address || '-' }}
+                                <div v-if="inlineEditingCustomerId === customer.id" class="flex items-center gap-1">
+                                    <Input
+                                        v-model="inlineCustomerForm.address"
+                                        type="text"
+                                        class="h-7 text-xs"
+                                        placeholder="Address"
+                                        @keydown.enter.prevent="saveInlineCustomerEdit"
+                                        @keydown.escape.prevent="cancelInlineCustomerEdit"
+                                    />
+                                    <button @click="saveInlineCustomerEdit" :disabled="inlineCustomerForm.processing" class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700" title="Save Customer">
+                                        <Check class="h-3.5 w-3.5" />
+                                    </button>
+                                    <button @click="cancelInlineCustomerEdit" class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300" title="Cancel">
+                                        <X class="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                                <span v-else>{{ customer.address || '-' }}</span>
                             </td>
 
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.balance" class="px-4 py-3">
                                 <span
                                     :class="[
                                         'font-bold',
@@ -445,51 +667,54 @@ const money = (val: number | string) => {
                                 >
                             </td>
 
-                            <td class="px-4 py-3 text-right">
-                                <div
-                                    class="flex items-center justify-end gap-1.5"
-                                >
-                                    <!-- Wasooli -->
-                                    <Button
-                                        size="sm"
-                                        @click="openPaymentModal(customer)"
-                                        class="h-7 gap-1 bg-[#003B7D] px-2 text-[11px] font-semibold text-white hover:bg-[#002b5c]"
-                                    >
-                                        <Wallet class="h-3 w-3" /> Wasooli
-                                    </Button>
-
-                                    <!-- History -->
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        @click="openHistoryModal(customer)"
-                                        class="h-7 px-2 text-[11px] text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                                        title="View History"
-                                    >
-                                        <History class="h-3 w-3" /> History
-                                    </Button>
-
-                                    <!-- Edit -->
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        @click="openEditModal(customer)"
-                                        class="h-7 w-7 p-0 text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                                        title="Edit"
-                                    >
-                                        <Edit3 class="h-3.5 w-3.5" />
-                                    </Button>
-
-                                    <!-- Delete -->
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        @click="deleteCustomer(customer)"
-                                        class="h-7 w-7 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
-                                        title="Delete"
-                                    >
-                                        <Trash2 class="h-3.5 w-3.5" />
-                                    </Button>
+                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
+                                <div class="flex items-center justify-end">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger as-child>
+                                            <button
+                                                type="button"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 shadow-2xs transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#003B7D]/20 data-[state=open]:bg-gray-100 data-[state=open]:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:data-[state=open]:bg-gray-700"
+                                                title="Customer Actions"
+                                            >
+                                                <MoreVertical class="h-4 w-4" />
+                                                <span class="sr-only">Customer Actions</span>
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align="end"
+                                            class="w-52 rounded-xl border border-gray-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/95"
+                                        >
+                                            <DropdownMenuItem
+                                                @click="openPaymentModal(customer)"
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
+                                            >
+                                                <Wallet class="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                <span>Wasooli (Payment)</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="openHistoryModal(customer)"
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
+                                            >
+                                                <History class="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                                <span>Ledger History</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="openEditModal(customer)"
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
+                                            >
+                                                <Edit3 class="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                                                <span>Edit Details</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator class="my-1 bg-gray-100 dark:bg-gray-800" />
+                                            <DropdownMenuItem
+                                                @click="deleteCustomer(customer)"
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+                                            >
+                                                <Trash2 class="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                                                <span>Delete Customer</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </td>
                         </tr>
@@ -497,16 +722,30 @@ const money = (val: number | string) => {
                 </table>
             </div>
 
-            <!-- Pagination -->
+            <!-- Pagination Footer with Editable Items Per Page -->
             <div
-                v-if="customers.links && customers.links.length > 3"
-                class="flex items-center justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
+                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
             >
-                <div class="text-xs text-gray-500">
-                    Total {{ customers.total }} customers
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <span class="font-semibold text-gray-700 dark:text-gray-300">Items per page:</span>
+                    <select
+                        v-model="perPage"
+                        @change="changePerPage()"
+                        class="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-800 shadow-2xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003B7D]"
+                    >
+                        <option :value="10">10 per page</option>
+                        <option :value="15">15 per page (default)</option>
+                        <option :value="25">25 per page</option>
+                        <option :value="50">50 per page</option>
+                        <option :value="100">100 per page</option>
+                        <option :value="250">250 per page</option>
+                        <option :value="500">500 per page (All)</option>
+                    </select>
+                    <span class="ml-1 text-gray-400">&bull;</span>
+                    <span>Total {{ customers.total }} customers</span>
                 </div>
 
-                <div class="flex items-center gap-1">
+                <div v-if="customers.links && customers.links.length > 3" class="flex items-center gap-1">
                     <template v-for="(link, i) in customers.links" :key="i">
                         <Button
                             v-if="link.url"

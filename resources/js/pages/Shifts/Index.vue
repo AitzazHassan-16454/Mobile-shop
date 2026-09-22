@@ -10,11 +10,83 @@ import {
     Plus,
     Printer,
     Receipt,
+    SlidersHorizontal,
     Wallet,
     X,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import shifts from '@/routes/shifts';
+
+// Table Column Customizer State
+const defaultVisibleColumns = {
+    id: true,
+    cashier: true,
+    opened: true,
+    closed: true,
+    float: true,
+    expected: true,
+    actual: true,
+    discrepancy: true,
+    status: true,
+};
+
+const visibleColumns = ref({ ...defaultVisibleColumns });
+
+const shiftColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+    id: 'Shift ID',
+    cashier: 'Cashier',
+    opened: 'Opened',
+    closed: 'Closed',
+    float: 'Float',
+    expected: 'Expected Cash',
+    actual: 'Actual Cash',
+    discrepancy: 'Discrepancy',
+    status: 'Status',
+};
+
+const STORAGE_KEY = 'faizan_mobile_shifts_table_columns_v1';
+
+onMounted(() => {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+        }
+    } catch (e) {
+        console.error(e);
+    }
+});
+
+const toggleShiftColumn = (key: string) => {
+    const k = key as keyof typeof defaultVisibleColumns;
+    visibleColumns.value[k] = !visibleColumns.value[k];
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleColumns.value));
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const resetColumns = () => {
+    visibleColumns.value = { ...defaultVisibleColumns };
+    try {
+        localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+const activeColumnCount = computed(() => {
+    return Object.values(visibleColumns.value).filter(Boolean).length;
+});
 
 interface ShiftExpense {
     id: number;
@@ -428,10 +500,57 @@ const printShiftSlip = () => {
         <div
             class="bg-card space-y-4 rounded-2xl border border-gray-200 p-6 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)]"
         >
-            <h2 class="flex items-center gap-2 text-lg font-bold text-gray-900">
-                <Clock class="h-5 w-5 text-[#003B7D]" />
-                Recent Shifts History
-            </h2>
+            <div class="flex items-center justify-between">
+                <h2 class="flex items-center gap-2 text-lg font-bold text-gray-900">
+                    <Clock class="h-5 w-5 text-[#003B7D]" />
+                    Recent Shifts History
+                </h2>
+
+                <!-- Table Columns Dropdown -->
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 gap-1.5 text-xs font-semibold"
+                        >
+                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <span>Columns</span>
+                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                                {{ activeColumnCount }}/9
+                            </span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
+                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                            <span>Table Columns</span>
+                            <button
+                                type="button"
+                                @click="resetColumns"
+                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                            >
+                                Reset All
+                            </button>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator class="my-1" />
+                        <div
+                            v-for="(label, key) in shiftColumnLabels"
+                            :key="key"
+                            @click.stop="toggleShiftColumn(key)"
+                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-slate-100 cursor-pointer select-none transition-colors"
+                        >
+                            <span>{{ label }}</span>
+                            <input
+                                type="checkbox"
+                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                @change="toggleShiftColumn(key)"
+                                @click.stop
+                                class="h-4 w-4 rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                            />
+                        </div>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full border-collapse text-left text-sm">
@@ -439,15 +558,15 @@ const printShiftSlip = () => {
                         <tr
                             class="border-b border-gray-200 bg-gray-50 text-xs text-slate-500 uppercase"
                         >
-                            <th class="px-4 py-3">Shift ID</th>
-                            <th class="px-4 py-3">Cashier</th>
-                            <th class="px-4 py-3">Opened</th>
-                            <th class="px-4 py-3">Closed</th>
-                            <th class="px-4 py-3">Float</th>
-                            <th class="px-4 py-3">Expected Cash</th>
-                            <th class="px-4 py-3">Actual Cash</th>
-                            <th class="px-4 py-3">Discrepancy</th>
-                            <th class="px-4 py-3">Status</th>
+                            <th v-if="visibleColumns.id" class="px-4 py-3">Shift ID</th>
+                            <th v-if="visibleColumns.cashier" class="px-4 py-3">Cashier</th>
+                            <th v-if="visibleColumns.opened" class="px-4 py-3">Opened</th>
+                            <th v-if="visibleColumns.closed" class="px-4 py-3">Closed</th>
+                            <th v-if="visibleColumns.float" class="px-4 py-3">Float</th>
+                            <th v-if="visibleColumns.expected" class="px-4 py-3">Expected Cash</th>
+                            <th v-if="visibleColumns.actual" class="px-4 py-3">Actual Cash</th>
+                            <th v-if="visibleColumns.discrepancy" class="px-4 py-3">Discrepancy</th>
+                            <th v-if="visibleColumns.status" class="px-4 py-3">Status</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -465,30 +584,33 @@ const printShiftSlip = () => {
                             class="hover:bg-gray-50"
                         >
                             <td
+                                v-if="visibleColumns.id"
                                 class="px-4 py-3 font-mono text-xs font-semibold text-slate-500"
                             >
                                 #SHIFT-{{ shift.id }}
                             </td>
-                            <td class="px-4 py-3 font-medium text-gray-900">
+                            <td v-if="visibleColumns.cashier" class="px-4 py-3 font-medium text-gray-900">
                                 {{ shift.cashier }}
                             </td>
-                            <td class="px-4 py-3 text-xs text-slate-500">
+                            <td v-if="visibleColumns.opened" class="px-4 py-3 text-xs text-slate-500">
                                 {{ shift.opened_at }}
                             </td>
-                            <td class="px-4 py-3 text-xs text-slate-500">
+                            <td v-if="visibleColumns.closed" class="px-4 py-3 text-xs text-slate-500">
                                 {{ shift.closed_at ?? 'Active' }}
                             </td>
                             <td
+                                v-if="visibleColumns.float"
                                 class="tnum px-4 py-3 font-medium text-slate-600"
                             >
                                 Rs {{ shift.opening_float.toLocaleString() }}
                             </td>
                             <td
+                                v-if="visibleColumns.expected"
                                 class="tnum px-4 py-3 font-semibold text-[#003B7D]"
                             >
                                 Rs {{ shift.expected_cash.toLocaleString() }}
                             </td>
-                            <td class="tnum px-4 py-3 font-bold text-gray-900">
+                            <td v-if="visibleColumns.actual" class="tnum px-4 py-3 font-bold text-gray-900">
                                 {{
                                     shift.actual_cash != null
                                         ? 'Rs ' +
@@ -496,7 +618,7 @@ const printShiftSlip = () => {
                                         : '-'
                                 }}
                             </td>
-                            <td class="px-4 py-3 text-xs font-bold">
+                            <td v-if="visibleColumns.discrepancy" class="px-4 py-3 text-xs font-bold">
                                 <span
                                     v-if="shift.discrepancy != null"
                                     :class="[
@@ -517,7 +639,7 @@ const printShiftSlip = () => {
                                 </span>
                                 <span v-else>-</span>
                             </td>
-                            <td class="px-4 py-3">
+                            <td v-if="visibleColumns.status" class="px-4 py-3">
                                 <span
                                     :class="[
                                         shift.status === 'open'

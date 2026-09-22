@@ -22,18 +22,18 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
   <DropdownMenuCheckboxItem
     data-slot="dropdown-menu-checkbox-item"
     v-bind="forwarded"
-    :class=" cn(
-      'focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4',
+    :class="cn(
+      'focus:bg-gray-100 dark:focus:bg-gray-800 relative flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 transition-colors',
       props.class,
     )"
   >
-    <span class="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
+    <span><slot /></span>
+    <span class="flex size-4 shrink-0 items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 transition-colors group-data-[state=checked]:border-[#003B7D] group-data-[state=checked]:bg-[#003B7D] group-data-[state=checked]:text-white">
       <DropdownMenuItemIndicator>
         <slot name="indicator-icon">
-          <Check class="size-4" />
+          <Check class="size-3.5 stroke-[3] text-[#003B7D] dark:text-blue-400" />
         </slot>
       </DropdownMenuItemIndicator>
     </span>
-    <slot />
   </DropdownMenuCheckboxItem>
 </template>

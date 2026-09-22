@@ -11,7 +11,7 @@ export default defineConfig({
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.ts'],
             refresh: true,
-            // detectTls: false,
+             detectTls: false,
             fonts: [
                 bunny('Roboto', {
                     weights: [300, 400, 500, 600, 700],

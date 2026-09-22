@@ -15,9 +15,17 @@ class InstallmentController extends Controller
 {
     public function index(Request $request, string $currentTeam): Response
     {
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [10, 15, 25, 50, 100, 250, 500], true)) {
+            $perPage = 15;
+        }
+
         return Inertia::render('Installments/Index', [
-            'plans' => InstallmentPlan::query()->with('customer')->latest()->paginate(15),
+            'plans' => InstallmentPlan::query()->with('customer')->latest()->paginate($perPage)->withQueryString(),
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'phone']),
+            'filters' => [
+                'per_page' => $perPage,
+            ],
             'summary' => [
                 'active_plans' => InstallmentPlan::where('status', 'active')->count(),
                 'outstanding' => (float) InstallmentPlan::where('status', 'active')
