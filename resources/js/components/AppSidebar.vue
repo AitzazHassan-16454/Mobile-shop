@@ -4,7 +4,6 @@ import {
     BadgePercent,
     Boxes,
     Building2,
-    Database,
     LayoutGrid,
     Package,
     Receipt,
@@ -19,10 +18,8 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import TeamSwitcher from '@/components/TeamSwitcher.vue';
 import {
     Sidebar,
     SidebarContent,
@@ -33,19 +30,12 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import backup from '@/routes/backup';
 import type { NavGroup, NavItem } from '@/types';
 
 const page = usePage();
 
 const dashboardUrl = computed(() =>
     page.props.currentTeam ? dashboard(page.props.currentTeam.slug).url : '/',
-);
-
-const backupDownloadUrl = computed(() =>
-    page.props.currentTeam
-        ? backup.download(page.props.currentTeam.slug).url
-        : '/backup/download',
 );
 
 const teamUrl = (pathname: string) =>
@@ -112,20 +102,13 @@ const mainNavGroups = computed<NavGroup[]>(() => [
     },
 ]);
 
-const footerNavItems = computed<NavItem[]>(() => [
-    {
-        title: '1-Click Local Backup',
-        href: backupDownloadUrl.value,
-        icon: Database,
-    },
-]);
 </script>
 
 <template>
     <Sidebar
         collapsible="icon"
         variant="sidebar"
-        class="text-sidebar-foreground border-r border-white/12 bg-[#002654]/90 shadow-[8px_0_36px_rgba(0,18,51,0.25)] backdrop-blur-2xl"
+        class="text-sidebar-foreground border-r border-white/12 bg-[#002654]/95 dark:bg-[#090d16] dark:border-white/10 shadow-[8px_0_36px_rgba(0,18,51,0.25)] dark:shadow-[8px_0_36px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
     >
         <SidebarHeader class="relative bg-transparent px-3 py-3">
             <SidebarMenu>
@@ -141,19 +124,13 @@ const footerNavItems = computed<NavItem[]>(() => [
                     </SidebarMenuButton>
                 </SidebarMenuItem>
             </SidebarMenu>
-            <SidebarMenu class="mt-3">
-                <SidebarMenuItem>
-                    <TeamSwitcher />
-                </SidebarMenuItem>
-            </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent class="relative bg-transparent px-2 py-3">
+        <SidebarContent class="no-scrollbar relative bg-transparent px-2 py-3">
             <NavMain :items="mainNavGroups" :leading="dashboardNavItem" />
         </SidebarContent>
 
         <SidebarFooter class="relative bg-transparent p-2">
-            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

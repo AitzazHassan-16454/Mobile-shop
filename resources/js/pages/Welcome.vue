@@ -11,7 +11,7 @@ const dashboardUrl = computed(() =>
 </script>
 
 <template>
-    <Head title="Faizan Mobile" />
+    <Head title="Horizon Studio" />
 
     <div
         class="relative min-h-screen overflow-hidden bg-gray-100 px-4 py-8 sm:px-6 lg:px-8"
@@ -33,9 +33,8 @@ const dashboardUrl = computed(() =>
                         <div
                             class="text-lg font-black tracking-tight text-gray-900"
                         >
-                            Faizan Mobile
+                            Horizon Studio
                         </div>
-                        <div class="eyebrow">Mobile shop POS</div>
                     </div>
                 </div>
 

@@ -4,12 +4,20 @@ import {
     AlertCircle,
     ArrowLeft,
     Barcode,
+    BookOpen,
     Check,
     CheckCircle,
+    ChevronDown,
     CreditCard,
     DollarSign,
+    ExternalLink,
+    FileText,
+    Folder,
     History,
+    Keyboard,
     Layers,
+    LayoutDashboard,
+    LogOut,
     Maximize2,
     Minimize2,
     Minus,
@@ -17,18 +25,20 @@ import {
     Play,
     Plus,
     Printer,
-    QrCode,
     Receipt,
     RotateCcw,
     Search,
+    Settings,
     ShoppingCart,
     Smartphone,
-    Store,
+    Sparkles,
     Tag,
     Trash2,
     User,
     UserCheck,
     UserPlus,
+    Volume2,
+    VolumeX,
     Wallet,
     X,
     Zap,
@@ -46,15 +56,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { useConfirm } from '@/composables/useConfirm';
@@ -122,6 +123,7 @@ interface CartItem {
     pta_status?: string;
     quantity: number;
     unit_price: number;
+    item_discount: number;
     max_stock?: number;
 }
 
@@ -179,67 +181,255 @@ const currentShopName = computed(
     () =>
         props.shopInfo?.name ||
         (page.props.currentTeam as Team | undefined)?.name ||
-        'Faizan Mobiles & Reparing Mobile',
+        'Mobile Shop POS',
 );
 
-const isFullscreen = ref(false);
+// Search & Filter state
+const searchByName = ref(true);
+const searchByPhone = ref(true);
+const searchBySku = ref(true);
+const exactMatch = ref(false);
+const selectedCategory = ref<string>('all');
 
+// POS Settings & Sound
+const isSettingsModalOpen = ref(false);
+const posSettings = ref({
+    soundEnabled: true,
+    compactView: false,
+    autoPrint: false,
+    defaultPayment: 'cash',
+});
+
+const loadPosSettings = () => {
+    try {
+        const saved = localStorage.getItem('pos_user_settings');
+        if (saved) {
+            posSettings.value = { ...posSettings.value, ...JSON.parse(saved) };
+        }
+    } catch (e) {}
+};
+
+const savePosSettings = () => {
+    try {
+        localStorage.setItem('pos_user_settings', JSON.stringify(posSettings.value));
+        toast.success('POS preferences saved.');
+        isSettingsModalOpen.value = false;
+    } catch (e) {}
+};
+
+const playAudioBeep = (type: 'scan' | 'success' | 'delete' = 'scan') => {
+    if (!posSettings.value.soundEnabled) return;
+    try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === 'scan') {
+            osc.frequency.setValueAtTime(1100, ctx.currentTime);
+            gain.gain.setValueAtTime(0.12, ctx.currentTime);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'success') {
+            osc.frequency.setValueAtTime(700, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1300, ctx.currentTime + 0.12);
+            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.12);
+        } else if (type === 'delete') {
+            osc.frequency.setValueAtTime(350, ctx.currentTime);
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.09);
+        }
+    } catch (e) {}
+};
+
+// Fullscreen
+const isFullscreen = ref(false);
 const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-        document.documentElement
-            .requestFullscreen()
-            .then(() => {
-                isFullscreen.value = true;
-            })
-            .catch(() => {});
+        document.documentElement.requestFullscreen().then(() => {
+            isFullscreen.value = true;
+        }).catch(() => {
+            toast.error('Fullscreen toggle not supported in browser.');
+        });
     } else {
         if (document.exitFullscreen) {
-            document
-                .exitFullscreen()
-                .then(() => {
-                    isFullscreen.value = false;
-                })
-                .catch(() => {});
+            document.exitFullscreen().then(() => {
+                isFullscreen.value = false;
+            });
         }
     }
 };
 
-const handleFullscreenChange = () => {
-    isFullscreen.value = !!document.fullscreenElement;
-};
-
-// POS Cart State
+// POS Cart & Form State
 const cart = ref<CartItem[]>([]);
 const selectedCustomerId = ref<string>('walk_in');
+const salesman = ref<string>('Admin');
+
+const currentDateFormatted = ref('');
+const updateCurrentTime = () => {
+    const now = new Date();
+    currentDateFormatted.value = now.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    }) + ' • ' + now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+};
+
+// Discount Mode ($ or %)
+const discountMode = ref<'amount' | 'percent'>('amount');
 const discountInput = ref<number | string>(0);
+
+// Notes & Payments
+const notesInput = ref<string>('');
+const paymentMethod = ref<string>('cash');
+const paidInput = ref<number | string>(0);
+
+// Live API Product Search
 const searchScanQuery = ref('');
 const searchInputRef = ref<HTMLInputElement | null>(null);
-
-// Live API Search Dropdown State
+const searchContainerRef = ref<HTMLElement | null>(null);
 const searchApiResults = ref<ProductItem[]>([]);
 const isSearchingApi = ref(false);
 const showSearchDropdown = ref(false);
+const selectedSearchIndex = ref<number>(-1);
 let apiSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// IMEI Selector Modal State
+const isImeiSelectorOpen = ref(false);
+const imeiSelectProduct = ref<ProductItem | null>(null);
+
+// Modals
+const isCustomerModalOpen = ref(false);
+const isReceiptModalOpen = ref(false);
+const isHeldSalesModalOpen = ref(false);
+const isShortcutsModalOpen = ref(false);
+const isNotesModalOpen = ref(false);
+const activeReceipt = ref<CompletedSale | null>(props.latestSale || null);
+
+// Held Sales
+const heldSales = ref<HeldSale[]>([]);
+
+const loadHeldSales = () => {
+    try {
+        const saved = localStorage.getItem('pos_held_sales');
+        if (saved) {
+            heldSales.value = JSON.parse(saved);
+        }
+    } catch (e) {
+        heldSales.value = [];
+    }
+};
+
+const saveHeldSalesToStorage = () => {
+    try {
+        localStorage.setItem('pos_held_sales', JSON.stringify(heldSales.value));
+    } catch (e) {}
+};
+
+const holdCurrentSale = () => {
+    if (cart.value.length === 0) {
+        toast.error('Cart is Empty', { description: 'Search items to add before holding sale.' });
+        return;
+    }
+    const customerName = selectedCustomer.value ? selectedCustomer.value.name : 'Walk-in Customer';
+    const heldItem: HeldSale = {
+        id: 'HOLD-' + Math.floor(1000 + Math.random() * 9000),
+        customer_id: selectedCustomerId.value,
+        customer_name: customerName,
+        cart: JSON.parse(JSON.stringify(cart.value)),
+        discount: discountInput.value,
+        total: netPayable.value,
+        held_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    heldSales.value.unshift(heldItem);
+    saveHeldSalesToStorage();
+    playAudioBeep('success');
+
+    cart.value = [];
+    discountInput.value = 0;
+    paidInput.value = 0;
+    notesInput.value = '';
+
+    toast.success('Sale Saved to Hold!', {
+        description: `Ref: ${heldItem.id} (${heldItem.cart.length} items)`,
+    });
+};
+
+const restoreHeldSale = (held: HeldSale, index: number) => {
+    cart.value = JSON.parse(JSON.stringify(held.cart));
+    discountInput.value = held.discount;
+    selectedCustomerId.value = held.customer_id;
+    heldSales.value.splice(index, 1);
+    saveHeldSalesToStorage();
+    isHeldSalesModalOpen.value = false;
+    playAudioBeep('scan');
+    toast.success('Held Sale Loaded into Cart!');
+};
+
+const deleteHeldSale = (index: number) => {
+    heldSales.value.splice(index, 1);
+    saveHeldSalesToStorage();
+    playAudioBeep('delete');
+    toast.info('Held sale deleted.');
+};
+
+// Form for quick customer add
+const customerForm = useForm({
+    name: '',
+    phone: '',
+    address: '',
+});
+
+const availableCategories = computed(() => {
+    const set = new Set<string>();
+    props.products.forEach((p) => {
+        if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+});
+
+const formatProductName = (name: string, brand?: string) => {
+    if (!name) return '';
+    if (!brand) return name;
+    if (name.toLowerCase().startsWith(brand.toLowerCase())) {
+        return name;
+    }
+    return `${brand} ${name}`;
+};
 
 const performApiSearch = async (query: string) => {
     const q = query.trim();
     if (!q) {
         searchApiResults.value = [];
         showSearchDropdown.value = false;
+        selectedSearchIndex.value = -1;
         return;
     }
     isSearchingApi.value = true;
     showSearchDropdown.value = true;
+    selectedSearchIndex.value = -1;
 
     try {
-        const url = `/${currentTeamSlug.value}/pos/products?search=${encodeURIComponent(q)}`;
+        const catParam = selectedCategory.value !== 'all' ? `&category=${encodeURIComponent(selectedCategory.value)}` : '';
+        const url = `/${currentTeamSlug.value}/pos/products?search=${encodeURIComponent(q)}${catParam}`;
         const res = await fetch(url, { headers: { Accept: 'application/json' } });
         if (res.ok) {
             const data = await res.json();
             searchApiResults.value = Array.isArray(data) ? data : [];
         }
     } catch (err) {
-        console.error('POS Live Search Error:', err);
+        console.error('POS Search Error:', err);
     } finally {
         isSearchingApi.value = false;
     }
@@ -250,147 +440,91 @@ watch(searchScanQuery, (newVal) => {
     if (!newVal.trim()) {
         searchApiResults.value = [];
         showSearchDropdown.value = false;
+        selectedSearchIndex.value = -1;
         return;
     }
     apiSearchDebounceTimer = setTimeout(() => {
         performApiSearch(newVal);
-    }, 150);
+    }, 120);
 });
 
-const selectApiProduct = (product: ProductItem, specificImei?: ProductImeiItem) => {
-    addProductToCart(product, specificImei);
-    searchScanQuery.value = '';
-    searchApiResults.value = [];
-    showSearchDropdown.value = false;
+const onSearchFocus = () => {
+    if (searchScanQuery.value.trim() && searchApiResults.value.length > 0) {
+        showSearchDropdown.value = true;
+    }
 };
 
-const activeCategoryTab = ref('all');
+const closeSearchDropdown = () => {
+    showSearchDropdown.value = false;
+    selectedSearchIndex.value = -1;
+};
 
-// Modals
-const isPaymentModalOpen = ref(false);
-const isCustomerModalOpen = ref(false);
-const isReceiptModalOpen = ref(false);
-const isHeldSalesModalOpen = ref(false);
-const isMethodSelectionPromptOpen = ref(false);
-const activeReceipt = ref<CompletedSale | null>(props.latestSale || null);
+const clearSearchQuery = () => {
+    searchScanQuery.value = '';
+    searchApiResults.value = [];
+    closeSearchDropdown();
+    searchInputRef.value?.focus();
+};
 
-// Payment Tender state
-const paymentMethod = ref<string>('');
-const paymentMethodError = ref(false);
-const paidInput = ref<number | string>('');
+const navigateSearchResults = (direction: number) => {
+    if (!showSearchDropdown.value || searchApiResults.value.length === 0) return;
+    const max = searchApiResults.value.length - 1;
+    let next = selectedSearchIndex.value + direction;
+    if (next < 0) next = max;
+    if (next > max) next = 0;
+    selectedSearchIndex.value = next;
 
-// Held Sales list (Boson Studio Hold Cart Feature)
-const heldSales = ref<HeldSale[]>([]);
-
-// Split Payment Details
-const splitAmounts = ref({
-    cash: 0,
-    jazzcash: 0,
-    easypaisa: 0,
-    bank: 0,
-    card: 0,
-});
-
-// Form for quick customer add
-const customerForm = useForm({
-    name: '',
-    phone: '',
-    address: '',
-});
-
-const paymentMethodsList = [
-    {
-        id: 'cash',
-        label: 'Cash',
-        icon: DollarSign,
-        color: 'text-emerald-600',
-        activeBg:
-            'border-emerald-500 bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/30 shadow-xs',
-    },
-    {
-        id: 'jazzcash',
-        label: 'JazzCash',
-        icon: Smartphone,
-        color: 'text-red-600',
-        activeBg:
-            'border-red-500 bg-red-50/80 text-red-950 ring-1 ring-red-500/30 shadow-xs',
-    },
-    {
-        id: 'easypaisa',
-        label: 'Easypaisa',
-        icon: Wallet,
-        color: 'text-emerald-600',
-        activeBg:
-            'border-emerald-500 bg-emerald-50/80 text-emerald-950 ring-1 ring-emerald-500/30 shadow-xs',
-    },
-    {
-        id: 'bank',
-        label: 'Bank Transfer',
-        icon: CreditCard,
-        color: 'text-blue-600',
-        activeBg:
-            'border-blue-500 bg-blue-50/80 text-blue-950 ring-1 ring-blue-500/30 shadow-xs',
-    },
-    {
-        id: 'udhaar',
-        label: 'Udhaar (Khata)',
-        icon: UserCheck,
-        color: 'text-amber-600',
-        activeBg:
-            'border-amber-500 bg-amber-50/80 text-amber-950 ring-1 ring-amber-500/30 shadow-xs',
-    },
-    {
-        id: 'split',
-        label: 'Split Pay',
-        icon: Layers,
-        color: 'text-indigo-600',
-        activeBg:
-            'border-indigo-500 bg-indigo-50/80 text-indigo-950 ring-1 ring-indigo-500/30 shadow-xs',
-    },
-];
-
-const categories = computed(() => {
-    const set = new Set<string>();
-    (props.products || []).forEach((p) => {
-        if (p.category) set.add(p.category);
-    });
-    return ['all', ...Array.from(set)];
-});
-
-const filteredCatalogProducts = computed(() => {
-    let list = props.products || [];
-    const q = searchScanQuery.value.trim().toLowerCase();
-
-    // Filter by category tab if selected and no search query is active
-    if (activeCategoryTab.value !== 'all' && !q) {
-        list = list.filter((p) => p.category === activeCategoryTab.value);
+    const el = document.getElementById(`search-result-item-${next}`);
+    if (el) {
+        el.scrollIntoView({ block: 'nearest' });
     }
+};
 
-    if (!q) return list;
+const handleClickOutside = (event: MouseEvent) => {
+    if (
+        searchContainerRef.value &&
+        !searchContainerRef.value.contains(event.target as Node)
+    ) {
+        closeSearchDropdown();
+    }
+};
 
-    return list.filter((p) => {
-        const name = (p.name || '').toLowerCase();
-        const brand = (p.brand || '').toLowerCase();
-        const category = (p.category || '').toLowerCase();
-        const barcode = (p.barcode || '').toLowerCase();
+const getAvailableImeis = (product: ProductItem | null) => {
+    if (!product) return [];
+    const imeis = product.in_stock_imeis || (product as any).inStockImeis || [];
+    if (!Array.isArray(imeis)) return [];
+    return imeis.filter(
+        (imei: ProductImeiItem) =>
+            (!imei.status || imei.status === 'in_stock') &&
+            !cart.value.some((item) => item.product_imei_id === imei.id),
+    );
+};
 
-        const matchName = name.includes(q);
-        const matchBrand = brand.includes(q);
-        const matchCategory = category.includes(q);
-        const matchBarcode = barcode.includes(q);
+const confirmImeiSelection = (imei: ProductImeiItem) => {
+    if (!imeiSelectProduct.value) return;
+    addProductToCart(imeiSelectProduct.value, imei);
+    isImeiSelectorOpen.value = false;
+    imeiSelectProduct.value = null;
+    clearSearchQuery();
+};
 
-        const imeis = p.in_stock_imeis || (p as any).inStockImeis || [];
-        const matchImei = Array.isArray(imeis)
-            ? imeis.some(
-                  (i: any) =>
-                      (i.imei_1 && i.imei_1.toLowerCase().includes(q)) ||
-                      (i.imei_2 && i.imei_2.toLowerCase().includes(q)),
-              )
-            : false;
-
-        return matchName || matchBrand || matchCategory || matchBarcode || matchImei;
-    });
-});
+const selectApiProduct = (product: ProductItem, specificImei?: ProductImeiItem) => {
+    if (Boolean(product.is_serialized) && !specificImei) {
+        const available = getAvailableImeis(product);
+        if (available.length > 1) {
+            imeiSelectProduct.value = product;
+            isImeiSelectorOpen.value = true;
+            closeSearchDropdown();
+            return;
+        } else if (available.length === 1) {
+            addProductToCart(product, available[0]);
+            clearSearchQuery();
+            return;
+        }
+    }
+    addProductToCart(product, specificImei);
+    clearSearchQuery();
+};
 
 const selectedCustomer = computed(() => {
     if (selectedCustomerId.value === 'walk_in') return null;
@@ -401,32 +535,26 @@ const selectedCustomer = computed(() => {
     );
 });
 
-const totalItemsCount = computed(() => {
-    return cart.value.reduce((acc, item) => acc + item.quantity, 0);
-});
-
 const subtotal = computed(() => {
     return cart.value.reduce(
-        (acc, item) => acc + item.quantity * item.unit_price,
+        (acc, item) => acc + (item.quantity * item.unit_price) - (item.item_discount || 0),
         0,
     );
 });
 
-const discountAmount = computed(() => {
-    const val = Number(discountInput.value) || 0;
-    return Math.min(val, subtotal.value);
+const calculatedDiscountAmount = computed(() => {
+    const inputVal = Number(discountInput.value) || 0;
+    if (discountMode.value === 'percent') {
+        return Math.min(subtotal.value, Math.round((subtotal.value * inputVal) / 100));
+    }
+    return Math.min(inputVal, subtotal.value);
 });
 
 const netPayable = computed(() => {
-    return Math.max(0, subtotal.value - discountAmount.value);
+    return Math.max(0, subtotal.value - calculatedDiscountAmount.value);
 });
 
-const changeToReturn = computed(() => {
-    const paid = Number(paidInput.value) || 0;
-    return Math.max(0, paid - netPayable.value);
-});
-
-const remainingKhataBalance = computed(() => {
+const duePayment = computed(() => {
     const paid = Number(paidInput.value) || 0;
     return Math.max(0, netPayable.value - paid);
 });
@@ -439,9 +567,9 @@ watch(
             isReceiptModalOpen.value = true;
             cart.value = [];
             discountInput.value = 0;
-            paidInput.value = '';
-            paymentMethod.value = '';
-            paymentMethodError.value = false;
+            paidInput.value = 0;
+            notesInput.value = '';
+            paymentMethod.value = posSettings.value.defaultPayment || 'cash';
             selectedCustomerId.value = 'walk_in';
         }
     },
@@ -449,20 +577,31 @@ watch(
 );
 
 const handleScanSubmit = () => {
+    if (
+        showSearchDropdown.value &&
+        selectedSearchIndex.value >= 0 &&
+        searchApiResults.value[selectedSearchIndex.value]
+    ) {
+        selectApiProduct(searchApiResults.value[selectedSearchIndex.value]);
+        return;
+    }
+
     const q = searchScanQuery.value.trim();
     if (!q) return;
 
     for (const p of props.products) {
-        if (p.is_serialized && p.in_stock_imeis) {
-            const matchedImei = p.in_stock_imeis.find(
-                (i) =>
-                    i.imei_1.toLowerCase() === q.toLowerCase() ||
-                    (i.imei_2 && i.imei_2.toLowerCase() === q.toLowerCase()),
-            );
-            if (matchedImei) {
-                addProductToCart(p, matchedImei);
-                searchScanQuery.value = '';
-                return;
+        if (p.is_serialized) {
+            const imeis = p.in_stock_imeis || (p as any).inStockImeis || [];
+            if (Array.isArray(imeis)) {
+                const matchedImei = imeis.find(
+                    (i: any) =>
+                        i.imei_1.toLowerCase() === q.toLowerCase() ||
+                        (i.imei_2 && i.imei_2.toLowerCase() === q.toLowerCase()),
+                );
+                if (matchedImei) {
+                    selectApiProduct(p, matchedImei);
+                    return;
+                }
             }
         }
     }
@@ -474,15 +613,13 @@ const handleScanSubmit = () => {
             p.barcode.toLowerCase() === q.toLowerCase(),
     );
     if (matchedBarcodeProduct) {
-        addProductToCart(matchedBarcodeProduct);
-        searchScanQuery.value = '';
+        selectApiProduct(matchedBarcodeProduct);
         return;
     }
 
-    const matches = filteredCatalogProducts.value;
-    if (matches.length === 1) {
-        addProductToCart(matches[0]);
-        searchScanQuery.value = '';
+    if (searchApiResults.value.length > 0) {
+        selectApiProduct(searchApiResults.value[0]);
+        return;
     }
 };
 
@@ -490,24 +627,56 @@ const addProductToCart = (
     product: ProductItem,
     specificImei?: ProductImeiItem,
 ) => {
-    if (product.is_serialized) {
-        const availableImei =
-            specificImei ||
-            product.in_stock_imeis?.find(
-                (imei) =>
-                    !cart.value.some(
-                        (item) => item.product_imei_id === imei.id,
-                    ),
-            );
+    const fullName = formatProductName(product.name, product.brand);
+    const isSerialized = Boolean(product.is_serialized);
+
+    if (isSerialized) {
+        const availableImeis = getAvailableImeis(product);
+        const availableImei = specificImei || availableImeis[0];
 
         if (!availableImei) {
-            toast.error(`"${product.name}" is out of stock.`);
+            if (Number(product.stock_quantity) > 0) {
+                const fallbackKey = `prod-serialized-${product.id}`;
+                const existing = cart.value.find((item) => item.key === fallbackKey);
+                if (existing) {
+                    if (existing.quantity >= Number(product.stock_quantity)) {
+                        toast.warning('Maximum Stock Limit', {
+                            description: `Inventory limit reached for "${fullName}".`,
+                        });
+                        return;
+                    }
+                    existing.quantity += 1;
+                } else {
+                    cart.value.push({
+                        key: fallbackKey,
+                        product_id: product.id,
+                        name: product.name,
+                        brand: product.brand,
+                        is_serialized: true,
+                        quantity: 1,
+                        unit_price: Number(product.sale_price),
+                        item_discount: 0,
+                        max_stock: Number(product.stock_quantity),
+                    });
+                }
+                playAudioBeep('scan');
+                toast.success('Item Added to Invoice', {
+                    description: `"${fullName}" added to cart.`,
+                });
+                return;
+            }
+
+            toast.error('Inventory Out of Stock', {
+                description: `"${fullName}" has no available units in inventory.`,
+            });
             return;
         }
 
         const key = `imei-${availableImei.id}`;
         if (cart.value.some((item) => item.key === key)) {
-            toast.error(`This item is already in the cart.`);
+            toast.warning('Serial Already Added', {
+                description: `Device (IMEI: ${availableImei.imei_1}) is already in this cart.`,
+            });
             return;
         }
 
@@ -518,29 +687,40 @@ const addProductToCart = (
             name: product.name,
             brand: product.brand,
             is_serialized: true,
+            imei_1: availableImei.imei_1,
+            imei_2: availableImei.imei_2,
+            color: availableImei.color,
+            storage: availableImei.storage,
+            condition: availableImei.condition,
+            pta_status: availableImei.pta_status,
             quantity: 1,
             unit_price: Number(product.sale_price),
+            item_discount: 0,
         });
-        toast.success(`Added: ${product.name}`);
+        playAudioBeep('scan');
+        toast.success('Device Serial Added', {
+            description: `"${fullName}" (IMEI: ${availableImei.imei_1}) added to invoice.`,
+        });
     } else {
         const key = `prod-${product.id}`;
         const existing = cart.value.find((item) => item.key === key);
 
         if (existing) {
             if (
-                product.stock_quantity > 0 &&
-                existing.quantity >= product.stock_quantity
+                Number(product.stock_quantity) > 0 &&
+                existing.quantity >= Number(product.stock_quantity)
             ) {
-                toast.error(
-                    `Cannot add more than available stock (${product.stock_quantity}).`,
-                );
+                toast.warning('Maximum Stock Limit', {
+                    description: `Inventory limit reached for "${fullName}".`,
+                });
                 return;
             }
             existing.quantity += 1;
-            toast.success(`Added: ${product.name}`);
         } else {
-            if (product.stock_quantity <= 0) {
-                toast.error(`"${product.name}" is out of stock.`);
+            if (Number(product.stock_quantity) <= 0) {
+                toast.error('Inventory Out of Stock', {
+                    description: `"${fullName}" is currently out of stock.`,
+                });
                 return;
             }
             cart.value.push({
@@ -551,294 +731,178 @@ const addProductToCart = (
                 is_serialized: false,
                 quantity: 1,
                 unit_price: Number(product.sale_price),
-                max_stock: product.stock_quantity,
+                item_discount: 0,
+                max_stock: Number(product.stock_quantity),
             });
-            toast.success(`Added: ${product.name}`);
         }
+        playAudioBeep('scan');
+        toast.success('Item Added to Invoice', {
+            description: `"${fullName}" added to cart.`,
+        });
     }
-};
-
-const incrementCartItem = (item: CartItem) => {
-    if (item.is_serialized) {
-        const prod = props.products.find((p) => p.id === item.product_id);
-        if (prod) {
-            addProductToCart(prod);
-        }
-        return;
-    }
-    if (item.max_stock && item.quantity >= item.max_stock) {
-        toast.error(`Cannot exceed available stock of ${item.max_stock}.`);
-        return;
-    }
-    item.quantity += 1;
-};
-
-const decrementCartItem = (item: CartItem, index: number) => {
-    if (item.quantity > 1) {
-        item.quantity -= 1;
-    } else {
-        removeCartItem(index);
-    }
-};
-
-const setDiscountPreset = (amount: number) => {
-    discountInput.value = amount;
 };
 
 const removeCartItem = (index: number) => {
     cart.value.splice(index, 1);
+    playAudioBeep('delete');
 };
 
-const clearCart = async () => {
+const clearCart = () => {
     if (cart.value.length === 0) return;
-    const ok = await confirm({
-        title: 'Clear Cart',
-        message: 'Are you sure you want to clear all items from the current cart?',
-        confirmText: 'Clear Cart',
-        cancelText: 'Cancel',
-        variant: 'destructive',
-    });
-    if (ok) {
-        cart.value = [];
-        discountInput.value = 0;
-        paidInput.value = '';
-        paymentMethod.value = '';
-        paymentMethodError.value = false;
-    }
-};
-
-// Boson Studio POS Feature: Hold & Recall Sales
-const holdCurrentSale = () => {
-    if (cart.value.length === 0) {
-        toast.error('Cart is empty, nothing to hold.');
-        return;
-    }
-    const customerName = selectedCustomer.value?.name || 'Walk-in Customer';
-    heldSales.value.push({
-        id: 'HOLD-' + (heldSales.value.length + 1),
-        customer_id: selectedCustomerId.value,
-        customer_name: customerName,
-        cart: JSON.parse(JSON.stringify(cart.value)),
-        discount: discountInput.value,
-        total: netPayable.value,
-        held_at: new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-        }),
-    });
     cart.value = [];
     discountInput.value = 0;
-    paymentMethod.value = '';
+    paidInput.value = 0;
+    notesInput.value = '';
+    paymentMethod.value = posSettings.value.defaultPayment || 'cash';
     selectedCustomerId.value = 'walk_in';
-    toast.success(`Sale for "${customerName}" placed on hold.`);
+    playAudioBeep('delete');
+    toast.info('Terminal Reset', { description: 'Cart and invoice inputs cleared.' });
 };
 
-const recallHeldSale = async (index: number) => {
-    const item = heldSales.value[index];
-    if (!item) return;
+const addQuickCashPreset = (amount: number) => {
+    const current = Number(paidInput.value) || 0;
+    paidInput.value = current + amount;
+    playAudioBeep('scan');
+};
 
-    if (cart.value.length > 0) {
-        const ok = await confirm({
-            title: 'Replace Cart',
-            message: 'Replace current cart with this held sale?',
-            confirmText: 'Replace Cart',
-            cancelText: 'Cancel',
-            variant: 'warning',
+const saveSale = () => {
+    if (cart.value.length === 0) {
+        toast.error('Cart is Empty', { description: 'Please add products before processing payment.' });
+        return;
+    }
+
+    if (paymentMethod.value === 'udhaar' && selectedCustomerId.value === 'walk_in') {
+        toast.error('Customer Account Required', {
+            description: 'Please select or register a customer for credit ledger transactions.',
         });
-        if (!ok) return;
-    }
-
-    cart.value = JSON.parse(JSON.stringify(item.cart));
-    discountInput.value = item.discount;
-    selectedCustomerId.value = item.customer_id;
-    paymentMethod.value = '';
-    paymentMethodError.value = false;
-    heldSales.value.splice(index, 1);
-    isHeldSalesModalOpen.value = false;
-    toast.success(`Recalled held sale for "${item.customer_name}".`);
-};
-
-const removeHeldSale = (index: number) => {
-    heldSales.value.splice(index, 1);
-    toast.info('Held sale removed.');
-};
-
-// Fast Cash 1-tap checkout (Common in retail mobile shops)
-const quickCashCheckout = () => {
-    if (cart.value.length === 0) return;
-    paymentMethod.value = 'cash';
-    paidInput.value = netPayable.value;
-    submitCheckout();
-};
-
-const handleProceedToPayment = () => {
-    if (cart.value.length === 0) return;
-
-    if (!paymentMethod.value) {
-        paymentMethodError.value = true;
-        isMethodSelectionPromptOpen.value = true;
-        toast.error('Bara-e-meherbani pehle Payment Method select karein!');
+        isCustomerModalOpen.value = true;
         return;
     }
 
-    if (
-        paymentMethod.value === 'udhaar' &&
-        selectedCustomerId.value === 'walk_in'
-    ) {
-        alert({
-            title: 'Customer Required',
-            message: 'Please select a customer for Udhaar (Khata) checkout.',
-            variant: 'warning',
-        });
-        return;
-    }
-
-    paymentMethodError.value = false;
-    openPaymentModal();
-};
-
-const selectMethodAndProceed = (methodId: string) => {
-    paymentMethod.value = methodId;
-    paymentMethodError.value = false;
-    isMethodSelectionPromptOpen.value = false;
-    if (methodId === 'udhaar' && selectedCustomerId.value === 'walk_in') {
-        alert({
-            title: 'Customer Required',
-            message: 'Please select a customer for Udhaar (Khata) checkout.',
-            variant: 'warning',
-        });
-        return;
-    }
-    openPaymentModal();
-};
-
-const openPaymentModal = (method?: string) => {
-    if (cart.value.length === 0) return;
-    if (method) {
-        paymentMethod.value = method;
-    } else if (!paymentMethod.value) {
-        handleProceedToPayment();
-        return;
-    }
-    paidInput.value = netPayable.value;
-    splitAmounts.value = {
-        cash: netPayable.value,
-        jazzcash: 0,
-        easypaisa: 0,
-        bank: 0,
-        card: 0,
-    };
-    isPaymentModalOpen.value = true;
-};
-
-const setExactPayment = () => {
-    paidInput.value = netPayable.value;
-};
-
-const setTenderPreset = (amount: number) => {
-    paidInput.value = amount;
-};
-
-const submitCheckout = () => {
-    if (cart.value.length === 0) return;
-
-    if (
-        paymentMethod.value === 'udhaar' &&
-        selectedCustomerId.value === 'walk_in'
-    ) {
-        alert({
-            title: 'Customer Required',
-            message: 'Please select a customer for Udhaar (Khata) checkout.',
-            variant: 'warning',
-        });
-        return;
-    }
-
-    const payload = {
+    const payload: any = {
         customer_id:
             selectedCustomerId.value === 'walk_in'
                 ? null
                 : Number(selectedCustomerId.value),
         payment_method: paymentMethod.value,
-        discount_amount: discountAmount.value,
-        paid_amount:
-            paymentMethod.value === 'udhaar'
-                ? Number(paidInput.value) || 0
-                : Number(paidInput.value) || netPayable.value,
-        split_details:
-            paymentMethod.value === 'split' ? splitAmounts.value : null,
+        discount_amount: calculatedDiscountAmount.value,
+        paid_amount: paymentMethod.value === 'udhaar' ? (Number(paidInput.value) || 0) : (Number(paidInput.value) || netPayable.value),
         items: cart.value.map((item) => ({
             product_id: item.product_id,
             product_imei_id: item.product_imei_id || null,
             quantity: item.quantity,
-            unit_price: item.unit_price,
+            unit_price: item.unit_price - (item.item_discount || 0),
         })),
     };
 
     router.post(pos.sales.store(currentTeamSlug.value).url, payload, {
         preserveScroll: true,
-        onSuccess: () => {
-            isPaymentModalOpen.value = false;
+        onSuccess: (page) => {
+            // Instantly decrement stock in UI props array
+            cart.value.forEach((cartItem) => {
+                const prod = props.products.find((p) => p.id === cartItem.product_id);
+                if (prod) {
+                    prod.stock_quantity = Math.max(0, prod.stock_quantity - cartItem.quantity);
+                    if (prod.is_serialized && cartItem.product_imei_id) {
+                        const imeis = prod.in_stock_imeis || (prod as any).inStockImeis;
+                        if (Array.isArray(imeis)) {
+                            const idx = imeis.findIndex((i: any) => i.id === cartItem.product_imei_id);
+                            if (idx !== -1) imeis.splice(idx, 1);
+                        }
+                    }
+                }
+            });
+
+            playAudioBeep('success');
+            toast.success('Transaction Completed', { description: 'Sale processed and invoice recorded successfully.' });
+            isReceiptModalOpen.value = true;
+        },
+        onError: (errors) => {
+            const errorMsg = Object.values(errors).flat().join(' ') || 'Could not complete transaction.';
+            toast.error('Transaction Failed', { description: errorMsg });
         },
     });
 };
 
 const submitCustomerForm = () => {
+    const regPhone = customerForm.phone;
     customerForm.post(pos.customers.store(currentTeamSlug.value).url, {
-        onSuccess: () => {
+        preserveScroll: true,
+        onSuccess: (page) => {
             customerForm.reset();
             isCustomerModalOpen.value = false;
-            toast.success('Customer registered successfully.');
+            playAudioBeep('success');
+            toast.success('Customer Registered', { description: 'New customer account created for credit ledger.' });
+
+            const updatedCustomers = (page.props.customers as CustomerItem[]) || props.customers;
+            const newCust = updatedCustomers.find((c: CustomerItem) => c.phone === regPhone);
+            if (newCust) {
+                selectedCustomerId.value = String(newCust.id);
+            }
+        },
+        onError: (errors) => {
+            const firstErr = Object.values(errors)[0];
+            toast.error('Registration Failed', { description: Array.isArray(firstErr) ? firstErr[0] : String(firstErr || 'Please check customer details.') });
         },
     });
 };
 
-const handleGlobalKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'F1') {
-        e.preventDefault();
-        if (cart.value.length > 0) {
-            holdCurrentSale();
-        } else if (heldSales.value.length > 0) {
-            isHeldSalesModalOpen.value = true;
-        }
-    } else if (e.key === 'F2') {
-        e.preventDefault();
-        searchInputRef.value?.focus();
-    } else if (e.key === 'F3') {
-        e.preventDefault();
-        isCustomerModalOpen.value = true;
-    } else if (e.key === 'F4') {
-        e.preventDefault();
-        document.getElementById('discount-input')?.focus();
-    } else if (e.ctrlKey && e.key === 'Enter') {
-        e.preventDefault();
-        if (isPaymentModalOpen.value) {
-            submitCheckout();
-        } else if (cart.value.length > 0) {
-            handleProceedToPayment();
-        }
+const addNotePreset = (preset: string) => {
+    if (notesInput.value) {
+        notesInput.value += ` | ${preset}`;
+    } else {
+        notesInput.value = preset;
     }
 };
 
+const handleGlobalKeydown = (e: KeyboardEvent) => {
+    if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        document.getElementById('customer-select-trigger')?.focus();
+    } else if (e.altKey && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        document.getElementById('salesman-select-trigger')?.focus();
+    } else if (e.altKey && (e.key === 'd' || e.key === 'D' || e.key === '/')) {
+        e.preventDefault();
+        document.getElementById('discount-input-field')?.focus();
+    } else if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+        e.preventDefault();
+        document.getElementById('payment-method-select')?.focus();
+    } else if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        document.getElementById('total-payment-input')?.focus();
+    } else if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        holdCurrentSale();
+    } else if (e.altKey && e.key === 'Enter') {
+        e.preventDefault();
+        saveSale();
+    } else if (e.altKey && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault();
+        clearCart();
+    } else if (e.ctrlKey && (e.key === 'Enter' || e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        searchInputRef.value?.focus();
+    }
+};
+
+let timerInterval: ReturnType<typeof setInterval> | null = null;
+
 onMounted(() => {
+    updateCurrentTime();
+    loadHeldSales();
+    loadPosSettings();
+    timerInterval = setInterval(updateCurrentTime, 1000);
     window.addEventListener('keydown', handleGlobalKeydown);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('mousedown', handleClickOutside);
     searchInputRef.value?.focus();
 });
 
 onUnmounted(() => {
+    if (timerInterval) clearInterval(timerInterval);
     window.removeEventListener('keydown', handleGlobalKeydown);
-    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('mousedown', handleClickOutside);
 });
-
-const formatCurrency = (val: number | string) => {
-    const num = Number(val) || 0;
-    return new Intl.NumberFormat('en-PK', {
-        style: 'currency',
-        currency: 'PKR',
-        maximumFractionDigits: 0,
-    }).format(num);
-};
 
 const printReceipt = () => {
     window.print();
@@ -846,402 +910,389 @@ const printReceipt = () => {
 </script>
 
 <template>
-    <Head :title="`${currentShopName} - POS Terminal`" />
+    <Head :title="`${currentShopName} - POS Billing`" />
 
-    <div
-        class="relative flex h-screen min-h-screen w-screen flex-col overflow-hidden bg-[#edf2f8] text-slate-800 antialiased select-none"
-    >
-        <!-- Atmospheric Radial Ambient Lights -->
-        <div
-            class="pointer-events-none absolute -top-32 left-1/4 h-80 w-[600px] rounded-full bg-blue-400/10 blur-3xl"
-        ></div>
-        <div
-            class="pointer-events-none absolute right-1/4 -bottom-32 h-80 w-[600px] rounded-full bg-sky-300/10 blur-3xl"
-        ></div>
-
-        <!-- POS Top Navigation Bar -->
-        <header
-            class="z-30 flex h-14 shrink-0 items-center justify-between border-b border-white/15 bg-gradient-to-r from-[#002654] via-[#003B7D] to-[#004e9c] px-4 shadow-[0_4px_20px_rgba(0,35,80,0.2)] backdrop-blur-2xl"
-        >
-            <div class="flex items-center gap-3">
+    <div class="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 antialiased select-none font-sans">
+        <!-- TOP BRAND NAVBAR -->
+        <header class="flex h-13 shrink-0 items-center justify-between bg-slate-900 px-4 text-white shadow-md border-b border-slate-800/90 z-20">
+            <!-- Left: Dashboard Navigation -->
+            <div class="flex items-center">
                 <Link
                     :href="dashboardUrl"
-                    class="group inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold text-white shadow-2xs backdrop-blur-md transition hover:border-white/35 hover:bg-white/20 active:scale-95"
-                    title="Return to Main Dashboard"
+                    class="group flex items-center gap-2 rounded-lg border border-slate-700/60 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-200 shadow-xs transition-all hover:bg-indigo-600 hover:text-white hover:border-indigo-500 active:scale-95"
+                    title="Return to Dashboard"
                 >
-                    <ArrowLeft
-                        class="h-3.5 w-3.5 text-blue-200 transition-transform group-hover:-translate-x-0.5 group-hover:text-white"
-                    />
+                    <LayoutDashboard class="h-4 w-4 text-indigo-400 group-hover:text-white transition-colors" />
                     <span>Dashboard</span>
                 </Link>
             </div>
 
-            <!-- Header Right: Fullscreen & Clear Cart -->
-            <div class="flex items-center gap-2">
+            <!-- Center: Shop Brand & Admin Label -->
+            <div class="flex items-center gap-2.5">
+                <div class="flex h-7.5 w-7.5 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-600 to-blue-600 text-white font-black text-sm shadow-xs border border-indigo-400/30">
+                    <Smartphone class="h-3.5 w-3.5" />
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-black tracking-tight text-white">{{ currentShopName }}</span>
+                    <span class="text-slate-600 font-light select-none">|</span>
+                    <span class="text-xs font-bold text-slate-300">Admin</span>
+                </div>
+            </div>
+
+            <!-- Right: Navbar Interactive Tools -->
+            <div class="flex items-center gap-1.5">
+                <!-- Hold Sales Button -->
+                <button
+                    type="button"
+                    @click="isHeldSalesModalOpen = true"
+                    class="relative flex h-9 px-2.5 items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition backdrop-blur-md active:scale-95 text-xs font-bold"
+                    title="View Held Sales"
+                >
+                    <Pause class="h-3.5 w-3.5" />
+                    <span class="hidden lg:inline">Hold Sales</span>
+                    <span v-if="heldSales.length > 0" class="flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-slate-950">
+                        {{ heldSales.length }}
+                    </span>
+                </button>
+
+                <!-- Recent Invoice Button -->
+                <button
+                    type="button"
+                    @click="activeReceipt ? (isReceiptModalOpen = true) : toast.info('No recent invoice in this session.')"
+                    class="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition backdrop-blur-md active:scale-95"
+                    title="Print Last Invoice"
+                >
+                    <Printer class="h-4 w-4" />
+                </button>
+
+                <!-- Quick Notes Button -->
+                <button
+                    type="button"
+                    @click="isNotesModalOpen = true"
+                    :class="notesInput ? 'border-sky-500/50 bg-sky-500/20 text-sky-300' : 'border-slate-700/60 bg-slate-800/80 text-slate-300'"
+                    class="flex h-9 w-9 items-center justify-center rounded-xl border hover:text-white hover:bg-slate-700 transition backdrop-blur-md active:scale-95"
+                    title="Sale Notes & Warranty Tags"
+                >
+                    <FileText class="h-4 w-4" />
+                </button>
+
+                <!-- Customer Ledger / Khata Link -->
+                <Link
+                    :href="`/${currentTeamSlug}/customers`"
+                    class="flex h-9 px-2.5 items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition backdrop-blur-md active:scale-95 text-xs font-bold"
+                    title="Open Customer Khata Ledger"
+                >
+                    <BookOpen class="h-3.5 w-3.5" />
+                    <span class="hidden lg:inline">Khata Ledger</span>
+                </Link>
+
+                <!-- POS Settings -->
+                <button
+                    type="button"
+                    @click="isSettingsModalOpen = true"
+                    class="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition backdrop-blur-md active:scale-95"
+                    title="POS Preferences"
+                >
+                    <Settings class="h-4 w-4" />
+                </button>
+
+                <!-- Fullscreen Toggle -->
                 <button
                     type="button"
                     @click="toggleFullscreen"
-                    class="inline-flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white shadow-2xs backdrop-blur-md transition hover:border-white/35 hover:bg-white/20 active:scale-95"
-                    :title="
-                        isFullscreen
-                            ? 'Exit Fullscreen'
-                            : 'Enter Fullscreen mode'
-                    "
+                    class="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition backdrop-blur-md active:scale-95"
+                    :title="isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen (F11)'"
                 >
-                    <Minimize2
-                        v-if="isFullscreen"
-                        class="h-3.5 w-3.5 text-blue-200"
-                    />
-                    <Maximize2 v-else class="h-3.5 w-3.5 text-blue-200" />
-                    <span>{{ isFullscreen ? 'Windowed' : 'Fullscreen' }}</span>
+                    <Minimize2 v-if="isFullscreen" class="h-4 w-4" />
+                    <Maximize2 v-else class="h-4 w-4" />
                 </button>
 
+                <!-- Keyboard Shortcuts -->
                 <button
                     type="button"
-                    @click="clearCart"
-                    class="inline-flex items-center gap-1.5 rounded-xl border border-rose-400/30 bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-100 shadow-2xs backdrop-blur-md transition hover:border-rose-400/50 hover:bg-rose-500/30 hover:text-white active:scale-95"
-                    title="Reset / Clear Cart"
+                    @click="isShortcutsModalOpen = true"
+                    class="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 transition backdrop-blur-md active:scale-95"
+                    title="Shortcuts (Alt+?)"
                 >
-                    <RotateCcw class="h-3.5 w-3.5 text-rose-300" />
-                    <span>Clear Cart</span>
+                    <Keyboard class="h-4 w-4" />
                 </button>
             </div>
         </header>
 
-        <!-- Main Workspace Body: Two Frosted Glass Decks -->
-        <div
-            class="relative z-10 grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-12"
-        >
-            <!-- LEFT DECK: Cart & Scanner Bar (col-span-7) -->
-            <div
-                class="flex flex-col overflow-hidden rounded-3xl border border-white/80 bg-white/80 shadow-[0_8px_32px_rgba(0,25,60,0.06)] backdrop-blur-2xl lg:col-span-7"
-            >
-                <!-- Scanner & Customer Khata Header -->
-                <div
-                    class="space-y-2.5 border-b border-slate-200/70 bg-white/60 p-3 backdrop-blur-md"
-                >
-                    <!-- Barcode/IMEI Scanner Input -->
-                    <div class="relative">
-                        <div
-                            class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
-                        >
-                            <Barcode class="h-4 w-4 text-[#003B7D]" />
-                        </div>
-                        <input
-                            ref="searchInputRef"
-                            v-model="searchScanQuery"
-                            @keydown.enter.prevent="handleScanSubmit"
-                            type="text"
-                            placeholder="Scan IMEI, accessory barcode or search product name..."
-                            class="w-full rounded-2xl border border-slate-200/80 bg-white/90 py-2.5 pr-20 pl-9 text-xs font-semibold text-slate-900 shadow-2xs transition-all placeholder:text-slate-400 focus:border-[#003B7D] focus:ring-3 focus:ring-[#003B7D]/15 focus:outline-none"
-                        />
-                        <div
-                            class="absolute inset-y-0 right-0 flex items-center gap-1.5 pr-2.5"
-                        >
+        <!-- MAIN LAYOUT CONTENT -->
+        <div class="flex flex-1 overflow-hidden p-3 gap-3 bg-slate-900/90 text-slate-800">
+            <!-- LEFT COLUMN: Search, Filters & Interactive Cart (~68% width) -->
+            <div class="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-700/60 bg-white p-3.5 shadow-xl space-y-3">
+                
+                <!-- Category Filter Pills Bar -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    <button
+                        type="button"
+                        @click="selectedCategory = 'all'"
+                        :class="selectedCategory === 'all' ? 'bg-indigo-600 text-white font-extrabold shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold'"
+                        class="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl transition shrink-0 active:scale-95"
+                    >
+                        <Layers class="h-3.5 w-3.5" />
+                        <span>All Items</span>
+                    </button>
+                    <button
+                        v-for="cat in availableCategories"
+                        :key="cat"
+                        type="button"
+                        @click="selectedCategory = cat"
+                        :class="selectedCategory === cat ? 'bg-indigo-600 text-white font-extrabold shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold'"
+                        class="px-3 py-1.5 text-xs rounded-xl transition shrink-0 active:scale-95 capitalize"
+                    >
+                        {{ cat }}
+                    </button>
+                </div>
+
+                <!-- Customer Selection & Options Card -->
+                <div class="rounded-xl bg-slate-50 p-2.5 border border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <label class="font-extrabold text-slate-900 flex items-center gap-1.5">
+                            <User class="h-3.5 w-3.5 text-indigo-600" />
+                            <span>Customer (Alt+C)</span>
+                        </label>
+                        <div class="flex items-center gap-2 text-[11px]">
                             <button
-                                v-if="searchScanQuery"
                                 type="button"
-                                @click="searchScanQuery = ''"
-                                class="rounded-lg p-0.5 text-slate-400 hover:text-slate-600"
+                                @click="isCustomerModalOpen = true"
+                                class="flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
                             >
-                                <X class="h-3.5 w-3.5" />
+                                <UserPlus class="h-3 w-3" />
+                                <span>+ Register Customer</span>
                             </button>
-                            <span
-                                class="rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-500"
-                            >
-                                F2
-                            </span>
-                        </div>
-
-                        <!-- Live API Search Dropdown -->
-                        <div
-                            v-if="showSearchDropdown && searchScanQuery.trim()"
-                            class="absolute top-full left-0 right-0 z-50 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-slate-200/90 bg-white/95 p-1.5 shadow-2xl backdrop-blur-xl divide-y divide-slate-100"
-                        >
-                            <div v-if="isSearchingApi" class="flex items-center justify-center p-3 text-xs text-slate-500 gap-2 font-medium">
-                                <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#003B7D] border-t-transparent"></span>
-                                Searching product catalog...
-                            </div>
-
-                            <div v-else-if="searchApiResults.length === 0" class="p-3 text-center text-xs font-medium text-slate-500">
-                                No matching products found for "<span class="font-bold text-slate-800">{{ searchScanQuery }}</span>"
-                            </div>
-
-                            <div
-                                v-else
-                                v-for="item in searchApiResults"
-                                :key="item.id"
-                                @click="selectApiProduct(item)"
-                                class="group flex cursor-pointer items-center justify-between p-2.5 rounded-xl transition-colors hover:bg-blue-50/80"
-                            >
-                                <div class="flex-1 min-w-0 pr-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs font-black text-slate-900 group-hover:text-[#003B7D] truncate">
-                                            {{ item.brand ? item.brand + ' ' : '' }}{{ item.name }}
-                                        </span>
-                                        <span v-if="item.category" class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 uppercase">
-                                            {{ item.category }}
-                                        </span>
-                                    </div>
-                                    <div class="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-2">
-                                        <span v-if="item.barcode">Barcode: {{ item.barcode }}</span>
-                                        <span v-if="item.is_serialized" class="font-semibold text-blue-600">
-                                            {{ (item.in_stock_imeis || item.inStockImeis || []).length }} IMEIs in stock
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="text-right shrink-0">
-                                    <div class="text-xs font-black text-[#003B7D]">
-                                        Rs. {{ Number(item.sale_price).toLocaleString('en-PK') }}
-                                    </div>
-                                    <div class="text-[9px] font-bold text-slate-500">
-                                        Stock: {{ item.is_serialized ? (item.in_stock_imeis || item.inStockImeis || []).length : item.stock_quantity }}
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    <!-- Customer Selection & Add Customer Button -->
                     <div class="flex items-center gap-2">
-                        <div class="flex flex-1 items-center gap-2">
+                        <select
+                            id="customer-select-trigger"
+                            v-model="selectedCustomerId"
+                            class="flex-1 h-9 rounded-xl border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-900 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 focus:outline-none transition"
+                        >
+                            <option value="walk_in">
+                                🛒 Walk In Customer (Cash / Counter Sale)
+                            </option>
+                            <option v-for="c in customers" :key="c.id" :value="String(c.id)">
+                                👤 {{ c.name }} ({{ c.phone }}) — Khata Due: Rs {{ Number(c.current_balance).toLocaleString() }}
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Live Product Search Bar -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5 text-xs">
+                        <label class="font-extrabold text-slate-900 flex items-center gap-1.5">
+                            <Barcode class="h-3.5 w-3.5 text-indigo-600" />
+                            <span>Product / Barcode / IMEI Scan (Ctrl+F)</span>
+                        </label>
+                        <span class="text-[10px] font-bold text-slate-400">Scan Barcode or Type Product Name</span>
+                    </div>
+
+                    <div class="flex items-center gap-2" ref="searchContainerRef">
+                        <div class="relative flex-1">
+                            <input
+                                ref="searchInputRef"
+                                v-model="searchScanQuery"
+                                @keydown.enter.prevent="handleScanSubmit"
+                                @keydown.down.prevent="navigateSearchResults(1)"
+                                @keydown.up.prevent="navigateSearchResults(-1)"
+                                @keydown.esc.prevent="closeSearchDropdown"
+                                @focus="onSearchFocus"
+                                type="text"
+                                placeholder="Scan barcode, type Model Name, SKU or IMEI number..."
+                                class="w-full h-10 rounded-xl border border-slate-300 bg-slate-50 px-3 pr-8 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:ring-2 focus:ring-indigo-600/20 focus:outline-none transition"
+                            />
+                            <Search class="pointer-events-none absolute right-3 top-3 h-4 w-4 text-slate-400" />
+
+                            <!-- Live Search API Dropdown Results -->
                             <div
-                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200/60 bg-slate-100 text-slate-600"
+                                v-if="showSearchDropdown && searchScanQuery.trim()"
+                                class="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-900 p-2 shadow-2xl space-y-1"
                             >
-                                <User class="h-3.5 w-3.5" />
-                            </div>
-                            <Select v-model="selectedCustomerId" class="flex-1">
-                                <SelectTrigger
-                                    class="h-9 rounded-xl border-slate-200/80 bg-white/90 text-xs font-medium text-slate-700 shadow-2xs"
+                                <div v-if="isSearchingApi" class="py-4 text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                    Searching stock inventory...
+                                </div>
+                                <div v-else-if="searchApiResults.length === 0" class="py-4 text-center text-xs text-slate-400">
+                                    No products matching "{{ searchScanQuery }}"
+                                </div>
+                                <div
+                                    v-else
+                                    v-for="(item, idx) in searchApiResults"
+                                    :key="item.id"
+                                    :id="`search-result-item-${idx}`"
+                                    @click="selectApiProduct(item)"
+                                    @mouseenter="selectedSearchIndex = idx"
+                                    :class="[
+                                        selectedSearchIndex === idx
+                                            ? 'bg-[#003B7D] dark:bg-blue-600 text-white border-[#003B7D] dark:border-blue-500 shadow-md scale-[0.99]'
+                                            : 'bg-slate-50/80 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-700/90 text-slate-800 dark:text-slate-200',
+                                        'flex cursor-pointer items-center justify-between p-2.5 text-xs rounded-xl border transition-all duration-150'
+                                    ]"
                                 >
-                                    <SelectValue
-                                        placeholder="Walk-in Customer (Cash)"
-                                    />
-                                </SelectTrigger>
-                                <SelectContent
-                                    class="rounded-2xl border-white/80 bg-white/95 shadow-xl backdrop-blur-xl"
-                                >
-                                    <SelectItem value="walk_in">
-                                        <span class="font-bold"
-                                            >Walk-in Customer</span
+                                    <div class="space-y-0.5">
+                                        <div
+                                            class="font-extrabold flex items-center gap-1.5"
+                                            :class="selectedSearchIndex === idx ? 'text-white!' : 'text-slate-900 dark:text-white'"
                                         >
-                                        (Standard Cash Sale)
-                                    </SelectItem>
-                                    <SelectItem
-                                        v-for="c in customers"
-                                        :key="c.id"
-                                        :value="String(c.id)"
-                                    >
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold">{{
-                                                c.name
-                                            }}</span>
+                                            <span>{{ formatProductName(item.name, item.brand) }}</span>
                                             <span
-                                                class="text-[10px] text-slate-400"
-                                                >({{ c.phone }})</span
+                                                v-if="item.is_serialized"
+                                                :class="selectedSearchIndex === idx ? 'bg-white/20 text-white' : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300'"
+                                                class="text-[9px] font-black px-1.5 py-0.5 rounded"
                                             >
-                                            <span
-                                                v-if="
-                                                    Number(c.current_balance) >
-                                                    0
-                                                "
-                                                class="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 ring-1 ring-amber-600/20"
-                                            >
-                                                Khata:
-                                                {{
-                                                    formatCurrency(
-                                                        c.current_balance,
-                                                    )
-                                                }}
+                                                MOBILE
                                             </span>
                                         </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                                        <div
+                                            class="text-[10px] flex items-center gap-2"
+                                            :class="selectedSearchIndex === idx ? 'text-blue-100!' : 'text-slate-500 dark:text-slate-400'"
+                                        >
+                                            <span>Category: {{ item.category || 'General' }}</span>
+                                            <span v-if="item.barcode">Barcode: {{ item.barcode }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <div
+                                            class="text-sm font-black"
+                                            :class="selectedSearchIndex === idx ? 'text-white!' : 'text-indigo-600 dark:text-blue-400'"
+                                        >
+                                            Rs {{ Number(item.sale_price).toLocaleString() }}
+                                        </div>
+                                        <div
+                                            :class="selectedSearchIndex === idx
+                                                ? 'bg-white/20 text-white border-white/30'
+                                                : (item.stock_quantity > 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' : 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800')"
+                                            class="text-[10px] font-bold px-2 py-0.5 rounded-full border inline-block mt-0.5"
+                                        >
+                                            Stock: {{ item.stock_quantity }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Add Customer Modal Trigger (F3) -->
+                        <!-- Manual Add Button -->
                         <button
                             type="button"
-                            @click="isCustomerModalOpen = true"
-                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-slate-900 active:scale-95"
-                            title="Register New Customer (F3)"
+                            @click="handleScanSubmit"
+                            class="flex h-10 px-3.5 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold text-xs hover:from-indigo-500 hover:to-blue-500 active:scale-95 shadow-md transition"
+                            title="Add Product"
                         >
-                            <UserPlus class="h-3.5 w-3.5 text-[#003B7D]" />
-                            <span>+ Khata</span>
-                            <span
-                                class="rounded bg-slate-100 px-1 font-mono text-[9px] text-slate-500"
-                                >F3</span
-                            >
+                            <Plus class="h-4 w-4" />
+                            <span>Add</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Cart Items Table Area -->
-                <div class="flex-1 overflow-y-auto p-3">
+                <!-- Modern Cart List Table -->
+                <div class="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50">
                     <table class="w-full border-collapse text-left text-xs">
-                        <thead
-                            class="sticky top-0 z-10 border-b border-slate-200/80 bg-slate-100/90 text-[10px] font-black tracking-[0.14em] text-slate-500 uppercase backdrop-blur-md"
-                        >
+                        <thead class="sticky top-0 bg-slate-100/95 backdrop-blur-xs text-[11px] font-black uppercase tracking-wider text-slate-700 border-b border-slate-200">
                             <tr>
-                                <th
-                                    class="w-8 rounded-l-xl px-2 py-2.5 text-center"
-                                >
-                                    #
-                                </th>
-                                <th class="px-3 py-2.5">
-                                    Item & Specifications
-                                </th>
-                                <th class="w-24 px-3 py-2.5 text-right">
-                                    Price
-                                </th>
-                                <th class="w-24 px-3 py-2.5 text-center">
-                                    Qty
-                                </th>
-                                <th class="w-28 px-3 py-2.5 text-right">
-                                    Subtotal
-                                </th>
-                                <th
-                                    class="w-10 rounded-r-xl px-2 py-2.5 text-center"
-                                ></th>
+                                <th class="px-3 py-3 w-10 text-center">#</th>
+                                <th class="px-3 py-3">PRODUCT / DEVICE SPEC</th>
+                                <th class="px-3 py-3 w-28 text-center">QTY</th>
+                                <th class="px-3 py-3 w-28 text-right">UNIT PRICE</th>
+                                <th class="px-3 py-3 w-24 text-right">DISCOUNT</th>
+                                <th class="px-3 py-3 w-32 text-right">TOTAL</th>
+                                <th class="px-3 py-3 w-12 text-center">DEL</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-200/60 bg-white">
+                            <!-- Empty Cart Placeholder -->
                             <tr v-if="cart.length === 0">
-                                <td colspan="6" class="py-20 text-center">
-                                    <div
-                                        class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-slate-100 to-slate-200/80 text-slate-400 shadow-inner"
-                                    >
-                                        <ShoppingCart class="h-7 w-7" />
+                                <td colspan="7" class="py-20 text-center">
+                                    <div class="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                                        <ShoppingCart class="h-8 w-8 text-indigo-600" />
                                     </div>
-                                    <div
-                                        class="text-sm font-black text-slate-700"
-                                    >
-                                        Cart is empty
+                                    <div class="text-sm font-extrabold text-slate-900">
+                                        POS Terminal Ready
                                     </div>
-                                    <div class="mt-1 text-xs text-slate-400">
-                                        Scan an IMEI / barcode or click an item
-                                        from catalog to start.
-                                    </div>
-                                    <div
-                                        class="mt-4 flex items-center justify-center gap-2"
-                                    >
-                                        <button
-                                            type="button"
-                                            @click="searchInputRef?.focus()"
-                                            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50"
-                                        >
-                                            <Barcode
-                                                class="h-3.5 w-3.5 text-[#003B7D]"
-                                            />
-                                            <span>Focus Scanner (F2)</span>
-                                        </button>
-                                        <button
-                                            v-if="heldSales.length > 0"
-                                            type="button"
-                                            @click="isHeldSalesModalOpen = true"
-                                            class="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100"
-                                        >
-                                            <History
-                                                class="h-3.5 w-3.5 text-amber-700"
-                                            />
-                                            <span
-                                                >Recall Held Sale ({{
-                                                    heldSales.length
-                                                }})</span
-                                            >
-                                        </button>
+                                    <div class="mt-1 text-xs text-slate-500 max-w-sm mx-auto">
+                                        Scan barcode with your scanner or type product/IMEI above to populate bill.
                                     </div>
                                 </td>
                             </tr>
 
-                            <tr
-                                v-for="(item, idx) in cart"
-                                :key="item.key"
-                                class="group transition-colors hover:bg-blue-50/40"
-                            >
-                                <td
-                                    class="px-2 py-3 text-center font-mono text-[10px] text-slate-400"
-                                >
-                                    {{ idx + 1 }}
-                                </td>
-
+                            <!-- Cart Items Rows -->
+                            <tr v-for="(item, idx) in cart" :key="item.key" class="hover:bg-slate-50/80 transition-colors">
+                                <td class="px-3 py-3 text-center font-bold text-slate-400">{{ idx + 1 }}</td>
                                 <td class="px-3 py-3">
-                                    <div class="flex items-baseline gap-2">
-                                        <span
-                                            class="text-xs font-extrabold text-slate-900"
-                                            >{{ item.name }}</span
-                                        >
-                                        <span
-                                            class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500 uppercase"
-                                            >{{ item.brand }}</span
-                                        >
+                                    <div class="font-extrabold text-slate-900 text-xs">
+                                        {{ item.name }}
+                                        <span v-if="item.brand" class="ml-1 text-[11px] font-semibold text-slate-500">({{ item.brand }})</span>
+                                    </div>
+                                    
+                                    <!-- Mobile Serialized IMEI Details Badges -->
+                                    <div v-if="item.is_serialized" class="mt-1 flex flex-wrap items-center gap-1 text-[10px]">
+                                        <span v-if="item.imei_1" class="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded border border-slate-200 font-bold">
+                                            IMEI: {{ item.imei_1 }}
+                                        </span>
+                                        <span v-if="item.pta_status" :class="item.pta_status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'" class="px-1.5 py-0.5 rounded border uppercase font-black">
+                                            {{ item.pta_status }}
+                                        </span>
+                                        <span v-if="item.storage" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-bold">
+                                            {{ item.storage }}
+                                        </span>
+                                        <span v-if="item.color" class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 capitalize">
+                                            {{ item.color }}
+                                        </span>
                                     </div>
                                 </td>
-
-                                <!-- Unit Price (Inline Editable for Bargaining) -->
-                                <td class="px-3 py-3 text-right">
-                                    <div class="relative inline-block">
-                                        <input
-                                            v-model.number="item.unit_price"
-                                            type="number"
-                                            step="1"
-                                            class="tnum w-24 rounded-xl border border-slate-200/90 bg-white/90 px-2 py-1 text-right text-xs font-black text-slate-900 shadow-2xs focus:border-[#003B7D] focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none"
-                                        />
-                                    </div>
-                                </td>
-
-                                <!-- Quantity Stepper Column -->
+                                
                                 <td class="px-3 py-3 text-center">
-                                    <div
-                                        class="inline-flex items-center gap-1 rounded-xl border border-slate-200/80 bg-white p-0.5 shadow-2xs"
-                                    >
+                                    <div class="flex items-center justify-center gap-1">
                                         <button
                                             type="button"
-                                            @click="
-                                                decrementCartItem(item, idx)
-                                            "
-                                            class="flex h-5 w-5 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+                                            @click="item.quantity > 1 ? item.quantity-- : removeCartItem(idx)"
+                                            class="h-6 w-6 rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 font-bold"
                                         >
-                                            <Minus class="h-3 w-3" />
+                                            -
                                         </button>
-                                        <input
-                                            v-model.number="item.quantity"
-                                            type="number"
-                                            min="1"
-                                            :max="item.max_stock"
-                                            class="tnum w-8 text-center text-xs font-black text-slate-900 focus:outline-none"
-                                        />
+                                        <span class="w-8 text-center font-black text-xs text-slate-900">{{ item.quantity }}</span>
                                         <button
                                             type="button"
-                                            @click="incrementCartItem(item)"
-                                            class="flex h-5 w-5 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+                                            @click="!item.is_serialized && item.quantity++"
+                                            :disabled="item.is_serialized"
+                                            class="h-6 w-6 rounded border border-slate-200 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 flex items-center justify-center text-slate-700 font-bold"
                                         >
-                                            <Plus class="h-3 w-3" />
+                                            +
                                         </button>
                                     </div>
                                 </td>
 
-                                <!-- Line Total -->
-                                <td
-                                    class="tnum px-3 py-3 text-right text-xs font-black text-slate-900"
-                                >
-                                    {{
-                                        formatCurrency(
-                                            item.quantity * item.unit_price,
-                                        )
-                                    }}
+                                <td class="px-3 py-3 text-right">
+                                    <input
+                                        v-model.number="item.unit_price"
+                                        type="number"
+                                        class="w-22 rounded-lg border border-slate-300 text-right py-1 px-2 text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
+                                    />
                                 </td>
 
-                                <!-- Trash Action -->
-                                <td class="px-2 py-3 text-center">
+                                <td class="px-3 py-3 text-right">
+                                    <input
+                                        v-model.number="item.item_discount"
+                                        type="number"
+                                        class="w-20 rounded-lg border border-slate-300 text-right py-1 px-2 text-xs font-bold text-rose-600 focus:border-rose-500 focus:outline-none"
+                                    />
+                                </td>
+
+                                <td class="px-3 py-3 text-right font-black text-indigo-700 text-xs">
+                                    Rs {{ ((item.quantity * item.unit_price) - (item.item_discount || 0)).toLocaleString() }}
+                                </td>
+
+                                <td class="px-3 py-3 text-center">
                                     <button
                                         type="button"
                                         @click="removeCartItem(idx)"
-                                        class="flex h-7 w-7 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 active:scale-90"
+                                        class="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition"
                                         title="Remove item"
                                     >
-                                        <Trash2 class="h-3.5 w-3.5" />
+                                        <Trash2 class="h-4 w-4" />
                                     </button>
                                 </td>
                             </tr>
@@ -1250,749 +1301,549 @@ const printReceipt = () => {
                 </div>
             </div>
 
-            <!-- RIGHT DECK: Checkout Summary & Product Catalog (col-span-5) -->
-            <div
-                class="flex h-full flex-col gap-3 overflow-hidden lg:col-span-5"
-            >
-                <!-- Redesigned Apple iOS Glassmorphic Checkout Summary Card -->
-                <div
-                    class="pos-readout relative flex shrink-0 flex-col justify-between overflow-hidden rounded-3xl border border-white/85 bg-white/85 p-4 shadow-[0_12px_36px_rgba(0,35,80,0.06)] backdrop-blur-2xl transition-all"
-                >
-                    <!-- Top Row: Section Header & Items Count -->
-                    <div
-                        class="flex items-center justify-between border-b border-slate-100 pb-2.5"
+            <!-- RIGHT COLUMN: Modern Checkout Sidebar (~32% width) -->
+            <div class="w-80 lg:w-96 flex flex-col shrink-0 overflow-y-auto bg-white rounded-2xl border border-slate-700/60 p-4 shadow-xl justify-between space-y-3.5">
+                
+                <!-- Checkout Header -->
+                <div class="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <div class="flex items-center gap-2">
+                        <Receipt class="h-4 w-4 text-indigo-600" />
+                        <span class="text-xs font-black text-slate-900 uppercase tracking-wider">Payment Summary</span>
+                    </div>
+                    <span class="text-[11px] font-black text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                        {{ cart.reduce((acc, i) => acc + i.quantity, 0) }} ITEMS
+                    </span>
+                </div>
+
+                <!-- Subtotal Breakdown Row -->
+                <div class="space-y-1.5 text-xs text-slate-600">
+                    <div class="flex justify-between font-semibold">
+                        <span>Cart Subtotal</span>
+                        <span class="font-bold text-slate-900">Rs {{ subtotal.toLocaleString() }}</span>
+                    </div>
+                    <div v-if="calculatedDiscountAmount > 0" class="flex justify-between text-rose-600 font-semibold">
+                        <span>Total Discount</span>
+                        <span class="font-bold">- Rs {{ calculatedDiscountAmount.toLocaleString() }}</span>
+                    </div>
+                </div>
+
+                <!-- Discount Input & Mode Selector -->
+                <div>
+                    <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
+                        Bill Discount (Alt+D)
+                    </label>
+                    <div class="flex items-center rounded-xl border border-slate-300 bg-slate-50 overflow-hidden focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-600/20">
+                        <span class="pl-3 text-xs font-bold text-slate-500">Rs</span>
+                        <input
+                            id="discount-input-field"
+                            v-model="discountInput"
+                            type="number"
+                            placeholder="0"
+                            class="w-full bg-transparent px-2 py-1.5 text-xs font-bold text-slate-900 focus:outline-none"
+                        />
+                        <div class="flex items-center shrink-0 border-l border-slate-300">
+                            <button
+                                type="button"
+                                @click="discountMode = 'amount'"
+                                :class="discountMode === 'amount' ? 'bg-indigo-600 text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                class="px-2.5 py-1.5 text-xs transition"
+                            >
+                                Rs
+                            </button>
+                            <button
+                                type="button"
+                                @click="discountMode = 'percent'"
+                                :class="discountMode === 'percent' ? 'bg-indigo-600 text-white font-black' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                class="px-2.5 py-1.5 text-xs transition"
+                            >
+                                %
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Method Selector Pills -->
+                <div>
+                    <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
+                        Payment Method (Alt+M)
+                    </label>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button
+                            type="button"
+                            @click="paymentMethod = 'cash'"
+                            :class="paymentMethod === 'cash' ? 'bg-emerald-600 text-white border-emerald-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            💵 Cash
+                        </button>
+                        <button
+                            type="button"
+                            @click="paymentMethod = 'jazzcash'"
+                            :class="paymentMethod === 'jazzcash' ? 'bg-rose-600 text-white border-rose-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            📱 JazzCash
+                        </button>
+                        <button
+                            type="button"
+                            @click="paymentMethod = 'easypaisa'"
+                            :class="paymentMethod === 'easypaisa' ? 'bg-teal-600 text-white border-teal-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            📲 Easypaisa
+                        </button>
+                        <button
+                            type="button"
+                            @click="paymentMethod = 'bank'"
+                            :class="paymentMethod === 'bank' ? 'bg-blue-600 text-white border-blue-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            🏛️ Bank
+                        </button>
+                        <button
+                            type="button"
+                            @click="paymentMethod = 'udhaar'"
+                            :class="paymentMethod === 'udhaar' ? 'bg-amber-600 text-white border-amber-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="col-span-2 py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            📖 Udhaar (Khata Ledger)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cash Received & Due Amount Grid -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
+                            Cash Received (Alt+P)
+                        </label>
+                        <div class="flex items-center rounded-xl border border-slate-300 bg-slate-50 px-2 py-1.5 focus-within:border-indigo-600">
+                            <span class="text-xs font-bold text-slate-400 mr-1">Rs</span>
+                            <input
+                                id="total-payment-input"
+                                v-model="paidInput"
+                                type="number"
+                                placeholder="0"
+                                class="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
+                            Due / Balance
+                        </label>
+                        <div class="rounded-xl border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-xs font-black text-slate-900 h-9 flex items-center">
+                            Rs {{ duePayment.toLocaleString() }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Cash Presets Bar -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-extrabold uppercase text-slate-400">Quick Cash Buttons</span>
+                        <button type="button" @click="paidInput = netPayable" class="text-[10px] font-extrabold text-indigo-600 hover:underline">
+                            Exact Amount
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button
+                            type="button"
+                            @click="addQuickCashPreset(100)"
+                            class="h-8 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-xs font-bold text-slate-700 transition active:scale-95 border border-slate-200"
+                        >
+                            +100
+                        </button>
+                        <button
+                            type="button"
+                            @click="addQuickCashPreset(500)"
+                            class="h-8 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-xs font-bold text-slate-700 transition active:scale-95 border border-slate-200"
+                        >
+                            +500
+                        </button>
+                        <button
+                            type="button"
+                            @click="addQuickCashPreset(1000)"
+                            class="h-8 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-xs font-bold text-slate-700 transition active:scale-95 border border-slate-200"
+                        >
+                            +1k
+                        </button>
+                        <button
+                            type="button"
+                            @click="addQuickCashPreset(5000)"
+                            class="h-8 rounded-xl bg-slate-100 hover:bg-indigo-600 hover:text-white text-xs font-bold text-slate-700 transition active:scale-95 border border-slate-200"
+                        >
+                            +5k
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Giant Net Amount Hero Display Box -->
+                <div class="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 p-4 text-center text-white shadow-xl border border-indigo-400/30">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-0.5">
+                        NET PAYABLE AMOUNT
+                    </div>
+                    <div class="text-3xl lg:text-4xl font-black tracking-tight">
+                        Rs {{ netPayable.toLocaleString() }}
+                    </div>
+                    <div v-if="notesInput" class="mt-1.5 text-[10px] text-sky-200 truncate bg-white/10 px-2 py-0.5 rounded-full">
+                        📝 {{ notesInput }}
+                    </div>
+                </div>
+
+                <!-- Main Action Buttons -->
+                <div class="space-y-2 pt-1">
+                    <button
+                        type="button"
+                        @click="saveSale"
+                        class="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-sm font-black text-white shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
                     >
-                        <div class="flex items-center gap-2">
-                            <div
-                                class="flex h-7 w-7 items-center justify-center rounded-xl bg-[#003B7D]/10 text-[#003B7D]"
-                            >
-                                <Receipt class="h-3.5 w-3.5" />
-                            </div>
-                            <div>
-                                <h3
-                                    class="text-xs font-black tracking-tight text-slate-900 uppercase"
-                                >
-                                    Checkout Summary
-                                </h3>
-                                <span class="text-[10px] text-slate-400"
-                                    >Order calculation & billing</span
-                                >
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span
-                                class="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-700"
-                            >
-                                {{ cart.length }} items (Qty:
-                                {{ totalItemsCount }})
-                            </span>
-                        </div>
-                    </div>
+                        <CheckCircle class="h-5 w-5" />
+                        <span>COMPLETE SALE (Alt+Enter)</span>
+                    </button>
 
-                    <!-- Middle: Breakdown & Liquid Net Payable Card -->
-                    <div class="space-y-2 py-2">
-                        <!-- Subtotal row -->
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="font-medium text-slate-500"
-                                >Subtotal Amount</span
-                            >
-                            <span class="tnum font-bold text-slate-800">{{
-                                formatCurrency(subtotal)
-                            }}</span>
-                        </div>
-
-                        <!-- Discount row with quick chips and input -->
-                        <div
-                            class="flex items-center justify-between gap-2 text-xs"
+                    <div class="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            @click="holdCurrentSale"
+                            class="h-10 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-extrabold active:scale-95 transition flex items-center justify-center gap-1.5"
                         >
-                            <div
-                                class="flex items-center gap-1.5 font-medium text-slate-500"
-                            >
-                                <Tag class="h-3.5 w-3.5 text-[#003B7D]" />
-                                <span>Discount</span>
-                            </div>
+                            <Pause class="h-4 w-4" />
+                            <span>Hold Sale</span>
+                        </button>
 
-                            <div class="flex items-center gap-1.5">
-                                <div class="flex items-center gap-1">
-                                    <button
-                                        v-for="amt in [0, 500, 1000]"
-                                        :key="amt"
-                                        type="button"
-                                        @click="setDiscountPreset(amt)"
-                                        :class="[
-                                            Number(discountInput) === amt
-                                                ? 'bg-[#003B7D] font-bold text-white shadow-2xs'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80',
-                                            'rounded-lg px-2 py-0.5 text-[10px] transition active:scale-95',
-                                        ]"
-                                    >
-                                        {{ amt === 0 ? '0' : `${amt / 1000}k` }}
-                                    </button>
-                                </div>
-                                <input
-                                    id="discount-input"
-                                    v-model="discountInput"
-                                    type="number"
-                                    placeholder="0"
-                                    class="tnum w-20 rounded-xl border border-slate-200/80 bg-slate-50 px-2 py-1 text-right text-xs font-bold text-slate-900 shadow-inner focus:border-[#003B7D] focus:bg-white focus:outline-none"
-                                />
-                            </div>
-                        </div>
-
-                        <!-- Total Net Payable Display Card -->
-                        <div
-                            class="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#001f4d] via-[#003B7D] to-[#0055b3] p-3.5 text-white shadow-[0_12px_28px_-6px_rgba(0,59,125,0.35)]"
+                        <button
+                            type="button"
+                            @click="clearCart"
+                            class="h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-extrabold active:scale-95 transition flex items-center justify-center gap-1.5"
                         >
-                            <!-- Specular glow bubbles -->
-                            <div
-                                class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-sky-400/20 blur-xl"
-                            ></div>
-                            <div
-                                class="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-blue-600/30 blur-xl"
-                            ></div>
-
-                            <div
-                                class="relative z-10 flex items-baseline justify-between"
-                            >
-                                <div>
-                                    <div
-                                        class="text-[9px] font-black tracking-[0.16em] text-blue-200 uppercase"
-                                    >
-                                        Total Net Payable
-                                    </div>
-                                    <div class="text-[10px] text-blue-200/80">
-                                        Final Amount Due
-                                    </div>
-                                </div>
-                                <div class="text-right">
-                                    <span
-                                        class="mr-1 text-xs font-bold text-blue-200"
-                                        >PKR</span
-                                    >
-                                    <span
-                                        class="tnum text-3xl font-black tracking-tight text-white drop-shadow-xs md:text-4xl"
-                                    >
-                                        {{
-                                            formatCurrency(netPayable)
-                                                .replace('PKR', '')
-                                                .trim()
-                                        }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom: Payment Method Selection & Proceed CTA -->
-                    <div class="space-y-2 border-t border-slate-100 pt-2.5">
-                        <!-- Heading with selection indicator -->
-                        <div class="flex items-center justify-between">
-                            <span
-                                class="text-[10px] font-black tracking-wider text-slate-700 uppercase"
-                            >
-                                Payment Method:
-                            </span>
-                            <span
-                                v-if="paymentMethod"
-                                class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-600/20"
-                            >
-                                <Check class="h-3 w-3" />
-                                Selected:
-                                {{
-                                    paymentMethodsList.find(
-                                        (m) => m.id === paymentMethod,
-                                    )?.label
-                                }}
-                            </span>
-                            <span
-                                v-else
-                                :class="[
-                                    paymentMethodError
-                                        ? 'animate-pulse bg-rose-50 font-bold text-rose-600 ring-1 ring-rose-500/30'
-                                        : 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20',
-                                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                                ]"
-                            >
-                                * Select Method First
-                            </span>
-                        </div>
-
-                        <!-- Payment Method Interactive Buttons Grid -->
-                        <div
-                            :class="[
-                                paymentMethodError && !paymentMethod
-                                    ? 'rounded-2xl bg-rose-50/50 p-1 ring-2 ring-rose-500/40'
-                                    : '',
-                                'grid grid-cols-3 gap-1.5',
-                            ]"
-                        >
-                            <button
-                                v-for="pm in paymentMethodsList"
-                                :key="pm.id"
-                                type="button"
-                                @click="
-                                    paymentMethod = pm.id;
-                                    paymentMethodError = false;
-                                "
-                                :class="[
-                                    paymentMethod === pm.id
-                                        ? 'border-[#003B7D] bg-[#003B7D] font-bold text-white shadow-xs'
-                                        : 'border-slate-200/80 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900',
-                                    'flex items-center justify-center gap-1.5 rounded-xl border px-2 py-1.5 text-[11px] font-semibold transition active:scale-95',
-                                ]"
-                            >
-                                <component
-                                    :is="pm.icon"
-                                    :class="[
-                                        'h-3.5 w-3.5',
-                                        paymentMethod === pm.id
-                                            ? 'text-white'
-                                            : pm.color,
-                                    ]"
-                                />
-                                <span class="truncate">{{ pm.label }}</span>
-                            </button>
-                        </div>
-
-                        <!-- Action Buttons Row: Proceed, Quick Cash, and Hold -->
-                        <div class="space-y-1.5 pt-1">
-                            <!-- Proceed to Payment Button -->
-                            <button
-                                type="button"
-                                @click="handleProceedToPayment"
-                                :disabled="cart.length === 0"
-                                :class="[
-                                    paymentMethod
-                                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 shadow-[0_10px_25px_-5px_rgba(16,185,129,0.35)] hover:from-emerald-400 hover:to-teal-500'
-                                        : 'bg-gradient-to-r from-[#003B7D] to-[#0055b3] shadow-[0_10px_25px_-5px_rgba(0,59,125,0.3)] hover:from-[#002f66] hover:to-[#00448f]',
-                                    'group flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-black text-white transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none',
-                                ]"
-                            >
-                                <CreditCard
-                                    class="h-4 w-4 transition-transform group-hover:scale-110"
-                                />
-                                <span>{{
-                                    paymentMethod
-                                        ? `Proceed with ${paymentMethodsList.find((m) => m.id === paymentMethod)?.label} (Ctrl+Enter)`
-                                        : 'Proceed to Payment (Ctrl+Enter)'
-                                }}</span>
-                            </button>
-
-                            <!-- Secondary Row: Quick Cash & Hold Sale -->
-                            <div class="grid grid-cols-2 gap-1.5">
-                                <button
-                                    type="button"
-                                    @click="quickCashCheckout"
-                                    :disabled="cart.length === 0"
-                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300/80 bg-emerald-50/80 px-3 py-2 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-100 active:scale-95 disabled:opacity-40"
-                                    title="Instant exact cash transaction"
-                                >
-                                    <Zap class="h-3.5 w-3.5 text-emerald-600" />
-                                    <span>Quick Cash Pay</span>
-                                </button>
-
-                                <button
-                                    type="button"
-                                    @click="holdCurrentSale"
-                                    :disabled="cart.length === 0"
-                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/80 bg-amber-50/80 px-3 py-2 text-xs font-bold text-amber-800 shadow-2xs hover:bg-amber-100 active:scale-95 disabled:opacity-40"
-                                    title="Suspend/Hold this cart for later"
-                                >
-                                    <Pause class="h-3.5 w-3.5 text-amber-600" />
-                                    <span>Hold Sale (F1)</span>
-                                </button>
-                            </div>
-                        </div>
+                            <Trash2 class="h-4 w-4" />
+                            <span>Clear</span>
+                        </button>
                     </div>
                 </div>
 
             </div>
         </div>
 
-        <!-- Checkout / Payment Modal -->
-        <Dialog v-model:open="isPaymentModalOpen">
-            <DialogContent
-                class="max-w-lg rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
-            >
+        <!-- DIALOG 1: Register Customer -->
+        <Dialog v-model:open="isCustomerModalOpen">
+            <DialogContent class="max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
                 <DialogHeader>
-                    <DialogTitle
-                        class="flex items-center gap-2 text-lg font-black text-slate-900"
-                    >
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#003B7D] text-white"
-                        >
-                            <CreditCard class="h-4 w-4" />
-                        </div>
-                        <span>Complete Sale Transaction</span>
-                    </DialogTitle>
-                    <DialogDescription class="text-xs text-slate-500">
-                        Confirm payment method and tender received from
-                        customer.
-                    </DialogDescription>
+                    <DialogTitle class="text-lg font-black text-slate-900">Register New Customer</DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">Add customer details for credit ledger (Khata).</DialogDescription>
                 </DialogHeader>
 
-                <div class="space-y-4 py-2">
-                    <!-- Payment Methods Grid -->
-                    <div class="grid grid-cols-3 gap-2">
-                        <button
-                            v-for="pm in paymentMethodsList"
-                            :key="pm.id"
-                            type="button"
-                            @click="paymentMethod = pm.id"
-                            :class="[
-                                paymentMethod === pm.id
-                                    ? pm.activeBg
-                                    : 'border-slate-200/80 bg-slate-50 text-slate-600 hover:bg-slate-100',
-                                'flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3 text-xs font-bold transition active:scale-95',
-                            ]"
-                        >
-                            <component
-                                :is="pm.icon"
-                                :class="['h-4 w-4', pm.color]"
-                            />
-                            <span>{{ pm.label }}</span>
-                        </button>
+                <form @submit.prevent="submitCustomerForm" class="space-y-3 py-2">
+                    <div>
+                        <label class="block mb-1 text-xs font-bold text-slate-700">Full Name *</label>
+                        <input v-model="customerForm.name" placeholder="e.g. Ali Ahmed" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-indigo-600 focus:outline-none" required />
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-bold text-slate-700">Mobile Phone *</label>
+                        <input v-model="customerForm.phone" placeholder="03001234567" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-indigo-600 focus:outline-none" required />
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-bold text-slate-700">City / Address</label>
+                        <input v-model="customerForm.address" placeholder="Lahore" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-indigo-600 focus:outline-none" />
                     </div>
 
-                    <!-- Tender Received (if not split) -->
-                    <div v-if="paymentMethod !== 'split'" class="space-y-2">
-                        <div class="flex items-center justify-between">
-                            <Label
-                                class="text-[11px] font-black tracking-[0.14em] text-slate-500 uppercase"
-                            >
-                                Tender Received (PKR)
-                            </Label>
-                            <span class="text-xs font-bold text-slate-400">
-                                Due: {{ formatCurrency(netPayable) }}
-                            </span>
-                        </div>
+                    <DialogFooter class="pt-3">
+                        <Button type="button" variant="outline" @click="isCustomerModalOpen = false">Cancel</Button>
+                        <Button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 font-bold">Save Customer</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
 
-                        <div class="relative">
-                            <input
-                                v-model="paidInput"
-                                type="number"
-                                step="1"
-                                placeholder="Enter cash received"
-                                class="tnum w-full rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-2xl font-black text-slate-900 shadow-inner focus:border-[#003B7D] focus:bg-white focus:ring-3 focus:ring-[#003B7D]/20 focus:outline-none"
-                            />
-                        </div>
+        <!-- DIALOG 2: Thermal Receipt Print -->
+        <Dialog v-model:open="isReceiptModalOpen">
+            <DialogContent class="max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
+                <DialogHeader class="no-print">
+                    <DialogTitle class="text-center text-sm font-black text-slate-900">Thermal Invoice Receipt</DialogTitle>
+                </DialogHeader>
 
-                        <!-- Quick Cash Note Chips -->
-                        <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                            <button
-                                type="button"
-                                @click="setExactPayment"
-                                class="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95"
-                            >
-                                Exact: {{ formatCurrency(netPayable) }}
-                            </button>
-                            <button
-                                v-for="preset in [500, 1000, 5000, 10000]"
-                                :key="preset"
-                                type="button"
-                                @click="setTenderPreset(preset)"
-                                class="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 active:scale-95"
-                            >
-                                Rs. {{ preset }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Split Payment Form -->
-                    <div
-                        v-else
-                        class="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3"
-                    >
-                        <div
-                            class="text-xs font-black tracking-wide text-slate-700 uppercase"
-                        >
-                            Split Payment Amounts:
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                                <span class="font-bold text-slate-600"
-                                    >Cash:</span
-                                >
-                                <input
-                                    v-model.number="splitAmounts.cash"
-                                    type="number"
-                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
-                                />
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-600"
-                                    >JazzCash:</span
-                                >
-                                <input
-                                    v-model.number="splitAmounts.jazzcash"
-                                    type="number"
-                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
-                                />
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-600"
-                                    >Easypaisa:</span
-                                >
-                                <input
-                                    v-model.number="splitAmounts.easypaisa"
-                                    type="number"
-                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
-                                />
-                            </div>
-                            <div>
-                                <span class="font-bold text-slate-600"
-                                    >Bank:</span
-                                >
-                                <input
-                                    v-model.number="splitAmounts.bank"
-                                    type="number"
-                                    class="tnum mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 font-bold"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Change to Return / Khata Balance Summary Card -->
-                    <div
-                        v-if="paymentMethod !== 'udhaar'"
-                        class="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-950"
-                    >
-                        <div>
-                            <div
-                                class="text-[10px] font-bold tracking-wider text-emerald-700 uppercase"
-                            >
-                                Change to Return
-                            </div>
-                            <div class="text-xs text-emerald-800">
-                                Give customer back from cash drawer
-                            </div>
-                        </div>
-                        <span class="tnum text-2xl font-black text-emerald-700">
-                            {{ formatCurrency(changeToReturn) }}
-                        </span>
-                    </div>
-
-                    <div
-                        v-else
-                        class="flex items-center justify-between rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-950"
-                    >
-                        <div>
-                            <div
-                                class="text-[10px] font-bold tracking-wider text-amber-700 uppercase"
-                            >
-                                Added to Customer Khata
-                            </div>
-                            <div class="text-xs text-amber-800">
-                                Customer:
-                                {{ selectedCustomer?.name || 'Walk-in' }}
-                            </div>
-                        </div>
-                        <span class="tnum text-2xl font-black text-amber-700">
-                            {{ formatCurrency(remainingKhataBalance) }}
-                        </span>
-                    </div>
+                <div class="py-2 max-h-[70vh] overflow-y-auto">
+                    <ThermalReceipt v-if="activeReceipt" :receipt="(activeReceipt as any)" :shop-info="shopInfo" />
                 </div>
 
-                <DialogFooter class="flex items-center justify-between pt-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        @click="isPaymentModalOpen = false"
-                        class="rounded-xl"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        type="button"
-                        @click="submitCheckout"
-                        class="rounded-xl bg-[#003B7D] px-5 text-white shadow-md hover:bg-[#002b5c]"
-                    >
-                        <Printer class="mr-1.5 h-4 w-4" />
-                        Complete Sale & Print
+                <DialogFooter class="no-print flex justify-between pt-2">
+                    <Button type="button" variant="outline" @click="isReceiptModalOpen = false">Close</Button>
+                    <Button type="button" @click="printReceipt" class="bg-indigo-600 text-white hover:bg-indigo-700 font-bold">
+                        <Printer class="mr-1 h-4 w-4" /> Print
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <!-- Boson Studio Feature: Held Sales Dialog -->
+        <!-- DIALOG 3: Held Sales Drawer / Modal -->
         <Dialog v-model:open="isHeldSalesModalOpen">
-            <DialogContent
-                class="max-w-md rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
-            >
+            <DialogContent class="max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
                 <DialogHeader>
-                    <DialogTitle
-                        class="flex items-center gap-2 text-lg font-black text-slate-900"
-                    >
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/15 text-amber-700"
-                        >
-                            <History class="h-4 w-4" />
-                        </div>
-                        <span>Held / Suspended Sales</span>
+                    <DialogTitle class="text-base font-black text-slate-900 flex items-center gap-2">
+                        <Pause class="h-5 w-5 text-amber-500" />
+                        <span>Held Sales Pending</span>
                     </DialogTitle>
-                    <DialogDescription class="text-xs text-slate-500">
-                        Recall previously suspended carts to continue customer
-                        billing:
-                    </DialogDescription>
+                    <DialogDescription class="text-xs text-slate-500">Restore held customer carts or clear expired ones.</DialogDescription>
                 </DialogHeader>
 
-                <div class="max-h-80 space-y-2 overflow-y-auto py-2">
-                    <div
-                        v-if="heldSales.length === 0"
-                        class="py-8 text-center text-xs text-slate-400"
-                    >
+                <div class="py-2 space-y-2 max-h-[60vh] overflow-y-auto">
+                    <div v-if="heldSales.length === 0" class="py-10 text-center text-xs text-slate-400 font-medium">
                         No sales currently on hold.
                     </div>
                     <div
-                        v-for="(held, idx) in heldSales"
-                        :key="held.id"
-                        class="flex items-center justify-between rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3 transition hover:bg-slate-100"
+                        v-else
+                        v-for="(h, idx) in heldSales"
+                        :key="h.id"
+                        class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between"
                     >
                         <div>
-                            <div class="text-xs font-bold text-slate-900">
-                                {{ held.customer_name }}
+                            <div class="font-extrabold text-slate-900 text-xs flex items-center gap-2">
+                                <span>{{ h.id }}</span>
+                                <span class="text-[10px] font-bold text-slate-500">({{ h.held_at }})</span>
                             </div>
-                            <div class="text-[10px] text-slate-400">
-                                {{ held.cart.length }} items • Held at
-                                {{ held.held_at }}
+                            <div class="text-[11px] text-slate-600 mt-0.5">
+                                Customer: <strong>{{ h.customer_name }}</strong> | {{ h.cart.length }} Items
                             </div>
-                            <div
-                                class="tnum mt-0.5 text-xs font-black text-[#003B7D]"
-                            >
-                                {{ formatCurrency(held.total) }}
+                            <div class="text-xs font-black text-indigo-700 mt-0.5">
+                                Total: Rs {{ h.total.toLocaleString() }}
                             </div>
                         </div>
 
                         <div class="flex items-center gap-1.5">
                             <button
                                 type="button"
-                                @click="recallHeldSale(idx)"
-                                class="inline-flex items-center gap-1 rounded-xl bg-[#003B7D] px-2.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#002b5c]"
+                                @click="restoreHeldSale(h, idx)"
+                                class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition active:scale-95"
                             >
-                                <Play class="h-3 w-3" />
-                                <span>Recall</span>
+                                Resume
                             </button>
                             <button
                                 type="button"
-                                @click="removeHeldSale(idx)"
-                                class="rounded-xl p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                                title="Delete held cart"
+                                @click="deleteHeldSale(idx)"
+                                class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                title="Delete"
                             >
-                                <Trash2 class="h-3.5 w-3.5" />
+                                <Trash2 class="h-4 w-4" />
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <DialogFooter class="pt-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        @click="isHeldSalesModalOpen = false"
-                        class="w-full rounded-xl"
-                    >
-                        Close
-                    </Button>
+                <DialogFooter>
+                    <Button type="button" variant="outline" @click="isHeldSalesModalOpen = false">Close</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <!-- Method Selection Prompt Modal (pops up if user proceeds to payment without selecting method) -->
-        <Dialog v-model:open="isMethodSelectionPromptOpen">
-            <DialogContent
-                class="max-w-md rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
-            >
+        <!-- DIALOG 4: Quick Notes & Tags Modal -->
+        <Dialog v-model:open="isNotesModalOpen">
+            <DialogContent class="max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
                 <DialogHeader>
-                    <DialogTitle
-                        class="flex items-center gap-2.5 text-lg font-black text-slate-900"
-                    >
-                        <div
-                            class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600"
-                        >
-                            <CreditCard class="h-5 w-5" />
-                        </div>
-                        <span>Payment Method Select Karein</span>
-                    </DialogTitle>
-                    <DialogDescription class="text-xs text-slate-500">
-                        Proceed karne se pehle payment method select karein:
-                    </DialogDescription>
+                    <DialogTitle class="text-base font-black text-slate-900">Sale Notes & Warranty Tags</DialogTitle>
                 </DialogHeader>
 
-                <div class="grid grid-cols-2 gap-2.5 py-4">
-                    <button
-                        v-for="pm in paymentMethodsList"
-                        :key="pm.id"
-                        type="button"
-                        @click="selectMethodAndProceed(pm.id)"
-                        class="group flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4 transition-all hover:-translate-y-0.5 hover:border-[#003B7D] hover:bg-blue-50/50 hover:shadow-md active:scale-95"
-                    >
-                        <div
-                            class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-2xs transition-transform group-hover:scale-110"
-                        >
-                            <component
-                                :is="pm.icon"
-                                :class="['h-5 w-5', pm.color]"
-                            />
-                        </div>
-                        <div class="text-center">
-                            <div
-                                class="text-xs font-black text-slate-800 group-hover:text-[#003B7D]"
+                <div class="space-y-3 py-2">
+                    <div>
+                        <label class="block mb-1 text-xs font-bold text-slate-700">Quick Mobile Shop Tag Presets</label>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                @click="addNotePreset('7 Days Warranty')"
+                                class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-bold text-slate-700 border border-slate-200"
                             >
-                                {{ pm.label }}
-                            </div>
-                            <div class="text-[10px] text-slate-400">
-                                {{
-                                    pm.id === 'cash'
-                                        ? 'Cash payment'
-                                        : pm.id === 'udhaar'
-                                          ? 'Customer ledger'
-                                          : 'Digital transfer'
-                                }}
-                            </div>
+                                + 7 Days Checking Warranty
+                            </button>
+                            <button
+                                type="button"
+                                @click="addNotePreset('Screen Guard Applied')"
+                                class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-bold text-slate-700 border border-slate-200"
+                            >
+                                + Glass Guard Applied
+                            </button>
+                            <button
+                                type="button"
+                                @click="addNotePreset('Box & Original Charger')"
+                                class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-bold text-slate-700 border border-slate-200"
+                            >
+                                + Box & Accessories Included
+                            </button>
+                            <button
+                                type="button"
+                                @click="addNotePreset('Clearance Deal - Non Returnable')"
+                                class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-xs font-bold text-slate-700 border border-slate-200"
+                            >
+                                + Clearance Deal
+                            </button>
                         </div>
-                    </button>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 text-xs font-bold text-slate-700">Note Content</label>
+                        <textarea
+                            v-model="notesInput"
+                            rows="3"
+                            placeholder="Type any custom invoice instructions or remarks..."
+                            class="w-full rounded-xl border border-slate-300 p-2.5 text-xs font-medium focus:border-indigo-600 focus:outline-none"
+                        ></textarea>
+                    </div>
                 </div>
 
-                <DialogFooter class="pt-1">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        @click="isMethodSelectionPromptOpen = false"
-                        class="w-full rounded-xl"
-                    >
-                        Cancel
-                    </Button>
+                <DialogFooter>
+                    <Button type="button" class="bg-indigo-600 text-white hover:bg-indigo-700 font-bold" @click="isNotesModalOpen = false">Done</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <!-- Register Customer Modal -->
-        <Dialog v-model:open="isCustomerModalOpen">
-            <DialogContent
-                class="max-w-md rounded-3xl border border-white/80 bg-white/95 p-6 shadow-2xl backdrop-blur-2xl"
-            >
+        <!-- DIALOG 5: POS Settings -->
+        <Dialog v-model:open="isSettingsModalOpen">
+            <DialogContent class="max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
                 <DialogHeader>
-                    <DialogTitle class="text-lg font-black text-slate-900">
-                        Register Customer
+                    <DialogTitle class="text-base font-black text-slate-900">POS Preferences & Audio</DialogTitle>
+                </DialogHeader>
+
+                <div class="space-y-4 py-3 text-xs">
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <div>
+                            <div class="font-bold text-slate-900">Audio Beep Sound Effects</div>
+                            <div class="text-[11px] text-slate-500">Play synth beep sound on barcode scan / action</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="posSettings.soundEnabled" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between border-b pb-3">
+                        <div>
+                            <div class="font-bold text-slate-900">Auto Open Print Receipt Modal</div>
+                            <div class="text-[11px] text-slate-500">Automatically open receipt preview after sale save</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="posSettings.autoPrint" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block mb-1 font-bold text-slate-900">Default Payment Mode</label>
+                        <select v-model="posSettings.defaultPayment" class="w-full h-9 rounded-xl border border-slate-300 px-3 text-xs font-bold">
+                            <option value="cash">Cash</option>
+                            <option value="jazzcash">JazzCash</option>
+                            <option value="easypaisa">Easypaisa</option>
+                            <option value="bank">Bank Transfer</option>
+                        </select>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" @click="isSettingsModalOpen = false">Cancel</Button>
+                    <Button type="button" class="bg-indigo-600 text-white font-bold hover:bg-indigo-700" @click="savePosSettings">Save Settings</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- DIALOG 6: Keyboard Shortcuts -->
+        <Dialog v-model:open="isShortcutsModalOpen">
+            <DialogContent class="max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+                <DialogHeader>
+                    <DialogTitle class="text-base font-black text-slate-900">POS Keyboard Shortcuts</DialogTitle>
+                </DialogHeader>
+                <div class="space-y-2 py-2 text-xs font-mono">
+                    <div class="flex justify-between border-b pb-1.5"><span>Search Product / Barcode</span><span class="font-extrabold text-indigo-600">Ctrl + F / Ctrl + Enter</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Customer Select</span><span class="font-extrabold text-indigo-600">Alt + C</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Salesman Select</span><span class="font-extrabold text-indigo-600">Alt + U</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Bill Discount Input</span><span class="font-extrabold text-indigo-600">Alt + D</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Payment Method Switch</span><span class="font-extrabold text-indigo-600">Alt + M</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Cash Received Input</span><span class="font-extrabold text-indigo-600">Alt + P</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Hold Current Sale</span><span class="font-extrabold text-indigo-600">Alt + H</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Complete & Save Sale</span><span class="font-extrabold text-indigo-600">Alt + Enter</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Clear Cart Terminal</span><span class="font-extrabold text-indigo-600">Alt + Delete</span></div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" @click="isShortcutsModalOpen = false">Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- DIALOG 7: IMEI Selection Modal for Mobile Phones -->
+        <Dialog v-model:open="isImeiSelectorOpen">
+            <DialogContent class="max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+                <DialogHeader>
+                    <DialogTitle class="text-base font-black text-slate-900 flex items-center gap-2">
+                        <Smartphone class="h-5 w-5 text-indigo-600" />
+                        <span>Select Device Serial (IMEI)</span>
                     </DialogTitle>
                     <DialogDescription class="text-xs text-slate-500">
-                        Create a quick customer profile to link sales and
-                        maintain Khata credit ledger.
+                        Select an active IMEI unit for {{ imeiSelectProduct ? formatProductName(imeiSelectProduct.name, imeiSelectProduct.brand) : 'this device' }}.
                     </DialogDescription>
                 </DialogHeader>
 
-                <form
-                    @submit.prevent="submitCustomerForm"
-                    class="space-y-3 py-2"
-                >
-                    <div class="space-y-1.5">
-                        <Label
-                            for="cust_name"
-                            class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                        >
-                            Customer Name
-                        </Label>
-                        <Input
-                            id="cust_name"
-                            v-model="customerForm.name"
-                            placeholder="Full Name"
-                            class="rounded-xl"
-                            required
-                        />
+                <div class="py-2 space-y-2 max-h-[50vh] overflow-y-auto">
+                    <div v-if="!imeiSelectProduct || getAvailableImeis(imeiSelectProduct).length === 0" class="py-8 text-center text-xs text-slate-400 font-medium">
+                        No active stock IMEI units available for this device.
                     </div>
-                    <div class="space-y-1.5">
-                        <Label
-                            for="cust_phone"
-                            class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                        >
-                            Mobile Number
-                        </Label>
-                        <Input
-                            id="cust_phone"
-                            v-model="customerForm.phone"
-                            placeholder="03001234567"
-                            class="rounded-xl"
-                            required
-                        />
-                    </div>
-                    <div class="space-y-1.5">
-                        <Label
-                            for="cust_address"
-                            class="text-[11px] font-bold tracking-[0.12em] text-slate-500 uppercase"
-                        >
-                            Address
-                        </Label>
-                        <Input
-                            id="cust_address"
-                            v-model="customerForm.address"
-                            placeholder="City / Area"
-                            class="rounded-xl"
-                        />
-                    </div>
-
-                    <DialogFooter class="pt-3">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            @click="isCustomerModalOpen = false"
-                            class="rounded-xl"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            :disabled="customerForm.processing"
-                            class="rounded-xl bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
-                        >
-                            Save Customer
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-
-        <!-- Thermal Receipt Print Modal -->
-        <Dialog v-model:open="isReceiptModalOpen">
-            <DialogContent
-                class="max-w-sm rounded-3xl border border-slate-200/80 bg-white p-5 shadow-2xl"
-            >
-                <DialogHeader class="no-print">
-                    <DialogTitle
-                        class="text-center text-sm font-black text-slate-900"
+                    <div
+                        v-else
+                        v-for="imei in getAvailableImeis(imeiSelectProduct)"
+                        :key="imei.id"
+                        @click="confirmImeiSelection(imei)"
+                        class="p-3 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/60 cursor-pointer transition flex items-center justify-between group"
                     >
-                        Thermal Invoice Receipt
-                    </DialogTitle>
-                </DialogHeader>
+                        <div class="space-y-1">
+                            <div class="font-mono text-xs font-black text-slate-900 flex items-center gap-2">
+                                <span>IMEI: {{ imei.imei_1 }}</span>
+                                <span v-if="imei.imei_2" class="text-[10px] text-slate-400 font-normal">({{ imei.imei_2 }})</span>
+                            </div>
+                            <div class="flex items-center gap-1.5 text-[10px]">
+                                <span v-if="imei.pta_status" :class="imei.pta_status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="px-1.5 py-0.5 rounded font-black uppercase">
+                                    {{ imei.pta_status }}
+                                </span>
+                                <span v-if="imei.storage" class="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold">
+                                    {{ imei.storage }}
+                                </span>
+                                <span v-if="imei.color" class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded capitalize">
+                                    {{ imei.color }}
+                                </span>
+                                <span v-if="imei.condition" class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded uppercase font-bold">
+                                    {{ imei.condition }}
+                                </span>
+                            </div>
+                        </div>
 
-                <div class="py-2 overflow-y-auto max-h-[70vh]">
-                    <ThermalReceipt
-                        v-if="activeReceipt"
-                        :receipt="activeReceipt"
-                        :shop-info="shopInfo"
-                    />
+                        <button
+                            type="button"
+                            class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs group-hover:bg-indigo-700 transition active:scale-95 shadow-xs"
+                        >
+                            Select
+                        </button>
+                    </div>
                 </div>
 
-                <DialogFooter class="no-print flex justify-between pt-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        @click="isReceiptModalOpen = false"
-                        class="rounded-xl"
-                    >
-                        Close
-                    </Button>
-                    <Button
-                        type="button"
-                        @click="printReceipt"
-                        class="rounded-xl bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
-                    >
-                        <Printer class="mr-1.5 h-4 w-4" /> Print Receipt
-                    </Button>
+                <DialogFooter>
+                    <Button type="button" variant="outline" @click="isImeiSelectorOpen = false">Cancel</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
 
-        <Toaster />
+        <Toaster
+            position="top-center"
+            richColors
+            closeButton
+            :toastOptions="{
+                style: {
+                    borderRadius: '16px',
+                    border: '1px solid rgba(0, 59, 125, 0.25)',
+                    background: '#ffffff',
+                    color: '#002654',
+                    boxShadow: '0 12px 30px -4px rgba(0, 59, 125, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    padding: '12px 16px',
+                },
+            }"
+        />
         <ConfirmDialog />
     </div>
 </template>

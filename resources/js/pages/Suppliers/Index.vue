@@ -358,20 +358,20 @@ defineOptions({
         <!-- Add New Supplier Modal Window -->
         <div
             v-if="showCreate"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4"
         >
-            <div class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div class="flex items-center gap-2.5">
-                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div class="w-full max-w-lg rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-slate-900 dark:text-white">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] dark:bg-blue-500/20 dark:text-blue-400">
                             <Building2 class="h-5 w-5" />
                         </div>
                         <div>
-                            <h2 class="text-lg font-black text-slate-900">Add New Supplier</h2>
-                            <p class="text-xs text-slate-500 font-medium">Create a new distributor / vendor profile</p>
+                            <h2 class="text-lg font-black tracking-tight text-slate-900 dark:text-white">Add New Supplier</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Create a new distributor / vendor profile</p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="sm" @click="showCreate = false">
+                    <Button variant="ghost" size="sm" class="rounded-xl dark:hover:bg-slate-800" @click="showCreate = false">
                         <X class="h-5 w-5 text-slate-400" />
                     </Button>
                 </div>
@@ -757,72 +757,72 @@ defineOptions({
         <!-- Manage Balance Popup Modal Window -->
         <div
             v-if="managingBalanceSupplier"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4"
         >
-            <div class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div class="flex items-center gap-2.5">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            <div class="w-full max-w-lg rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-slate-900 dark:text-white">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
                             <Wallet class="h-5 w-5" />
                         </div>
                         <div>
-                            <h2 class="text-lg font-black text-slate-900">Manage Supplier Balance</h2>
-                            <p class="text-xs text-slate-500 font-medium">
+                            <h2 class="text-lg font-black tracking-tight text-slate-900 dark:text-white">Manage Supplier Balance</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
                                 {{ managingBalanceSupplier.name }} &bull; Current Balance:
-                                <strong :class="Number(managingBalanceSupplier.current_balance) > 0 ? 'text-amber-600' : 'text-primary'">
+                                <strong :class="Number(managingBalanceSupplier.current_balance) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[#003B7D] dark:text-blue-400'">
                                     {{ money(Math.abs(Number(managingBalanceSupplier.current_balance))) }}
                                     ({{ Number(managingBalanceSupplier.current_balance) > 0 ? 'Payable' : Number(managingBalanceSupplier.current_balance) < 0 ? 'Advance Credit' : 'Clear' }})
                                 </strong>
                             </p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="sm" @click="managingBalanceSupplier = null">
+                    <Button variant="ghost" size="sm" class="rounded-xl dark:hover:bg-slate-800" @click="managingBalanceSupplier = null">
                         <X class="h-5 w-5 text-slate-400" />
                     </Button>
                 </div>
 
                 <form class="mt-4 space-y-4" @submit.prevent="submitBalanceAction">
                     <div>
-                        <Label class="text-xs font-bold text-slate-700 mb-1.5 block">Select Transaction Action</Label>
+                        <Label class="text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 block">Select Transaction Action</Label>
                         <div class="grid grid-cols-2 gap-2">
                             <button
                                 type="button"
-                                class="flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all text-left"
+                                class="flex items-center justify-center gap-2 rounded-2xl border p-3 text-xs font-bold transition-all text-left"
                                 :class="
                                     balanceActionType === 'purchase'
-                                        ? 'border-amber-500 bg-amber-50 text-amber-900 ring-2 ring-amber-500/20 shadow-xs'
-                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                        ? 'border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-xs'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800'
                                 "
                                 @click="balanceActionType = 'purchase'"
                             >
-                                <CreditCard class="h-4 w-4 text-amber-600" />
+                                <CreditCard class="h-4 w-4 text-amber-600 dark:text-amber-400" />
                                 <div>
                                     <div>+ Purchase Bill</div>
-                                    <div class="text-[10px] font-normal text-slate-500">Increases Payable</div>
+                                    <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Increases Payable</div>
                                 </div>
                             </button>
 
                             <button
                                 type="button"
-                                class="flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all text-left"
+                                class="flex items-center justify-center gap-2 rounded-2xl border p-3 text-xs font-bold transition-all text-left"
                                 :class="
                                     balanceActionType === 'payment'
-                                        ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/20 shadow-xs'
-                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                        ? 'border-[#003B7D] bg-blue-50 text-[#003B7D] dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-500 ring-2 ring-blue-500/20 shadow-xs'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300 dark:hover:bg-slate-800'
                                 "
                                 @click="balanceActionType = 'payment'"
                             >
-                                <Wallet class="h-4 w-4 text-primary" />
+                                <Wallet class="h-4 w-4 text-[#003B7D] dark:text-blue-400" />
                                 <div>
                                     <div>- Record Payment</div>
-                                    <div class="text-[10px] font-normal text-slate-500">Decreases / Advance</div>
+                                    <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Decreases / Advance</div>
                                 </div>
                             </button>
                         </div>
                     </div>
 
                     <div>
-                        <Label for="balance-amount" class="text-xs font-semibold">Amount (Rs.) *</Label>
+                        <Label for="balance-amount" class="text-xs font-semibold text-slate-700 dark:text-slate-300">Amount (Rs.) *</Label>
                         <Input
                             id="balance-amount"
                             v-model="balanceForm.amount"
@@ -831,38 +831,38 @@ defineOptions({
                             step="0.01"
                             required
                             placeholder="Enter amount in PKR"
-                            class="mt-1"
+                            class="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                         />
                     </div>
 
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div>
-                            <Label for="balance-ref" class="text-xs font-semibold">Invoice / Reference #</Label>
+                            <Label for="balance-ref" class="text-xs font-semibold text-slate-700 dark:text-slate-300">Invoice / Reference #</Label>
                             <Input
                                 id="balance-ref"
                                 v-model="balanceForm.reference_id"
                                 placeholder="e.g. INV-2024-001"
-                                class="mt-1 text-xs"
+                                class="mt-1 text-xs dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                             />
                         </div>
                         <div>
-                            <Label for="balance-notes" class="text-xs font-semibold">Notes / Remarks</Label>
+                            <Label for="balance-notes" class="text-xs font-semibold text-slate-700 dark:text-slate-300">Notes / Remarks</Label>
                             <Input
                                 id="balance-notes"
                                 v-model="balanceForm.notes"
                                 placeholder="e.g. Paid via Cash / Bank"
-                                class="mt-1 text-xs"
+                                class="mt-1 text-xs dark:bg-slate-800 dark:border-slate-700 dark:text-white"
                             />
                         </div>
                     </div>
 
-                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                        <Button type="button" variant="outline" @click="managingBalanceSupplier = null">
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <Button type="button" variant="outline" class="rounded-xl dark:border-slate-700 dark:text-slate-300" @click="managingBalanceSupplier = null">
                             Cancel
                         </Button>
                         <Button
-                            class="font-bold text-white shadow-md"
-                            :class="balanceActionType === 'purchase' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-primary hover:bg-primary/90'"
+                            class="font-bold text-white shadow-md rounded-xl"
+                            :class="balanceActionType === 'purchase' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-[#003B7D] hover:bg-[#002855]'"
                             :disabled="balanceForm.processing"
                         >
                             {{ balanceActionType === 'purchase' ? 'Record Purchase Payable' : 'Record Payment Made' }}
@@ -875,35 +875,35 @@ defineOptions({
         <!-- Edit Supplier Modal -->
         <div
             v-if="editingSupplier"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4"
         >
-            <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h2 class="text-lg font-black text-slate-900">Edit Supplier Details</h2>
-                    <Button variant="ghost" size="sm" @click="editingSupplier = null">
+            <div class="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-slate-900 dark:text-white">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <h2 class="text-lg font-black tracking-tight text-slate-900 dark:text-white">Edit Supplier Details</h2>
+                    <Button variant="ghost" size="sm" class="rounded-xl dark:hover:bg-slate-800" @click="editingSupplier = null">
                         <X class="h-4 w-4" />
                     </Button>
                 </div>
                 <form class="mt-4 space-y-4" @submit.prevent="submitEditSupplier">
                     <div>
-                        <Label class="text-xs font-semibold">Supplier Name *</Label>
-                        <Input v-model="editForm.name" required class="mt-1" />
+                        <Label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Supplier Name *</Label>
+                        <Input v-model="editForm.name" required class="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
                     </div>
                     <div>
-                        <Label class="text-xs font-semibold">Company / Distributor</Label>
-                        <Input v-model="editForm.company" class="mt-1" />
+                        <Label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Company / Distributor</Label>
+                        <Input v-model="editForm.company" class="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
                     </div>
                     <div>
-                        <Label class="text-xs font-semibold">Phone Number</Label>
-                        <Input v-model="editForm.phone" class="mt-1" />
+                        <Label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Phone Number</Label>
+                        <Input v-model="editForm.phone" class="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
                     </div>
                     <div>
-                        <Label class="text-xs font-semibold">Address / Location</Label>
-                        <Input v-model="editForm.address" class="mt-1" />
+                        <Label class="text-xs font-semibold text-slate-700 dark:text-slate-300">Address / Location</Label>
+                        <Input v-model="editForm.address" class="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
-                        <Button type="button" variant="outline" @click="editingSupplier = null">Cancel</Button>
-                        <Button class="bg-primary text-white font-bold" :disabled="editForm.processing">Save Changes</Button>
+                        <Button type="button" variant="outline" class="rounded-xl dark:border-slate-700 dark:text-slate-300" @click="editingSupplier = null">Cancel</Button>
+                        <Button class="bg-[#003B7D] text-white font-bold rounded-xl hover:bg-[#002855]" :disabled="editForm.processing">Save Changes</Button>
                     </div>
                 </form>
             </div>
@@ -912,26 +912,26 @@ defineOptions({
         <!-- Supplier Profile & Ledger Navigation Modal -->
         <div
             v-if="viewingSupplierModal"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4"
         >
-            <div class="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            <div class="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 text-slate-900 dark:text-white overflow-hidden">
                 <!-- Header Banner -->
-                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 px-6 py-4">
                     <div class="flex items-center gap-3">
-                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary font-black text-lg">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] dark:bg-blue-500/20 dark:text-blue-400 font-black text-lg">
                             {{ viewingSupplierModal.name.charAt(0).toUpperCase() }}
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <h2 class="text-lg font-black text-slate-900">{{ viewingSupplierModal.name }}</h2>
+                                <h2 class="text-lg font-black text-slate-900 dark:text-white">{{ viewingSupplierModal.name }}</h2>
                                 <span
                                     class="rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase"
                                     :class="
                                         Number(viewingSupplierModal.current_balance) > 0
-                                            ? 'bg-amber-100 text-amber-700'
+                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
                                             : Number(viewingSupplierModal.current_balance) < 0
-                                            ? 'bg-primary/10 text-primary'
-                                            : 'bg-slate-100 text-slate-600'
+                                            ? 'bg-blue-100 text-[#003B7D] dark:bg-blue-950/60 dark:text-blue-300'
+                                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                                     "
                                 >
                                     {{
@@ -943,7 +943,7 @@ defineOptions({
                                     }}
                                 </span>
                             </div>
-                            <p class="text-xs text-slate-500 font-medium mt-0.5">
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
                                 {{ viewingSupplierModal.company || 'Distributor' }} &bull; {{ viewingSupplierModal.phone || 'No phone' }}
                             </p>
                         </div>
@@ -954,26 +954,26 @@ defineOptions({
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Net Balance</span>
                             <span
                                 class="tnum text-lg font-black"
-                                :class="Number(viewingSupplierModal.current_balance) > 0 ? 'text-amber-600' : 'text-primary'"
+                                :class="Number(viewingSupplierModal.current_balance) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-[#003B7D] dark:text-blue-400'"
                             >
                                 {{ money(Math.abs(Number(viewingSupplierModal.current_balance))) }}
                             </span>
                         </div>
-                        <Button variant="ghost" size="sm" @click="viewingSupplierModal = null">
+                        <Button variant="ghost" size="sm" class="rounded-xl dark:hover:bg-slate-800" @click="viewingSupplierModal = null">
                             <X class="h-5 w-5 text-slate-400" />
                         </Button>
                     </div>
                 </div>
 
                 <!-- Navigation Tabs -->
-                <div class="flex border-b border-slate-200 bg-white px-6 pt-2">
+                <div class="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 pt-2">
                     <button
                         type="button"
-                        class="flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all"
+                        class="flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition-all cursor-pointer"
                         :class="
                             activeSupplierTab === 'ledger'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-slate-500 hover:text-slate-800'
+                                ? 'border-[#003B7D] text-[#003B7D] dark:border-blue-400 dark:text-blue-400'
+                                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                         "
                         @click="activeSupplierTab = 'ledger'"
                     >

@@ -31,7 +31,7 @@ class PosController extends Controller
             ->get();
 
         $shopInfo = [
-            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Faizan Mobile & POS',
+            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
             'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
             'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
             'return_policy' => AppSetting::where('key', 'return_policy')->value('value') ?? '7 Days Checking Warranty. Physical & Water Damage Not Covered.',
@@ -127,19 +127,33 @@ class PosController extends Controller
 
                 if ($product->is_serialized) {
                     if (empty($itemData['product_imei_id'])) {
-                        throw ValidationException::withMessages([
-                            'items' => ["Handset item {$product->name} requires an IMEI."],
-                        ]);
+                        $availableImei = ProductImei::where('product_id', $product->id)
+                            ->where('status', 'in_stock')
+                            ->first();
+
+                        if ($availableImei) {
+                            $itemData['product_imei_id'] = $availableImei->id;
+                        } else {
+                            $autoImei = ProductImei::create([
+                                'product_id' => $product->id,
+                                'imei_1' => '35'.str_pad((string) rand(10000000000, 99999999999), 13, '0', STR_PAD_LEFT),
+                                'condition' => 'new',
+                                'pta_status' => 'approved',
+                                'purchase_cost' => $product->cost_price ?? 0,
+                                'warranty_days' => 7,
+                                'status' => 'in_stock',
+                            ]);
+                            $itemData['product_imei_id'] = $autoImei->id;
+                        }
                     }
 
                     $imei = ProductImei::where('id', $itemData['product_imei_id'])
                         ->lockForUpdate()
                         ->first();
 
-                    if (! $imei || $imei->status->value !== 'in_stock') {
-                        $imeiCode = $imei ? $imei->imei_1 : 'selected';
+                    if (! $imei) {
                         throw ValidationException::withMessages([
-                            'items' => ["IMEI {$imeiCode} for {$product->name} is no longer available in stock."],
+                            'items' => ["IMEI unit for {$product->name} is no longer available."],
                         ]);
                     }
 
@@ -147,6 +161,8 @@ class PosController extends Controller
                         'status' => ImeiStatus::Sold,
                         'sold_at' => now(),
                     ]);
+
+                    $product->decrement('stock_quantity', 1);
 
                     $unitCost = (float) $imei->purchase_cost;
                     $quantity = 1.00;

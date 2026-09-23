@@ -887,7 +887,7 @@ const printShiftSlip = () => {
         class="hidden bg-white p-4 font-mono text-xs text-black print:block"
     >
         <div class="mb-2 border-b pb-2 text-center">
-            <h2 class="text-base font-bold">Faizan Mobile & POS</h2>
+            <h2 class="text-base font-bold">Horizon Studio</h2>
             <p class="text-xs">REGISTER SHIFT SUMMARY SLIP</p>
             <p class="text-[10px]">
                 Shift ID: #SHIFT-{{ activeShift.id }} | Cashier:

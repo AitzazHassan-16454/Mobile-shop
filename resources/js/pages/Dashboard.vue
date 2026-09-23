@@ -245,7 +245,7 @@ function formatGraphLabel(label: string): string {
 </script>
 
 <template>
-    <Head title="Faizan Mobile Dashboard" />
+    <Head title="Horizon Studio Dashboard" />
 
     <PendingInvitationsModal
         v-if="pendingInvitations && pendingInvitations.length > 0"

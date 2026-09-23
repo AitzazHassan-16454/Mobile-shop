@@ -16,7 +16,7 @@ class MobileShopSeeder extends Seeder
     public function run(): void
     {
         // 1. Initial Shop Settings
-        AppSetting::set('shop_name', 'Faizan Mobile & Repairing Lab');
+        AppSetting::set('shop_name', 'Horizon Studio');
         AppSetting::set('shop_phone', '0300-1234567');
         AppSetting::set('shop_address', 'Main Mobile Market, Shop #12, Lahore');
         AppSetting::set('invoice_footer', 'Shukriya! Clean checking warranty valid for 7 days with original receipt.');
@@ -28,6 +28,7 @@ class MobileShopSeeder extends Seeder
             'category' => 'Mobile Handsets',
             'is_serialized' => true,
             'sale_price' => 450000.00,
+            'stock_quantity' => 2,
             'alert_quantity' => 2,
         ]);
 
@@ -63,6 +64,7 @@ class MobileShopSeeder extends Seeder
             'category' => 'Mobile Handsets',
             'is_serialized' => true,
             'sale_price' => 395000.00,
+            'stock_quantity' => 1,
             'alert_quantity' => 2,
         ]);
 
@@ -87,6 +89,7 @@ class MobileShopSeeder extends Seeder
             'barcode' => '8901234567890',
             'is_serialized' => false,
             'sale_price' => 3500.00,
+            'stock_quantity' => 50,
             'alert_quantity' => 10,
         ]);
 
@@ -97,6 +100,7 @@ class MobileShopSeeder extends Seeder
             'barcode' => '8901234567891',
             'is_serialized' => false,
             'sale_price' => 500.00,
+            'stock_quantity' => 100,
             'alert_quantity' => 15,
         ]);
 

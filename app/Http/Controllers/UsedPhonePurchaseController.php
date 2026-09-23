@@ -40,7 +40,7 @@ class UsedPhonePurchaseController extends Controller
         $purchases = $query->latest()->paginate($perPage)->withQueryString();
 
         $shopInfo = [
-            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Faizan Mobile & POS',
+            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
             'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
             'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
         ];

@@ -29,7 +29,7 @@ defineProps<{
                     <div
                         class="text-lg font-black tracking-tight text-gray-900"
                     >
-                        Faizan Mobile
+                        Horizon Studio
                     </div>
                     <div class="eyebrow">Mobile shop POS</div>
                 </div>

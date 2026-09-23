@@ -103,11 +103,34 @@ const barcodeSvg = computed(() => {
     return generateBarcodeSvg(props.receipt.invoice_no, 36);
 });
 
-const getItemName = (item: ReceiptItem) => {
-    if (item.product) {
-        return `${item.product.brand || ''} ${item.product.name}`.trim();
+const getItemName = (item: any) => {
+    if (!item) return 'Item';
+    if (item.product?.name) {
+        const brand = item.product.brand ? `${item.product.brand} ` : '';
+        return `${brand}${item.product.name}`.trim();
     }
-    return `${item.product_brand || ''} ${item.product_name || ''}`.trim() || 'Item';
+    if (item.name) {
+        const brand = item.brand ? `${item.brand} ` : '';
+        return `${brand}${item.name}`.trim();
+    }
+    if (item.product_name) {
+        const brand = item.product_brand ? `${item.product_brand} ` : '';
+        return `${brand}${item.product_name}`.trim();
+    }
+    return 'Item';
+};
+
+const getUnitPrice = (item: any) => {
+    return Number(item.unit_price || item.price || 0);
+};
+
+const getLineTotal = (item: any) => {
+    if (item.line_total !== undefined && item.line_total !== null && item.line_total !== '') {
+        return Number(item.line_total);
+    }
+    const qty = Number(item.quantity) || 1;
+    const price = getUnitPrice(item);
+    return qty * price;
 };
 </script>
 
@@ -189,15 +212,15 @@ const getItemName = (item: ReceiptItem) => {
                             </td>
                             <td class="align-top py-1 font-bold pr-1 break-words">
                                 {{ getItemName(item) }}
-                                <div v-if="item.imei" class="text-[9px] font-normal font-mono text-slate-700 tracking-tight">
-                                    S/N: {{ item.imei }}
+                                <div v-if="item.imei || (item as any).product_imei?.imei_1" class="text-[9px] font-normal font-mono text-slate-700 tracking-tight">
+                                    S/N: {{ item.imei || (item as any).product_imei?.imei_1 }}
                                 </div>
                             </td>
                             <td class="align-top py-1 text-right whitespace-nowrap">
-                                {{ Number(item.unit_price).toLocaleString('en-PK') }}
+                                {{ getUnitPrice(item).toLocaleString('en-PK') }}
                             </td>
                             <td class="align-top py-1 text-right font-bold whitespace-nowrap">
-                                {{ Number(item.line_total).toLocaleString('en-PK') }}
+                                {{ getLineTotal(item).toLocaleString('en-PK') }}
                             </td>
                         </tr>
                     </template>
@@ -263,12 +286,22 @@ const getItemName = (item: ReceiptItem) => {
 </template>
 
 <style>
+.thermal-receipt-container,
+.thermal-receipt-container *,
+#thermal-invoice-printable,
+#thermal-invoice-printable * {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
 @media print {
     body * {
         visibility: hidden;
     }
     #thermal-invoice-printable, #thermal-invoice-printable * {
         visibility: visible;
+        background-color: #ffffff !important;
+        color: #000000 !important;
     }
     #thermal-invoice-printable {
         position: absolute;
@@ -280,7 +313,7 @@ const getItemName = (item: ReceiptItem) => {
         padding: 4px !important;
         border: none !important;
         box-shadow: none !important;
-        background: white !important;
+        background: #ffffff !important;
     }
     @page {
         size: auto;

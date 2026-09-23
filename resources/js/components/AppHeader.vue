@@ -61,7 +61,7 @@ const page = usePage();
 const auth = computed(() => page.props.auth as { user: User });
 const currentTeam = computed(() => page.props.currentTeam as Team | undefined);
 const teamSlug = computed(() => currentTeam.value?.slug ?? 'default');
-const shopName = computed(() => currentTeam.value?.name || 'Faizan Mobile');
+const shopName = computed(() => currentTeam.value?.name || 'Horizon Studio');
 
 const { isCurrentOrParentUrl } = useCurrentUrl();
 

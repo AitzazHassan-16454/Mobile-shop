@@ -2,7 +2,7 @@
 import { usePage } from '@inertiajs/vue3';
 import { Smartphone } from '@lucide/vue';
 
-const name = usePage().props.name || 'Faizan Mobile';
+const name = usePage().props.name || 'Horizon Studio';
 </script>
 
 <template>
