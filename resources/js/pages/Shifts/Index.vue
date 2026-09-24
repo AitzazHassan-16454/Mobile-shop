@@ -58,7 +58,10 @@ onMounted(() => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+            visibleColumns.value = {
+                ...defaultVisibleColumns,
+                ...JSON.parse(saved),
+            };
         }
     } catch (e) {
         console.error(e);
@@ -235,7 +238,7 @@ const printShiftSlip = () => {
             <div v-if="activeShift" class="flex items-center gap-3">
                 <button
                     @click="showExpenseModal = true"
-                    class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-100"
+                    class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-600 transition hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/60"
                 >
                     <Plus class="h-4 w-4" />
                     Add Shop Expense
@@ -317,24 +320,29 @@ const printShiftSlip = () => {
                     >
                 </div>
 
-                <div class="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                <div
+                    class="rounded-xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-500/40 dark:bg-sky-950/40"
+                >
                     <span
-                        class="block text-xs font-medium tracking-wider text-sky-600 uppercase"
+                        class="block text-xs font-medium tracking-wider text-sky-600 uppercase dark:text-sky-300"
                         >Wasooli (Cash In)</span
                     >
-                    <span class="tnum mt-1 block text-xl font-bold text-sky-600"
+                    <span
+                        class="tnum mt-1 block text-xl font-bold text-sky-600 dark:text-sky-300"
                         >+ Rs
                         {{ activeShift.wasooli_cash.toLocaleString() }}</span
                     >
                 </div>
 
-                <div class="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                <div
+                    class="rounded-xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-500/40 dark:bg-rose-950/40"
+                >
                     <span
-                        class="block text-xs font-medium tracking-wider text-rose-600 uppercase"
+                        class="block text-xs font-medium tracking-wider text-rose-600 uppercase dark:text-rose-300"
                         >Shop Expenses</span
                     >
                     <span
-                        class="tnum mt-1 block text-xl font-bold text-rose-600"
+                        class="tnum mt-1 block text-xl font-bold text-rose-600 dark:text-rose-300"
                         >- Rs
                         {{ activeShift.expenses_amount.toLocaleString() }}</span
                     >
@@ -384,7 +392,7 @@ const printShiftSlip = () => {
                     <span class="text-xs text-slate-500"
                         >Udhaar (Khata) Sales:</span
                     >
-                    <span class="tnum ml-1 text-sm font-semibold text-amber-600"
+                    <span class="tnum ml-1 text-sm font-semibold text-amber-600 dark:text-amber-400"
                         >Rs
                         {{ activeShift.udhaar_sales.toLocaleString() }}</span
                     >
@@ -419,7 +427,7 @@ const printShiftSlip = () => {
                             >
                         </div>
                         <div class="flex items-center gap-4">
-                            <span class="tnum font-bold text-rose-600"
+                            <span class="tnum font-bold text-rose-600 dark:text-rose-400"
                                 >- Rs {{ exp.amount.toLocaleString() }}</span
                             >
                             <span class="text-xs text-slate-500">{{
@@ -480,7 +488,7 @@ const printShiftSlip = () => {
                     </div>
                     <p
                         v-if="openShiftForm.errors.opening_float"
-                        class="mt-1 text-xs text-rose-600"
+                        class="mt-1 text-xs text-rose-600 dark:text-rose-400"
                     >
                         {{ openShiftForm.errors.opening_float }}
                     </p>
@@ -501,7 +509,9 @@ const printShiftSlip = () => {
             class="bg-card space-y-4 rounded-2xl border border-gray-200 p-6 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)]"
         >
             <div class="flex items-center justify-between">
-                <h2 class="flex items-center gap-2 text-lg font-bold text-gray-900">
+                <h2
+                    class="flex items-center gap-2 text-lg font-bold text-gray-900"
+                >
                     <Clock class="h-5 w-5 text-[#003B7D]" />
                     Recent Shifts History
                 </h2>
@@ -514,20 +524,26 @@ const printShiftSlip = () => {
                             size="sm"
                             class="h-8 gap-1.5 text-xs font-semibold"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-[#003B7D]"
+                            />
                             <span>Columns</span>
-                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                            <span
+                                class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
+                            >
                                 {{ activeColumnCount }}/9
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-56 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -537,15 +553,19 @@ const printShiftSlip = () => {
                             v-for="(label, key) in shiftColumnLabels"
                             :key="key"
                             @click.stop="toggleShiftColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-slate-100 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none hover:bg-slate-100"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleShiftColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -558,15 +578,39 @@ const printShiftSlip = () => {
                         <tr
                             class="border-b border-gray-200 bg-gray-50 text-xs text-slate-500 uppercase"
                         >
-                            <th v-if="visibleColumns.id" class="px-4 py-3">Shift ID</th>
-                            <th v-if="visibleColumns.cashier" class="px-4 py-3">Cashier</th>
-                            <th v-if="visibleColumns.opened" class="px-4 py-3">Opened</th>
-                            <th v-if="visibleColumns.closed" class="px-4 py-3">Closed</th>
-                            <th v-if="visibleColumns.float" class="px-4 py-3">Float</th>
-                            <th v-if="visibleColumns.expected" class="px-4 py-3">Expected Cash</th>
-                            <th v-if="visibleColumns.actual" class="px-4 py-3">Actual Cash</th>
-                            <th v-if="visibleColumns.discrepancy" class="px-4 py-3">Discrepancy</th>
-                            <th v-if="visibleColumns.status" class="px-4 py-3">Status</th>
+                            <th v-if="visibleColumns.id" class="px-4 py-3">
+                                Shift ID
+                            </th>
+                            <th v-if="visibleColumns.cashier" class="px-4 py-3">
+                                Cashier
+                            </th>
+                            <th v-if="visibleColumns.opened" class="px-4 py-3">
+                                Opened
+                            </th>
+                            <th v-if="visibleColumns.closed" class="px-4 py-3">
+                                Closed
+                            </th>
+                            <th v-if="visibleColumns.float" class="px-4 py-3">
+                                Float
+                            </th>
+                            <th
+                                v-if="visibleColumns.expected"
+                                class="px-4 py-3"
+                            >
+                                Expected Cash
+                            </th>
+                            <th v-if="visibleColumns.actual" class="px-4 py-3">
+                                Actual Cash
+                            </th>
+                            <th
+                                v-if="visibleColumns.discrepancy"
+                                class="px-4 py-3"
+                            >
+                                Discrepancy
+                            </th>
+                            <th v-if="visibleColumns.status" class="px-4 py-3">
+                                Status
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -589,13 +633,22 @@ const printShiftSlip = () => {
                             >
                                 #SHIFT-{{ shift.id }}
                             </td>
-                            <td v-if="visibleColumns.cashier" class="px-4 py-3 font-medium text-gray-900">
+                            <td
+                                v-if="visibleColumns.cashier"
+                                class="px-4 py-3 font-medium text-gray-900"
+                            >
                                 {{ shift.cashier }}
                             </td>
-                            <td v-if="visibleColumns.opened" class="px-4 py-3 text-xs text-slate-500">
+                            <td
+                                v-if="visibleColumns.opened"
+                                class="px-4 py-3 text-xs text-slate-500"
+                            >
                                 {{ shift.opened_at }}
                             </td>
-                            <td v-if="visibleColumns.closed" class="px-4 py-3 text-xs text-slate-500">
+                            <td
+                                v-if="visibleColumns.closed"
+                                class="px-4 py-3 text-xs text-slate-500"
+                            >
                                 {{ shift.closed_at ?? 'Active' }}
                             </td>
                             <td
@@ -610,7 +663,10 @@ const printShiftSlip = () => {
                             >
                                 Rs {{ shift.expected_cash.toLocaleString() }}
                             </td>
-                            <td v-if="visibleColumns.actual" class="tnum px-4 py-3 font-bold text-gray-900">
+                            <td
+                                v-if="visibleColumns.actual"
+                                class="tnum px-4 py-3 font-bold text-gray-900"
+                            >
                                 {{
                                     shift.actual_cash != null
                                         ? 'Rs ' +
@@ -618,12 +674,15 @@ const printShiftSlip = () => {
                                         : '-'
                                 }}
                             </td>
-                            <td v-if="visibleColumns.discrepancy" class="px-4 py-3 text-xs font-bold">
+                            <td
+                                v-if="visibleColumns.discrepancy"
+                                class="px-4 py-3 text-xs font-bold"
+                            >
                                 <span
                                     v-if="shift.discrepancy != null"
                                     :class="[
                                         shift.discrepancy < 0
-                                            ? 'rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-600'
+                                            ? 'rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-600 dark:border-rose-500/40 dark:bg-rose-950/40 dark:text-rose-300'
                                             : shift.discrepancy > 0
                                               ? 'rounded border border-[#003B7D]/20 bg-[#003B7D]/5 px-2 py-0.5 text-[#003B7D]'
                                               : 'text-slate-500',
@@ -793,7 +852,7 @@ const printShiftSlip = () => {
                 </div>
                 <div class="flex justify-between text-xs text-slate-500">
                     <span>Shop Expenses:</span>
-                    <span class="tnum font-medium text-rose-600"
+                    <span class="tnum font-medium text-rose-600 dark:text-rose-400"
                         >- Rs
                         {{ activeShift.expenses_amount.toLocaleString() }}</span
                     >
@@ -833,7 +892,7 @@ const printShiftSlip = () => {
                     class="flex items-center justify-between rounded-xl p-3 text-sm font-semibold"
                     :class="[
                         liveDiscrepancy < 0
-                            ? 'border border-rose-200 bg-rose-50 text-rose-600'
+                            ? 'border border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/40 dark:bg-rose-950/40 dark:text-rose-300'
                             : liveDiscrepancy > 0
                               ? 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
                               : 'border border-gray-200 bg-gray-50 text-slate-600',

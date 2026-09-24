@@ -1,23 +1,21 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
-    ArrowLeftRight,
     BadgePercent,
     Boxes,
     Building2,
-    CalendarClock,
-    LayoutGrid,
-    Package,
-    Receipt,
-    RotateCcw,
-    Ruler,
-    ShoppingBag,
-    ShoppingCart,
+    CalendarDays,
+    FolderTree,
+    HardDrive,
+    LayoutDashboard,
+    ReceiptText,
+    Scale,
     SlidersHorizontal,
-    Store,
-    Tags,
-    Users,
-    Wallet,
+    Smartphone,
+    TrendingDown,
+    Undo2,
+    UsersRound,
+    WalletCards,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -33,6 +31,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import backup from '@/routes/backup';
 import type { NavGroup, NavItem } from '@/types';
 
 const page = usePage();
@@ -46,51 +45,73 @@ const teamUrl = (pathname: string) =>
         ? `/${page.props.currentTeam.slug}${pathname}`
         : pathname;
 
+const backupUrl = computed(() =>
+    page.props.currentTeam
+        ? backup.download(page.props.currentTeam.slug).url
+        : '/backup/download',
+);
+
 const dashboardNavItem = computed<NavItem>(() => ({
     title: 'Dashboard',
     href: dashboardUrl.value,
-    icon: LayoutGrid,
+    icon: LayoutDashboard,
 }));
 
 const mainNavGroups = computed<NavGroup[]>(() => [
     {
-        title: 'Dashboard',
-        icon: LayoutGrid,
+        title: 'Core',
+        icon: LayoutDashboard,
         items: [
-            { title: 'Customers', href: teamUrl('/customers'), icon: Users },
-            { title: 'Yearly Dues', href: teamUrl('/yearly-dues'), icon: CalendarClock },
+            { title: 'Customers', href: teamUrl('/customers'), icon: UsersRound },
+            {
+                title: 'Yearly Dues',
+                href: teamUrl('/yearly-dues'),
+                icon: CalendarDays,
+            },
         ],
     },
     {
-        title: 'Sales & POS',
-        icon: ShoppingCart,
+        title: 'Sales',
+        icon: ReceiptText,
         items: [
-            { title: 'Sales History & Direct Sale', href: teamUrl('/sales'), icon: ShoppingBag },
-            { title: 'Sale Returns', href: teamUrl('/sales-returns'), icon: RotateCcw },
-            { title: 'All Payments', href: teamUrl('/all-payments'), icon: Wallet },
-            { title: 'Expenses', href: teamUrl('/expenses'), icon: Receipt },
+            {
+                title: 'Sales History & Direct Sale',
+                href: teamUrl('/sales'),
+                icon: ReceiptText,
+            },
+            {
+                title: 'Sale Returns',
+                href: teamUrl('/sales-returns'),
+                icon: Undo2,
+            },
+            {
+                title: 'All Payments',
+                href: teamUrl('/all-payments'),
+                icon: WalletCards,
+            },
+            { title: 'Expenses', href: teamUrl('/expenses'), icon: TrendingDown },
         ],
     },
     {
-        title: 'Products',
+        title: 'Inventory',
         icon: Boxes,
         items: [
             {
-                title: 'Products & Stock',
-                href: teamUrl('/products'),
-                icon: Package,
+                title: 'Mobile Phones',
+                href: teamUrl('/mobile-phones'),
+                icon: Smartphone,
             },
-            { title: 'Categories', href: teamUrl('/categories'), icon: Tags },
-            { title: 'Units', href: teamUrl('/units'), icon: Ruler },
+            {
+                title: 'Accessories',
+                href: teamUrl('/products'),
+                icon: Boxes,
+            },
+            { title: 'Categories', href: teamUrl('/categories'), icon: FolderTree },
+            { title: 'Units', href: teamUrl('/units'), icon: Scale },
             {
                 title: 'Stock Adjustments',
                 href: teamUrl('/stock-adjustments'),
                 icon: SlidersHorizontal,
-            },
-            {
-                title: 'Stock Transfers',
-                href: teamUrl('/stock-transfers'),
-                icon: ArrowLeftRight,
             },
             {
                 title: 'Discounts',
@@ -100,35 +121,40 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         ],
     },
     {
-        title: 'Purchases',
-        icon: Store,
+        title: 'Management',
+        icon: Building2,
         items: [
             {
                 title: 'Suppliers',
                 href: teamUrl('/suppliers'),
                 icon: Building2,
             },
+            {
+                title: 'Local Backup',
+                href: backupUrl.value,
+                icon: HardDrive,
+                external: true,
+            },
         ],
     },
 ]);
-
 </script>
 
 <template>
     <Sidebar
         collapsible="icon"
         variant="sidebar"
-        class="text-sidebar-foreground border-r border-white/12 bg-[#002654]/95 dark:bg-[#090d16] dark:border-white/10 shadow-[8px_0_36px_rgba(0,18,51,0.25)] dark:shadow-[8px_0_36px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+        class="text-sidebar-foreground border-r border-white/12 bg-[#002654]/95 shadow-[8px_0_36px_rgba(0,18,51,0.25)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#090d16] dark:shadow-[8px_0_36px_rgba(0,0,0,0.5)]"
     >
-        <SidebarHeader class="relative bg-transparent px-3 py-3">
+        <SidebarHeader class="relative bg-transparent p-2.5 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:py-3">
             <SidebarMenu>
-                <SidebarMenuItem>
+                <SidebarMenuItem class="flex justify-center">
                     <SidebarMenuButton
                         size="lg"
                         as-child
-                        class="bg-transparent hover:bg-transparent"
+                        class="bg-transparent hover:bg-transparent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0"
                     >
-                        <Link :href="dashboardUrl" class="w-full">
+                        <Link :href="dashboardUrl" class="w-full flex items-center justify-center">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
@@ -136,13 +162,9 @@ const mainNavGroups = computed<NavGroup[]>(() => [
             </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent class="no-scrollbar relative bg-transparent px-2 py-3">
+        <SidebarContent class="no-scrollbar relative bg-transparent px-2 py-3 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2">
             <NavMain :items="mainNavGroups" :leading="dashboardNavItem" />
         </SidebarContent>
-
-        <SidebarFooter class="relative bg-transparent p-2">
-            <NavUser />
-        </SidebarFooter>
     </Sidebar>
     <slot />
 </template>

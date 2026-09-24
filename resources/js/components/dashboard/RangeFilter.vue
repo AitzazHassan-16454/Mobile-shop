@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { CalendarDays, CalendarRange, Check, X } from '@lucide/vue';
+import { ChevronDown, X } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
-import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
 const props = defineProps<{
@@ -12,7 +11,7 @@ const props = defineProps<{
     end?: string | null;
 }>();
 
-const presets: { value: string; label: string }[] = [
+const presets = [
     { value: 'today', label: 'Today' },
     { value: 'yesterday', label: 'Yesterday' },
     { value: 'this_week', label: 'This Week' },
@@ -20,27 +19,30 @@ const presets: { value: string; label: string }[] = [
     { value: 'this_month', label: 'This Month' },
     { value: 'last_month', label: 'Last Month' },
     { value: 'this_year', label: 'This Year' },
+    { value: 'last_year', label: 'Last Year' },
     { value: 'all_time', label: 'All Time' },
+    { value: 'custom', label: 'Custom' },
 ];
 
-const customShortcuts = [
-    { label: 'Last 7 Days', days: 7 },
-    { label: 'Last 14 Days', days: 14 },
-    { label: 'Last 30 Days', days: 30 },
-    { label: 'Last 90 Days', days: 90 },
-];
-
+const selectedPreset = ref(props.preset ?? 'this_month');
 const from = ref(props.start ?? '');
 const to = ref(props.end ?? '');
-const showCustom = ref(props.preset === 'custom');
-const isCustomActive = computed(() => props.preset === 'custom');
+const showCustomBox = ref(props.preset === 'custom');
+const showDatePickerModal = ref(false);
 
 watch(
-    () => [props.preset, props.start, props.end],
-    ([preset, start, end]) => {
-        showCustom.value = preset === 'custom';
-        from.value = start ?? '';
-        to.value = end ?? '';
+    () => props.preset,
+    (newPreset) => {
+        selectedPreset.value = newPreset;
+        showCustomBox.value = newPreset === 'custom';
+    },
+);
+
+watch(
+    () => [props.start, props.end],
+    ([newStart, newEnd]) => {
+        from.value = newStart ?? '';
+        to.value = newEnd ?? '';
     },
 );
 
@@ -51,240 +53,142 @@ function toISODate(d: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-function visit(preset: string, extra: Record<string, string> = {}) {
+function formatDDMMYYYY(isoDateStr: string): string {
+    if (!isoDateStr) return '';
+    const parts = isoDateStr.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return isoDateStr;
+}
+
+function navigate(rangeVal: string, extra: Record<string, string> = {}) {
     router.get(
         dashboard.url(props.teamSlug),
-        { range: preset, ...extra },
+        { range: rangeVal, ...extra },
         {
-            preserveState: true,
+            preserveState: false,
             preserveScroll: true,
             replace: true,
         },
     );
 }
 
-function select(preset: string) {
-    if (preset === 'custom') return;
-    showCustom.value = false;
-    visit(preset);
-}
+function onPresetChange(e: Event) {
+    const val = (e.target as HTMLSelectElement).value;
+    selectedPreset.value = val;
 
-function toggleCustom() {
-    showCustom.value = !showCustom.value;
-    if (showCustom.value && (!from.value || !to.value)) {
-        const now = new Date();
-        to.value = toISODate(now);
-        const past = new Date();
-        past.setDate(now.getDate() - 29);
-        from.value = toISODate(past);
+    if (val === 'custom') {
+        showCustomBox.value = true;
+        showDatePickerModal.value = true;
+        if (!from.value || !to.value) {
+            const now = new Date();
+            to.value = toISODate(now);
+            const past = new Date();
+            past.setDate(now.getDate() - 6);
+            from.value = toISODate(past);
+        }
+    } else {
+        showCustomBox.value = false;
+        showDatePickerModal.value = false;
+        navigate(val);
     }
 }
 
-function cancelCustom() {
-    showCustom.value = false;
+function applyCustomDates() {
+    if (!from.value || !to.value) return;
+    showDatePickerModal.value = false;
+    navigate('custom', { from: from.value, to: to.value });
 }
 
-function applyCustom() {
-    const params: Record<string, string> = {};
-    if (from.value) params.from = from.value;
-    if (to.value) params.to = to.value;
-    visit('custom', params);
+function clearCustom() {
+    showCustomBox.value = false;
+    showDatePickerModal.value = false;
+    selectedPreset.value = 'this_month';
+    navigate('this_month');
 }
 
-function applyShortcut(days: number) {
-    const now = new Date();
-    const past = new Date();
-    past.setDate(now.getDate() - (days - 1));
-    from.value = toISODate(past);
-    to.value = toISODate(now);
-    applyCustom();
-}
-
-const rangeLabel = computed(() => {
-    if (!props.start || !props.end) {
-        if (props.preset === 'all_time') return 'All Time Records';
-        return null;
-    }
-    const format = (date: string) =>
-        new Intl.DateTimeFormat('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-        }).format(new Date(`${date}T00:00:00`));
-
-    if (props.start === props.end) {
-        return format(props.start);
-    }
-    return `${format(props.start)} – ${format(props.end)}`;
+const customDisplayString = computed(() => {
+    if (!from.value || !to.value) return 'Select Date Range';
+    return `${formatDDMMYYYY(from.value)} to ${formatDDMMYYYY(to.value)}`;
 });
-
-const presetLabel = computed(
-    () =>
-        presets.find((p) => p.value === props.preset)?.label ?? 'Custom Range',
-);
 </script>
 
 <template>
-    <section class="glass-card rounded-3xl p-4 sm:p-5">
-        <!-- Header row -->
+    <div class="flex items-center gap-2 relative">
+        <!-- Custom Date Range Display Box (Image 3: 20-09-2026 to 26-09-2026 ✕) -->
         <div
-            class="flex flex-col gap-3 border-b border-black/[0.05] pb-3.5 sm:flex-row sm:items-center sm:justify-between"
+            v-if="showCustomBox"
+            class="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs transition hover:border-[#003B7D]"
         >
-            <div class="flex items-center gap-3">
-                <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#003B7D]/18 to-[#003B7D]/5 text-[#003B7D] shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.04)] ring-1 ring-[#003B7D]/20 ring-inset"
-                >
-                    <CalendarDays class="h-5 w-5" />
+            <span
+                @click="showDatePickerModal = !showDatePickerModal"
+                class="cursor-pointer font-mono tracking-tight hover:text-[#003B7D]"
+            >
+                {{ customDisplayString }}
+            </span>
+            <button
+                type="button"
+                @click="clearCustom"
+                class="text-slate-400 hover:text-rose-600 focus:outline-none"
+                title="Clear custom range"
+            >
+                <X class="h-3.5 w-3.5" />
+            </button>
+        </div>
+
+        <!-- Single Dropdown Select Box (Matching Image 2 & Screenshot) -->
+        <div class="relative">
+            <select
+                :value="selectedPreset"
+                @change="onPresetChange"
+                class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 pr-8 text-xs font-bold text-slate-800 shadow-2xs hover:border-[#003B7D] focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D] cursor-pointer appearance-none min-w-[110px]"
+            >
+                <option v-for="opt in presets" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                </option>
+            </select>
+            <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+        </div>
+
+        <!-- Custom Date Range Picker Dropdown Modal -->
+        <div
+            v-if="showCustomBox && showDatePickerModal"
+            class="absolute top-full right-0 z-40 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xl"
+        >
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
+                <span class="text-xs font-bold text-slate-800">Select Custom Dates</span>
+                <button @click="showDatePickerModal = false" class="text-slate-400 hover:text-slate-600">
+                    <X class="h-3.5 w-3.5" />
+                </button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] font-bold text-slate-600 block mb-1">From Date:</label>
+                    <input
+                        type="date"
+                        v-model="from"
+                        class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-[#003B7D]"
+                    />
                 </div>
                 <div>
-                    <h2
-                        class="text-lg font-black tracking-tight text-slate-900"
-                    >
-                        Reporting Period
-                    </h2>
-                    <p class="text-xs text-slate-500">
-                        Choose the window for the earnings and graph below
-                    </p>
-                </div>
-            </div>
-
-            <!-- Active range badge -->
-            <div class="flex items-center gap-2 self-start sm:self-auto">
-                <div
-                    class="glass-pill inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-[#003B7D]"
-                >
-                    <span
-                        class="flex h-2 w-2 animate-pulse rounded-full bg-[#003B7D]"
+                    <label class="text-[11px] font-bold text-slate-600 block mb-1">To Date:</label>
+                    <input
+                        type="date"
+                        v-model="to"
+                        class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:border-[#003B7D]"
                     />
-                    <span class="font-black text-[#003B7D]">{{
-                        presetLabel
-                    }}</span>
-                    <span v-if="rangeLabel" class="text-slate-300">|</span>
-                    <span
-                        v-if="rangeLabel"
-                        class="tnum font-medium text-slate-700"
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button
+                        type="button"
+                        @click="applyCustomDates"
+                        class="rounded-lg bg-[#003B7D] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-[#002752]"
                     >
-                        {{ rangeLabel }}
-                    </span>
+                        Apply Filter
+                    </button>
                 </div>
             </div>
         </div>
-
-        <!-- Presets bar -->
-        <div class="pt-3.5">
-            <div
-                class="glass-segmented-track flex flex-wrap items-center gap-1.5 rounded-2xl p-1.5"
-            >
-                <button
-                    v-for="presetItem in presets"
-                    :key="presetItem.value"
-                    type="button"
-                    @click="select(presetItem.value)"
-                    :class="
-                        cn(
-                            'rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-150',
-                            props.preset === presetItem.value && !isCustomActive
-                                ? 'bg-[#003B7D] text-white shadow-[0_4px_14px_rgba(0,59,125,0.35),inset_0_1px_1px_rgba(255,255,255,0.35)]'
-                                : 'text-slate-600 hover:bg-white/80 hover:text-[#003B7D] hover:shadow-xs',
-                        )
-                    "
-                >
-                    {{ presetItem.label }}
-                </button>
-
-                <button
-                    type="button"
-                    @click="toggleCustom"
-                    :class="
-                        cn(
-                            'inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-150',
-                            isCustomActive || showCustom
-                                ? 'bg-[#003B7D] text-white shadow-[0_4px_14px_rgba(0,59,125,0.35),inset_0_1px_1px_rgba(255,255,255,0.35)]'
-                                : 'text-slate-600 hover:bg-white/80 hover:text-[#003B7D] hover:shadow-xs',
-                        )
-                    "
-                >
-                    <CalendarRange class="h-3.5 w-3.5" />
-                    <span>Custom…</span>
-                </button>
-            </div>
-
-            <!-- Custom date range drawer -->
-            <div
-                v-if="showCustom"
-                class="mt-3.5 rounded-2xl border border-white/85 bg-white/70 p-4 shadow-[inset_0_1px_1.5px_rgba(255,255,255,1),0_10px_30px_rgba(0,25,70,0.06)] backdrop-blur-xl"
-            >
-                <div
-                    class="flex flex-col gap-3 border-b border-black/[0.05] pb-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                    <div class="flex items-center gap-2">
-                        <CalendarRange class="h-4 w-4 text-[#003B7D]" />
-                        <span class="text-xs font-bold text-slate-800"
-                            >Custom Date Range</span
-                        >
-                    </div>
-
-                    <!-- Quick shortcut pills -->
-                    <div class="flex flex-wrap items-center gap-1.5">
-                        <span class="text-[11px] font-semibold text-slate-400"
-                            >Quick pick:</span
-                        >
-                        <button
-                            v-for="shortcut in customShortcuts"
-                            :key="shortcut.label"
-                            type="button"
-                            @click="applyShortcut(shortcut.days)"
-                            class="rounded-lg border border-white/80 bg-white/80 px-2.5 py-1 text-[11px] font-bold text-slate-600 shadow-xs transition hover:border-[#003B7D]/40 hover:bg-white hover:text-[#003B7D]"
-                        >
-                            {{ shortcut.label }}
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Date Inputs and Apply button -->
-                <div class="flex flex-wrap items-center gap-3 pt-3">
-                    <div class="flex items-center gap-2">
-                        <label class="text-xs font-bold text-slate-600"
-                            >From:</label
-                        >
-                        <input
-                            type="date"
-                            v-model="from"
-                            class="rounded-xl border border-white/90 bg-white/85 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md transition outline-none focus:border-[#003B7D] focus:ring-2 focus:ring-[#003B7D]/15"
-                        />
-                    </div>
-                    <span class="text-xs font-bold text-slate-400">to</span>
-                    <div class="flex items-center gap-2">
-                        <label class="text-xs font-bold text-slate-600"
-                            >To:</label
-                        >
-                        <input
-                            type="date"
-                            v-model="to"
-                            class="rounded-xl border border-white/90 bg-white/85 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] backdrop-blur-md transition outline-none focus:border-[#003B7D] focus:ring-2 focus:ring-[#003B7D]/15"
-                        />
-                    </div>
-
-                    <div class="flex items-center gap-2 sm:ml-auto">
-                        <button
-                            type="button"
-                            @click="applyCustom"
-                            class="inline-flex items-center gap-1.5 rounded-xl bg-[#003B7D] px-4 py-2 text-xs font-bold text-white shadow-[0_4px_16px_rgba(0,59,125,0.3),inset_0_1px_1px_rgba(255,255,255,0.3)] transition hover:bg-[#002b5c]"
-                        >
-                            <Check class="h-3.5 w-3.5" />
-                            Apply Filter
-                        </button>
-                        <button
-                            type="button"
-                            @click="cancelCustom"
-                            class="inline-flex items-center gap-1 rounded-xl border border-white/80 bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 shadow-xs transition hover:bg-white hover:text-slate-900"
-                        >
-                            <X class="h-3.5 w-3.5" />
-                            Close
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    </div>
 </template>

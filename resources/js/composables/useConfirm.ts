@@ -12,7 +12,7 @@ export interface AlertOptions {
     title?: string;
     message: string;
     confirmText?: string;
-    variant?: 'warning' | 'info' | 'error' | 'success';
+    variant?: 'destructive' | 'warning' | 'info' | 'success';
 }
 
 const isOpen = ref(false);

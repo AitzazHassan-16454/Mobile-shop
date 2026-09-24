@@ -58,7 +58,10 @@ const defaultVisibleColumns = {
 
 const visibleColumns = ref({ ...defaultVisibleColumns });
 
-const usedPhoneColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+const usedPhoneColumnLabels: Record<
+    keyof typeof defaultVisibleColumns,
+    string
+> = {
     voucher: 'Voucher # & Date',
     seller: 'Seller Identification',
     device: 'Device & IMEIs',
@@ -74,7 +77,10 @@ onMounted(() => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+            visibleColumns.value = {
+                ...defaultVisibleColumns,
+                ...JSON.parse(saved),
+            };
         }
         const savedPerPage = localStorage.getItem(PER_PAGE_STORAGE_KEY);
         if (savedPerPage && Number(savedPerPage) !== perPage.value) {
@@ -374,9 +380,11 @@ const formatCurrency = (val: number | string) => {
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Legal Protection</span
                     >
-                    <FileCheck class="h-5 w-5 text-sky-600" />
+                    <FileCheck class="h-5 w-5 text-sky-600 dark:text-sky-400" />
                 </div>
-                <div class="mt-2 text-2xl font-bold text-sky-600">
+                <div
+                    class="mt-2 text-2xl font-bold text-sky-600 dark:text-sky-400"
+                >
                     100% Signed
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
@@ -392,7 +400,7 @@ const formatCurrency = (val: number | string) => {
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Stock Auto-Inflow</span
                     >
-                    <CheckCircle class="h-5 w-5 text-sky-600" />
+                    <CheckCircle class="h-5 w-5 text-sky-600 dark:text-sky-400" />
                 </div>
                 <div class="mt-2 text-2xl font-bold text-gray-900">Active</div>
                 <div class="mt-1 text-xs text-slate-500">
@@ -426,18 +434,22 @@ const formatCurrency = (val: number | string) => {
                     >
                         <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
                         <span>Columns</span>
-                        <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                        <span
+                            class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
+                        >
                             {{ activeColumnCount }}/6
                         </span>
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
-                    <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                <DropdownMenuContent align="end" class="w-56 space-y-1 p-2">
+                    <DropdownMenuLabel
+                        class="flex items-center justify-between px-1 py-1 text-xs font-bold"
+                    >
                         <span>Table Columns</span>
                         <button
                             type="button"
                             @click="resetColumns"
-                            class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                            class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                         >
                             Reset All
                         </button>
@@ -447,15 +459,19 @@ const formatCurrency = (val: number | string) => {
                         v-for="(label, key) in usedPhoneColumnLabels"
                         :key="key"
                         @click.stop="toggleUsedPhoneColumn(key)"
-                        class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-gray-100 cursor-pointer select-none transition-colors"
+                        class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                         <span>{{ label }}</span>
                         <input
                             type="checkbox"
-                            :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                            :checked="
+                                visibleColumns[
+                                    key as keyof typeof visibleColumns
+                                ]
+                            "
                             @change="toggleUsedPhoneColumn(key)"
                             @click.stop
-                            class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                            class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D]"
                         />
                     </div>
                 </DropdownMenuContent>
@@ -488,12 +504,27 @@ const formatCurrency = (val: number | string) => {
                         class="bg-gray-50 font-semibold text-slate-500 uppercase"
                     >
                         <tr>
-                            <th v-if="visibleColumns.voucher" class="px-4 py-3">Voucher # & Date</th>
-                            <th v-if="visibleColumns.seller" class="px-4 py-3">Seller Identification</th>
-                            <th v-if="visibleColumns.device" class="px-4 py-3">Device & IMEIs</th>
-                            <th v-if="visibleColumns.cost" class="px-4 py-3">Purchase Cost</th>
-                            <th v-if="visibleColumns.legal" class="px-4 py-3">Legal Status</th>
-                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right">Actions</th>
+                            <th v-if="visibleColumns.voucher" class="px-4 py-3">
+                                Voucher # & Date
+                            </th>
+                            <th v-if="visibleColumns.seller" class="px-4 py-3">
+                                Seller Identification
+                            </th>
+                            <th v-if="visibleColumns.device" class="px-4 py-3">
+                                Device & IMEIs
+                            </th>
+                            <th v-if="visibleColumns.cost" class="px-4 py-3">
+                                Purchase Cost
+                            </th>
+                            <th v-if="visibleColumns.legal" class="px-4 py-3">
+                                Legal Status
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right"
+                            >
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -511,7 +542,10 @@ const formatCurrency = (val: number | string) => {
                             :key="item.id"
                             class="transition-colors hover:bg-gray-50"
                         >
-                            <td v-if="visibleColumns.voucher" class="px-4 py-3 font-mono">
+                            <td
+                                v-if="visibleColumns.voucher"
+                                class="px-4 py-3 font-mono"
+                            >
                                 <div class="text-sm font-bold text-[#003B7D]">
                                     {{ item.voucher_no }}
                                 </div>
@@ -582,7 +616,10 @@ const formatCurrency = (val: number | string) => {
                                 </span>
                             </td>
 
-                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right"
+                            >
                                 <div
                                     class="flex items-center justify-end gap-1"
                                 >
@@ -602,7 +639,7 @@ const formatCurrency = (val: number | string) => {
                                         variant="ghost"
                                         @click="deletePurchase(item)"
                                         title="Delete Purchase Log"
-                                        class="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-600"
+                                        class="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-600 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                     </Button>

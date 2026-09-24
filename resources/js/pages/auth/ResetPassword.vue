@@ -45,7 +45,7 @@ const inputEmail = ref(props.email);
                     name="email"
                     autocomplete="email"
                     v-model="inputEmail"
-                    class="mt-1 block w-full border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
+                    class="mt-1 block w-full border-gray-300 text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
                     readonly
                 />
                 <InputError :message="errors.email" class="mt-2" />
@@ -59,7 +59,7 @@ const inputEmail = ref(props.email);
                     id="password"
                     name="password"
                     autocomplete="new-password"
-                    class="mt-1 block w-full border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
+                    class="mt-1 block w-full border-gray-300 text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
                     autofocus
                     placeholder="Password"
                     :passwordrules="passwordRules"
@@ -78,7 +78,7 @@ const inputEmail = ref(props.email);
                     id="password_confirmation"
                     name="password_confirmation"
                     autocomplete="new-password"
-                    class="mt-1 block w-full border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
+                    class="mt-1 block w-full border-gray-300 text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
                     placeholder="Confirm password"
                     :passwordrules="passwordRules"
                 />

@@ -18,7 +18,6 @@ import type { Component } from 'vue';
 import LineChart from '@/components/dashboard/LineChart.vue';
 import RangeFilter from '@/components/dashboard/RangeFilter.vue';
 import StatsCard from '@/components/dashboard/StatsCard.vue';
-import type { StatsTone } from '@/components/dashboard/StatsCard.vue';
 import PendingInvitationsModal from '@/components/PendingInvitationsModal.vue';
 import backup from '@/routes/backup';
 import pos from '@/routes/pos';
@@ -105,8 +104,6 @@ interface RecentSaleItem {
     created_at: string;
 }
 
-type Tone = StatsTone;
-
 const props = defineProps<{
     pendingInvitations?: DashboardInvitation[];
     metrics?: DashboardMetrics;
@@ -137,73 +134,117 @@ const backupDownloadUrl = computed(
     () => backup.download(currentTeamSlug.value).url,
 );
 
-const earningsCards = computed(() => {
+import type { IconTone, ValueColor } from '@/components/dashboard/StatsCard.vue';
+
+interface MetricCard {
+    label: string;
+    value: number;
+    sublabel?: string;
+    iconTone: IconTone;
+    valueColor: ValueColor;
+}
+
+const statsCards = computed<MetricCard[]>(() => {
     const stats = props.posStats ?? ({} as PosStats);
+
+    const purchase = stats.used_phone_buying ?? 0;
+    const purchaseDue = stats.purchase_due ?? 0;
+    const purchasePayment = Math.max(0, purchase - purchaseDue);
 
     return [
         {
-            label: 'Total Sales',
-            value: stats.total_sale,
-            tone: 'brand',
-            icon: ShoppingCart,
-            sublabel: `Rs ${(stats.total_sale / Math.max(stats.sales_count, 1)).toLocaleString(undefined, { maximumFractionDigits: 0 })} per sale`,
+            label: 'Total Purchase',
+            value: purchase,
+            iconTone: 'blue',
+            valueColor: 'blue',
         },
         {
-            label: 'Sales Count',
-            value: stats.sales_count,
-            tone: 'slate',
-            icon: Receipt,
-            sublabel: 'Invoices in range',
+            label: 'Total Purchase Returned',
+            value: 0,
+            iconTone: 'blue',
+            valueColor: 'blue',
         },
         {
-            label: 'Payment Received',
-            value: stats.payment_received,
-            tone: 'sky',
-            icon: Banknote,
-            sublabel: 'Collected from sales',
+            label: 'Total Purchase Payment',
+            value: purchasePayment,
+            iconTone: 'green',
+            valueColor: 'green',
         },
         {
-            label: 'Gross Profit',
-            value: stats.gross_profit,
-            tone: 'emerald',
-            icon: TrendingUp,
-            sublabel: 'After product cost',
+            label: 'Total Sale',
+            value: stats.total_sale ?? 0,
+            iconTone: 'blue',
+            valueColor: 'blue',
         },
         {
-            label: 'Net Profit',
-            value: stats.net_profit,
-            tone: 'fuchsia',
-            icon: Wallet,
-            sublabel: 'After expenses + repairs',
+            label: 'Total Sale Returned',
+            value: 0,
+            iconTone: 'blue',
+            valueColor: 'blue',
         },
         {
             label: 'Total Expense',
-            value: stats.total_expense,
-            tone: 'rose',
-            icon: Coins,
-            sublabel: 'Shop running costs',
+            value: stats.total_expense ?? 0,
+            iconTone: 'blue',
+            valueColor: 'blue',
+        },
+        {
+            label: 'Gross Profit',
+            value: stats.gross_profit ?? 0,
+            sublabel: 'Sale - Purchase - Discount',
+            iconTone: 'green',
+            valueColor: 'green',
+        },
+        {
+            label: 'Net Profit',
+            value: stats.net_profit ?? 0,
+            sublabel: 'Gross Profit - Expenses',
+            iconTone: 'green',
+            valueColor: 'green',
+        },
+        {
+            label: 'Total Payment Received',
+            value: stats.payment_received ?? 0,
+            iconTone: 'green',
+            valueColor: 'green',
+        },
+        {
+            label: 'Total Purchase Due',
+            value: purchaseDue,
+            iconTone: 'red',
+            valueColor: 'red',
+        },
+        {
+            label: 'Total Sale Due',
+            value: stats.sale_due ?? 0,
+            iconTone: 'red',
+            valueColor: 'red',
+        },
+        {
+            label: 'Opening Balance Dues',
+            value: 0,
+            iconTone: 'red',
+            valueColor: 'red',
+        },
+        {
+            label: 'Total Due',
+            value: stats.total_due ?? 0,
+            iconTone: 'red',
+            valueColor: 'red',
+        },
+        {
+            label: 'Total Advance',
+            value: stats.total_advance ?? 0,
+            iconTone: 'green',
+            valueColor: 'green',
         },
         {
             label: 'Total Discount',
-            value: stats.total_discount,
-            tone: 'amber',
-            icon: Percent,
-            sublabel: 'Given on bills',
+            value: stats.total_discount ?? 0,
+            iconTone: 'red',
+            valueColor: 'red',
         },
-        {
-            label: 'Repair Revenue',
-            value: stats.repair_revenue,
-            tone: 'sky',
-            icon: Wrench,
-            sublabel: `Rs ${stats.repair_profit.toLocaleString()} profit`,
-        },
-    ] as {
-        label: string;
-        value: number;
-        tone: Tone;
-        icon: Component;
-        sublabel: string;
-    }[];
+    ];
 });
 
 const chartSeries = computed(() => {
@@ -217,9 +258,9 @@ const chartSeries = computed(() => {
 
     return [
         { name: 'Sales', color: '#003B7D', data: graph.sales },
-        { name: 'Payments', color: '#22d3ee', data: graph.payments },
-        { name: 'Profit', color: '#34d399', data: graph.profit },
-        { name: 'Expenses', color: '#f43f5e', data: graph.expenses },
+        { name: 'Payments', color: '#0284c7', data: graph.payments },
+        { name: 'Profit', color: '#059669', data: graph.profit },
+        { name: 'Expenses', color: '#e11d48', data: graph.expenses },
     ];
 });
 
@@ -253,117 +294,44 @@ function formatGraphLabel(label: string): string {
     />
 
     <div class="mx-0 w-full max-w-none space-y-5 p-4 md:p-6">
-        <!-- Page header -->
-        <div
-            class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
-        >
-            <div>
-                <h1
-                    class="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-900"
-                >
-                    <span
-                        class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003B7D] to-[#002752] text-white shadow-[0_10px_25px_rgba(0,59,125,0.35),inset_0_1px_1.5px_rgba(255,255,255,0.4)] ring-1 ring-white/20"
-                    >
-                        <LayoutGrid class="h-5 w-5" />
-                    </span>
-                    <span>Store Dashboard</span>
-                </h1>
-                <p class="mt-1.5 text-sm text-slate-500">
-                    Shop earnings and financial performance for the selected
-                    period
-                </p>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-3">
-                <a
-                    :href="backupDownloadUrl"
-                    class="glass-pill inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-700 shadow-xs transition hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-md"
-                >
-                    <Database class="h-4 w-4 text-[#003B7D]" />
-                    Local Backup
-                </a>
-                <Link
-                    :href="pos.index(currentTeamSlug).url"
-                    class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#003B7D] to-[#0051a8] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_25px_rgba(0,59,125,0.35),inset_0_1px_1.5px_rgba(255,255,255,0.35)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:brightness-105"
-                >
-                    <ShoppingCart class="h-4 w-4" />
-                    Open POS
-                </Link>
-            </div>
+        <!-- Standalone Dashboard Title Header with normal spacing -->
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                Dashboard
+            </h1>
         </div>
 
-        <!-- Reporting period -->
-        <RangeFilter
-            :team-slug="currentTeamSlug"
-            :preset="filters?.preset ?? 'this_month'"
-            :start="filters?.start ?? null"
-            :end="filters?.end ?? null"
-        />
+        <!-- 15 Stats Cards Section with RangeFilter right above the boxes -->
+        <section class="space-y-3">
+            <div class="flex items-center justify-end">
+                <!-- Date Range Filter Select Box (Reporting Period) -->
+                <RangeFilter
+                    :team-slug="currentTeamSlug"
+                    :preset="filters?.preset ?? 'this_month'"
+                    :start="filters?.start ?? null"
+                    :end="filters?.end ?? null"
+                />
+            </div>
 
-        <!-- Store earnings -->
-        <section>
-            <header class="mb-3 flex items-end justify-between gap-3">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003B7D]/18 to-[#003B7D]/5 text-[#003B7D] shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.04)] ring-1 ring-[#003B7D]/20 ring-inset"
-                    >
-                        <TrendingUp class="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h2
-                            class="text-lg font-black tracking-tight text-slate-900"
-                        >
-                            Store Earnings
-                        </h2>
-                        <p class="text-xs text-slate-500">
-                            Revenue, profit and cash movement for the selected
-                            period
-                        </p>
-                    </div>
-                </div>
-                <Link
-                    :href="reports.index(currentTeamSlug).url"
-                    class="glass-pill inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-[#003B7D] transition hover:bg-white hover:shadow-xs"
-                >
-                    <BarChart3 class="h-3.5 w-3.5" />
-                    Detailed reports
-                </Link>
-            </header>
             <div
-                class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
+                class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
             >
                 <StatsCard
-                    v-for="card in earningsCards"
+                    v-for="card in statsCards"
                     :key="card.label"
                     :label="card.label"
                     :value="card.value"
                     :sublabel="card.sublabel"
-                    :tone="card.tone"
-                    :icon="card.icon"
+                    :icon-tone="card.iconTone"
+                    :value-color="card.valueColor"
                 />
             </div>
         </section>
 
-        <!-- Financial overview -->
-        <section class="glass-card rounded-3xl p-4 sm:p-5">
-            <header class="mb-4 flex items-center gap-3">
-                <div
-                    class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003B7D]/18 to-[#003B7D]/5 text-[#003B7D] shadow-[inset_0_1px_1.5px_rgba(255,255,255,0.7),0_4px_12px_rgba(0,0,0,0.04)] ring-1 ring-[#003B7D]/20 ring-inset"
-                >
-                    <BarChart3 class="h-5 w-5" />
-                </div>
-                <div>
-                    <h2
-                        class="text-lg font-black tracking-tight text-slate-900"
-                    >
-                        Financial Overview
-                    </h2>
-                    <p class="text-xs text-slate-500">
-                        Sales, collections, profit and expenses trend across the
-                        period
-                    </p>
-                </div>
-            </header>
+        <!-- Financial Overview Chart -->
+        <section
+            class="glass-card rounded-3xl p-5 sm:p-7 border border-slate-200/80 bg-white/95 shadow-[0_16px_40px_rgba(0,35,90,0.06)] backdrop-blur-xl"
+        >
             <LineChart
                 :labels="graph?.labels ?? []"
                 :series="chartSeries"

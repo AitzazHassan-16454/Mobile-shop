@@ -66,7 +66,7 @@ defineProps<{
                     :tabindex="1"
                     autocomplete="username"
                     placeholder="Username"
-                    class="h-12 border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
+                    class="h-12 border-gray-300 text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60"
                 />
                 <InputError :message="errors.name" />
             </div>
@@ -94,7 +94,7 @@ defineProps<{
                     :tabindex="2"
                     autocomplete="current-password"
                     placeholder="Password"
-                    class="h-12 border-gray-300 bg-[#F7F7F7] text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60 [[&_button]_button]:text-gray-500"
+                    class="h-12 border-gray-300 text-gray-800 focus-visible:border-gray-500 focus-visible:ring-gray-300/60 [[&_button]_button]:text-gray-500"
                 />
                 <InputError :message="errors.password" />
             </div>

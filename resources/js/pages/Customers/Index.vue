@@ -459,7 +459,7 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
         >
             <div>
                 <h1
-                    class="text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl"
+                    class="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl dark:text-white"
                 >
                     Customers
                 </h1>
@@ -480,7 +480,8 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                     variant="outline"
                     class="gap-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import / Export
+                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import /
+                    Export
                 </Button>
             </div>
         </div>
@@ -504,13 +505,15 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
             <div
                 class="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20"
             >
-                <div class="flex items-center justify-between text-amber-800">
+                <div class="flex items-center justify-between text-amber-800 dark:text-amber-300">
                     <span class="text-xs font-semibold"
                         >Total Udhaar (Receivables)</span
                     >
-                    <ArrowDownLeft class="h-4 w-4 text-amber-600" />
+                    <ArrowDownLeft class="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
-                <div class="mt-2 text-2xl font-bold text-amber-600">
+                <div
+                    class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"
+                >
                     {{ money(summary.total_receivables) }}
                 </div>
             </div>
@@ -518,13 +521,15 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
             <div
                 class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/20"
             >
-                <div class="flex items-center justify-between text-emerald-800">
+                <div class="flex items-center justify-between text-emerald-800 dark:text-emerald-300">
                     <span class="text-xs font-semibold"
                         >Total Advance Deposits</span
                     >
-                    <ArrowUpRight class="h-4 w-4 text-emerald-600" />
+                    <ArrowUpRight class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div class="mt-2 text-2xl font-bold text-emerald-600">
+                <div
+                    class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"
+                >
                     {{ money(summary.total_advances) }}
                 </div>
             </div>
@@ -532,7 +537,7 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
 
         <!-- Search & Filter Bar -->
         <div
-            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900"
         >
             <div class="relative max-w-sm flex-1">
                 <Search
@@ -553,8 +558,12 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Balances</SelectItem>
-                            <SelectItem value="has_debt">Udhaar Only</SelectItem>
-                            <SelectItem value="advance">Advance Only</SelectItem>
+                            <SelectItem value="has_debt"
+                                >Udhaar Only</SelectItem
+                            >
+                            <SelectItem value="advance"
+                                >Advance Only</SelectItem
+                            >
                             <SelectItem value="zero">Zero Balance</SelectItem>
                         </SelectContent>
                     </Select>
@@ -568,7 +577,9 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                             size="sm"
                             class="h-9 gap-1.5 text-xs text-gray-700 dark:text-gray-300"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-[#003B7D]"
+                            />
                             <span>Columns</span>
                             <span
                                 class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
@@ -577,13 +588,15 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-60 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-60 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold text-gray-900 dark:text-white"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -593,15 +606,19 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                             v-for="(label, key) in customerColumnLabels"
                             :key="key"
                             @click.stop="toggleCustomerColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 transition-colors select-none hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleCustomerColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -619,11 +636,34 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                         class="border-b border-gray-200 bg-gray-50 text-gray-600 uppercase dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
                     >
                         <tr>
-                            <th v-if="visibleColumns.name" class="px-4 py-3 font-semibold">Name</th>
-                            <th v-if="visibleColumns.phone" class="px-4 py-3 font-semibold">Phone</th>
-                            <th v-if="visibleColumns.address" class="px-4 py-3 font-semibold">Address</th>
-                            <th v-if="visibleColumns.balance" class="px-4 py-3 font-semibold">Balance</th>
-                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right font-semibold">
+                            <th
+                                v-if="visibleColumns.name"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Name
+                            </th>
+                            <th
+                                v-if="visibleColumns.phone"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Phone
+                            </th>
+                            <th
+                                v-if="visibleColumns.address"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Address
+                            </th>
+                            <th
+                                v-if="visibleColumns.balance"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Balance
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right font-semibold"
+                            >
                                 Actions
                             </th>
                         </tr>
@@ -650,19 +690,35 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                 v-if="visibleColumns.name"
                                 class="px-4 py-3 font-semibold text-gray-900 dark:text-white"
                             >
-                                <div v-if="inlineEditingCustomerId === customer.id">
+                                <div
+                                    v-if="
+                                        inlineEditingCustomerId === customer.id
+                                    "
+                                >
                                     <Input
                                         v-model="inlineCustomerForm.name"
                                         type="text"
                                         class="h-7 text-xs font-semibold"
-                                        @keydown.enter.prevent="saveInlineCustomerEdit"
-                                        @keydown.escape.prevent="cancelInlineCustomerEdit"
+                                        @keydown.enter.prevent="
+                                            saveInlineCustomerEdit
+                                        "
+                                        @keydown.escape.prevent="
+                                            cancelInlineCustomerEdit
+                                        "
                                         autofocus
                                     />
                                 </div>
-                                <div v-else class="flex items-center gap-1.5 group cursor-pointer" @click="startInlineCustomerEdit(customer)" title="Click to edit customer details inline">
+                                <div
+                                    v-else
+                                    class="group flex cursor-pointer items-center gap-1.5"
+                                    @click="startInlineCustomerEdit(customer)"
+                                    title="Click to edit customer details inline"
+                                >
                                     <span>{{ customer.name }}</span>
-                                    <button class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#003B7D]" title="Edit Customer">
+                                    <button
+                                        class="text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#003B7D]"
+                                        title="Edit Customer"
+                                    >
                                         <Edit3 class="h-3 w-3" />
                                     </button>
                                 </div>
@@ -673,13 +729,21 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                 v-if="visibleColumns.phone"
                                 class="px-4 py-3 font-mono text-gray-600 dark:text-gray-300"
                             >
-                                <div v-if="inlineEditingCustomerId === customer.id">
+                                <div
+                                    v-if="
+                                        inlineEditingCustomerId === customer.id
+                                    "
+                                >
                                     <Input
                                         v-model="inlineCustomerForm.phone"
                                         type="text"
-                                        class="h-7 text-xs font-mono"
-                                        @keydown.enter.prevent="saveInlineCustomerEdit"
-                                        @keydown.escape.prevent="cancelInlineCustomerEdit"
+                                        class="h-7 font-mono text-xs"
+                                        @keydown.enter.prevent="
+                                            saveInlineCustomerEdit
+                                        "
+                                        @keydown.escape.prevent="
+                                            cancelInlineCustomerEdit
+                                        "
                                     />
                                 </div>
                                 <span v-else>{{ customer.phone }}</span>
@@ -690,23 +754,45 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                 v-if="visibleColumns.address"
                                 class="px-4 py-3 text-gray-500 dark:text-gray-400"
                             >
-                                <div v-if="inlineEditingCustomerId === customer.id" class="flex items-center gap-1">
+                                <div
+                                    v-if="
+                                        inlineEditingCustomerId === customer.id
+                                    "
+                                    class="flex items-center gap-1"
+                                >
                                     <Input
                                         v-model="inlineCustomerForm.address"
                                         type="text"
                                         class="h-7 text-xs"
                                         placeholder="Address"
-                                        @keydown.enter.prevent="saveInlineCustomerEdit"
-                                        @keydown.escape.prevent="cancelInlineCustomerEdit"
+                                        @keydown.enter.prevent="
+                                            saveInlineCustomerEdit
+                                        "
+                                        @keydown.escape.prevent="
+                                            cancelInlineCustomerEdit
+                                        "
                                     />
-                                    <button @click="saveInlineCustomerEdit" :disabled="inlineCustomerForm.processing" class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700" title="Save Customer">
+                                    <button
+                                        @click="saveInlineCustomerEdit"
+                                        :disabled="
+                                            inlineCustomerForm.processing
+                                        "
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                        title="Save Customer"
+                                    >
                                         <Check class="h-3.5 w-3.5" />
                                     </button>
-                                    <button @click="cancelInlineCustomerEdit" class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300" title="Cancel">
+                                    <button
+                                        @click="cancelInlineCustomerEdit"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300"
+                                        title="Cancel"
+                                    >
                                         <X class="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                                <span v-else>{{ customer.address || '-' }}</span>
+                                <span v-else>{{
+                                    customer.address || '-'
+                                }}</span>
                             </td>
 
                             <td v-if="visibleColumns.balance" class="px-4 py-3">
@@ -714,11 +800,11 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                     :class="[
                                         'font-bold',
                                         Number(customer.current_balance) > 0
-                                            ? 'text-amber-600'
+                                            ? 'text-amber-600 dark:text-amber-400'
                                             : Number(customer.current_balance) <
                                                 0
-                                              ? 'text-emerald-600'
-                                              : 'text-gray-500',
+                                              ? 'text-emerald-600 dark:text-emerald-400'
+                                              : 'text-gray-500 dark:text-gray-400',
                                     ]"
                                 >
                                     {{
@@ -733,29 +819,34 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                 </span>
                                 <span
                                     v-if="Number(customer.current_balance) > 0"
-                                    class="ml-1 text-[10px] text-amber-700"
+                                    class="ml-1 text-[10px] text-amber-700 dark:text-amber-400"
                                     >(Udhaar)</span
                                 >
                                 <span
                                     v-else-if="
                                         Number(customer.current_balance) < 0
                                     "
-                                    class="ml-1 text-[10px] text-emerald-700"
+                                    class="ml-1 text-[10px] text-emerald-700 dark:text-emerald-400"
                                     >(Advance)</span
                                 >
                             </td>
 
-                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right"
+                            >
                                 <div class="flex items-center justify-end">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger as-child>
                                             <button
                                                 type="button"
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 shadow-2xs transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#003B7D]/20 data-[state=open]:bg-gray-100 data-[state=open]:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:data-[state=open]:bg-gray-700"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 shadow-2xs transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none data-[state=open]:border-gray-300 data-[state=open]:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:data-[state=open]:bg-gray-700"
                                                 title="Customer Actions"
                                             >
                                                 <MoreVertical class="h-4 w-4" />
-                                                <span class="sr-only">Customer Actions</span>
+                                                <span class="sr-only"
+                                                    >Customer Actions</span
+                                                >
                                             </button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
@@ -763,32 +854,48 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                             class="w-52 rounded-xl border border-gray-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/95"
                                         >
                                             <DropdownMenuItem
-                                                @click="openPaymentModal(customer)"
+                                                @click="
+                                                    openPaymentModal(customer)
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <Wallet class="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                <Wallet
+                                                    class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                                />
                                                 <span>Wasooli (Payment)</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
-                                                @click="openHistoryModal(customer)"
+                                                @click="
+                                                    openHistoryModal(customer)
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <History class="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                                <History
+                                                    class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+                                                />
                                                 <span>Ledger History</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 @click="openEditModal(customer)"
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <Edit3 class="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                                                <Edit3
+                                                    class="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400"
+                                                />
                                                 <span>Edit Details</span>
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator class="my-1 bg-gray-100 dark:bg-gray-800" />
+                                            <DropdownMenuSeparator
+                                                class="my-1 bg-gray-100 dark:bg-gray-800"
+                                            />
                                             <DropdownMenuItem
-                                                @click="deleteCustomer(customer)"
+                                                @click="
+                                                    deleteCustomer(customer)
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                                             >
-                                                <Trash2 class="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                                                <Trash2
+                                                    class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+                                                />
                                                 <span>Delete Customer</span>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -802,14 +909,16 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
 
             <!-- Pagination Footer with Editable Items Per Page -->
             <div
-                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
+                class="flex flex-col gap-3 border-t border-gray-200 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900/50"
             >
                 <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <span class="font-semibold text-gray-700 dark:text-gray-300">Items per page:</span>
+                    <span class="font-semibold text-gray-700 dark:text-gray-300"
+                        >Items per page:</span
+                    >
                     <select
                         v-model="perPage"
                         @change="changePerPage()"
-                        class="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-800 shadow-2xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003B7D]"
+                        class="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-800 shadow-2xs focus:ring-2 focus:ring-[#003B7D] focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     >
                         <option :value="10">10 per page</option>
                         <option :value="15">15 per page (default)</option>
@@ -823,7 +932,10 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                     <span>Total {{ customers.total }} customers</span>
                 </div>
 
-                <div v-if="customers.links && customers.links.length > 3" class="flex items-center gap-1">
+                <div
+                    v-if="customers.links && customers.links.length > 3"
+                    class="flex items-center gap-1"
+                >
                     <template v-for="(link, i) in customers.links" :key="i">
                         <Button
                             v-if="link.url"
@@ -972,7 +1084,7 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                             paymentCustomer?.name
                         }}</span>
                         &bull; Balance:
-                        <span class="font-bold text-amber-600">{{
+                        <span class="font-bold text-amber-600 dark:text-amber-400">{{
                             money(paymentCustomer?.current_balance || 0)
                         }}</span>
                     </DialogDescription>
@@ -1125,8 +1237,8 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                     :class="[
                                         'p-2.5 text-right font-bold',
                                         item.type === 'payment'
-                                            ? 'text-emerald-600'
-                                            : 'text-amber-600',
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-amber-600 dark:text-amber-400',
                                     ]"
                                 >
                                     {{ item.type === 'payment' ? '-' : '+'
@@ -1146,10 +1258,16 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                         size="sm"
                         class="gap-1.5 text-xs"
                         :disabled="printStatementLoading"
-                        @click="historyCustomer && printStatement(historyCustomer)"
+                        @click="
+                            historyCustomer && printStatement(historyCustomer)
+                        "
                     >
                         <Printer class="h-3.5 w-3.5" />
-                        {{ printStatementLoading ? 'Preparing...' : 'Print Statement' }}
+                        {{
+                            printStatementLoading
+                                ? 'Preparing...'
+                                : 'Print Statement'
+                        }}
                     </Button>
                     <DropdownMenu v-if="historyCustomer">
                         <DropdownMenuTrigger as-child>
@@ -1162,25 +1280,42 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                 <Download class="h-3.5 w-3.5" /> Export
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" class="w-56 rounded-xl p-1.5">
+                        <DropdownMenuContent
+                            align="end"
+                            class="w-56 rounded-xl p-1.5"
+                        >
                             <DropdownMenuLabel class="px-2 py-1 text-xs">
                                 Download Statement
                             </DropdownMenuLabel>
                             <DropdownMenuItem :as-child="true">
                                 <a
                                     class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
-                                    :href="statementExportUrl(historyCustomer, 'csv')"
+                                    :href="
+                                        statementExportUrl(
+                                            historyCustomer,
+                                            'csv',
+                                        )
+                                    "
                                 >
-                                    <FileSpreadsheet class="h-4 w-4 text-emerald-600 shrink-0" />
+                                    <FileSpreadsheet
+                                        class="h-4 w-4 shrink-0 text-emerald-600"
+                                    />
                                     Export as CSV
                                 </a>
                             </DropdownMenuItem>
                             <DropdownMenuItem :as-child="true">
                                 <a
                                     class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
-                                    :href="statementExportUrl(historyCustomer, 'xlsx')"
+                                    :href="
+                                        statementExportUrl(
+                                            historyCustomer,
+                                            'xlsx',
+                                        )
+                                    "
                                 >
-                                    <FileSpreadsheet class="h-4 w-4 text-blue-600 shrink-0" />
+                                    <FileSpreadsheet
+                                        class="h-4 w-4 shrink-0 text-blue-600"
+                                    />
                                     Export as Excel (XLSX)
                                 </a>
                             </DropdownMenuItem>
@@ -1204,7 +1339,9 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                 title="Customer Khata Statement"
                 :party="printStatementData"
                 :entries="printStatementData.entries"
-                :shop-info="props.shopInfo || { name: '', phone: '', address: '' }"
+                :shop-info="
+                    props.shopInfo || { name: '', phone: '', address: '' }
+                "
             />
         </div>
 

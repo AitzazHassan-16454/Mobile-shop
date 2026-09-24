@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ProductImei;
 use App\Models\Sale;
 use App\Models\UsedPhonePurchase;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,15 +38,31 @@ class PosController extends Controller
             ->get(['id', 'voucher_no', 'seller_name', 'device_model', 'imei_1', 'purchase_amount', 'created_at']);
 
         $shopInfo = [
-            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
-            'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
-            'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
-            'return_policy' => AppSetting::where('key', 'return_policy')->value('value') ?? '7 Days Checking Warranty. Physical & Water Damage Not Covered.',
+            'name' => AppSetting::get('shop_name', 'Horizon Studio'),
+            'tagline' => AppSetting::get('shop_tagline', 'Smartphones • Accessories • Repairing'),
+            'phone' => AppSetting::get('shop_phone', '+92 300 1234567'),
+            'shop_phone_secondary' => AppSetting::get('shop_phone_secondary', ''),
+            'address' => AppSetting::get('shop_address', 'Main Mobile Market, Shop #12, Lahore'),
+            'ntn' => AppSetting::get('shop_ntn', ''),
+            'invoice_header_title' => AppSetting::get('invoice_header_title', 'CASH RECEIPT'),
+            'paperWidth' => AppSetting::get('invoice_paper_size', '80mm'),
+            'showBarcode' => AppSetting::get('show_barcode_on_invoice', '1') === '1',
+            'showCashier' => AppSetting::get('show_cashier_name', '1') === '1',
+            'return_policy' => AppSetting::get('return_policy', '7 Days Checking Warranty. Physical & Water Damage Not Covered.'),
+            'invoice_footer' => AppSetting::get('invoice_footer', 'Shukriya for shopping with us! Please visit again.'),
+            'default_payment_method' => AppSetting::get('default_payment_method', 'Cash'),
+            'enable_sound_effects' => AppSetting::get('enable_sound_effects', '1') === '1',
         ];
+
+        $salesmen = User::query()
+            ->select(['id', 'name', 'email'])
+            ->orderBy('name', 'asc')
+            ->get();
 
         return Inertia::render('Pos/Terminal', [
             'products' => $products,
             'customers' => $customers,
+            'salesmen' => $salesmen,
             'usedPhonePurchases' => $usedPhonePurchases,
             'shopInfo' => $shopInfo,
             'latestSale' => session('latest_sale'),
@@ -99,6 +116,8 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => ['nullable', 'exists:customers,id'],
+            'salesman_id' => ['nullable', 'exists:users,id'],
+            'sale_date' => ['nullable', 'date'],
             'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card,split,udhaar'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'trade_in_purchase_id' => ['nullable', 'exists:used_phone_purchases,id'],
@@ -233,7 +252,9 @@ class PosController extends Controller
                 $unpaidPortion = $paidAmount < $netAmount ? round($netAmount - $paidAmount, 2) : 0.00;
             }
 
-            $sale = Sale::create([
+            $cashierId = ! empty($validated['salesman_id']) ? (int) $validated['salesman_id'] : $request->user()->id;
+
+            $saleData = [
                 'invoice_no' => $invoiceNo,
                 'customer_id' => $validated['customer_id'] ?? null,
                 'total_amount' => $totalAmount,
@@ -245,8 +266,14 @@ class PosController extends Controller
                 'change_amount' => $changeAmount,
                 'payment_method' => $paymentMethod,
                 'payment_details' => $validated['payment_details'] ?? null,
-                'cashier_id' => $request->user()->id,
-            ]);
+                'cashier_id' => $cashierId,
+            ];
+
+            if (! empty($validated['sale_date'])) {
+                $saleData['created_at'] = \Illuminate\Support\Carbon::parse($validated['sale_date']);
+            }
+
+            $sale = Sale::create($saleData);
 
             foreach ($lineItemsData as $lineData) {
                 $sale->items()->create($lineData);
@@ -273,5 +300,126 @@ class PosController extends Controller
         });
 
         return redirect()->back()->with('latest_sale', $completedSale);
+    }
+
+    public function getRecentSalesApi(Request $request, string $currentTeam)
+    {
+        $sales = Sale::with([
+            'customer:id,name,phone',
+            'cashier:id,name',
+            'items.product:id,name,brand',
+            'items.productImei:id,imei_1',
+            'usedPhonePurchase:id,voucher_no,device_model,purchase_amount',
+        ])
+            ->latest()
+            ->take(50)
+            ->get();
+
+        return response()->json($sales);
+    }
+
+    public function updateSaleApi(Request $request, string $currentTeam, Sale $sale)
+    {
+        $validated = $request->validate([
+            'customer_id' => ['nullable', 'exists:customers,id'],
+            'cashier_id' => ['nullable', 'exists:users,id'],
+            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card,split,udhaar'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'paid_amount' => ['required', 'numeric', 'min:0'],
+            'payment_details' => ['nullable', 'array'],
+            'items' => ['nullable', 'array'],
+            'items.*.id' => ['required_with:items', 'exists:sale_items,id'],
+            'items.*.quantity' => ['required_with:items', 'numeric', 'gt:0'],
+            'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0'],
+        ]);
+
+        $discountAmount = (float) ($validated['discount_amount'] ?? 0.00);
+        $paidAmount = (float) $validated['paid_amount'];
+        $paymentMethod = $validated['payment_method'];
+
+        if ($paymentMethod === 'udhaar' && empty($validated['customer_id'])) {
+            throw ValidationException::withMessages([
+                'customer_id' => ['A customer must be selected for Udhaar (Khata) sales.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($sale, $validated, $discountAmount, $paidAmount, $paymentMethod): void {
+            // Update items if provided
+            if (! empty($validated['items'])) {
+                $newTotalAmount = 0.00;
+                foreach ($validated['items'] as $itemData) {
+                    $saleItem = $sale->items()->find($itemData['id']);
+                    if ($saleItem) {
+                        $qty = (float) $itemData['quantity'];
+                        $price = (float) $itemData['unit_price'];
+                        $lineTotal = round($qty * $price, 2);
+                        $saleItem->update([
+                            'quantity' => $qty,
+                            'unit_price' => $price,
+                            'line_total' => $lineTotal,
+                        ]);
+                        $newTotalAmount += $lineTotal;
+                    }
+                }
+                $totalAmount = round($newTotalAmount, 2);
+            } else {
+                $totalAmount = (float) $sale->total_amount;
+            }
+
+            $netAmount = max(0.00, round($totalAmount - $discountAmount, 2));
+
+            if ($paymentMethod === 'udhaar') {
+                $changeAmount = 0.00;
+                $unpaidPortion = max(0.00, round($netAmount - $paidAmount, 2));
+            } else {
+                $changeAmount = max(0.00, round($paidAmount - $netAmount, 2));
+                $unpaidPortion = $paidAmount < $netAmount ? round($netAmount - $paidAmount, 2) : 0.00;
+            }
+
+            // Adjust previous customer balance if customer changed
+            if ($sale->customer_id && $sale->customer_id != ($validated['customer_id'] ?? null)) {
+                $oldUnpaid = max(0.00, round((float) $sale->net_amount - (float) $sale->paid_amount, 2));
+                if ($oldUnpaid > 0 && $sale->payment_method->value === 'udhaar') {
+                    $oldCustomer = Customer::lockForUpdate()->find($sale->customer_id);
+                    if ($oldCustomer) {
+                        $oldCustomer->decrement('current_balance', $oldUnpaid);
+                    }
+                }
+            }
+
+            $sale->update([
+                'customer_id' => $validated['customer_id'] ?? null,
+                'cashier_id' => $validated['cashier_id'] ?? $sale->cashier_id,
+                'total_amount' => $totalAmount,
+                'discount_amount' => $discountAmount,
+                'net_amount' => $netAmount,
+                'paid_amount' => $paidAmount,
+                'change_amount' => $changeAmount,
+                'payment_method' => $paymentMethod,
+                'payment_details' => $validated['payment_details'] ?? $sale->payment_details,
+            ]);
+
+            // Create ledger entry if unpaid balance exists
+            if ($unpaidPortion > 0 && ! empty($validated['customer_id'])) {
+                $customer = Customer::lockForUpdate()->find($validated['customer_id']);
+                if ($customer) {
+                    $newBalance = round((float) $customer->current_balance + $unpaidPortion, 2);
+                    $customer->update(['current_balance' => $newBalance]);
+
+                    CustomerLedger::create([
+                        'customer_id' => $customer->id,
+                        'type' => 'sale',
+                        'amount' => $unpaidPortion,
+                        'balance_after' => $newBalance,
+                        'reference_id' => $sale->invoice_no,
+                        'notes' => "Updated Invoice #{$sale->invoice_no}",
+                    ]);
+                }
+            }
+        });
+
+        return response()->json(
+            $sale->fresh(['customer', 'cashier', 'items.product', 'items.productImei', 'usedPhonePurchase'])
+        );
     }
 }

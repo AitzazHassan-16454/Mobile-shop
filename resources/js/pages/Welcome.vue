@@ -152,7 +152,7 @@ const dashboardUrl = computed(() =>
 
                     <div class="relative">
                         <div
-                            class="rounded-3xl border border-gray-200 bg-gradient-to-br from-white to-gray-100 p-5 shadow-lg shadow-[#003B7D]/5"
+                            class="rounded-3xl border border-gray-200 bg-gradient-to-br from-white to-gray-100 p-5 shadow-lg shadow-[#003B7D]/5 dark:border-slate-700 dark:from-slate-800 dark:to-slate-900"
                         >
                             <div class="rounded-2xl bg-white p-4">
                                 <div class="flex items-center justify-between">
@@ -169,7 +169,7 @@ const dashboardUrl = computed(() =>
                                         </div>
                                     </div>
                                     <div
-                                        class="rounded-xl bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-600"
+                                        class="rounded-xl bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
                                     >
                                         +12.8%
                                     </div>
@@ -211,13 +211,13 @@ const dashboardUrl = computed(() =>
                                         class="h-10 w-8 rounded-t-xl bg-[#003B7D]/40"
                                     ></div>
                                     <div
-                                        class="h-16 w-8 rounded-t-xl bg-sky-400/50"
+                                        class="h-16 w-8 rounded-t-xl bg-sky-400/50 dark:bg-sky-400/30"
                                     ></div>
                                     <div
-                                        class="h-12 w-8 rounded-t-xl bg-[#77b6ff]/60"
+                                        class="h-12 w-8 rounded-t-xl bg-[#77b6ff]/60 dark:bg-[#77b6ff]/30"
                                     ></div>
                                     <div
-                                        class="h-20 w-8 rounded-t-xl bg-sky-300/60"
+                                        class="h-20 w-8 rounded-t-xl bg-sky-300/60 dark:bg-sky-300/30"
                                     ></div>
                                     <div
                                         class="h-14 w-8 rounded-t-xl bg-[#003B7D]/50"

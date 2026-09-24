@@ -72,9 +72,14 @@ const formatDate = (value: string) => {
         </button>
     </div>
 
-    <div :id="slipId" class="space-y-2 bg-white p-2 font-mono text-[11px] leading-tight text-black">
+    <div
+        :id="slipId"
+        class="space-y-2 bg-white p-2 font-mono text-[11px] leading-tight text-black"
+    >
         <div class="border-b pb-2 text-center">
-            <div class="text-sm font-extrabold uppercase">{{ shopInfo.name }}</div>
+            <div class="text-sm font-extrabold uppercase">
+                {{ shopInfo.name }}
+            </div>
             <div class="text-[10px]">{{ shopInfo.address }}</div>
             <div class="text-[10px]">Ph: {{ shopInfo.phone }}</div>
             <div
@@ -82,7 +87,9 @@ const formatDate = (value: string) => {
             >
                 {{ title }}
             </div>
-            <div class="mt-1 text-[10px] text-gray-600">{{ new Date().toLocaleDateString('en-PK') }}</div>
+            <div class="mt-1 text-[10px] text-gray-600">
+                {{ new Date().toLocaleDateString('en-PK') }}
+            </div>
         </div>
 
         <div class="space-y-0.5 border-b pb-1 text-[10px]">
@@ -126,14 +133,24 @@ const formatDate = (value: string) => {
                     :key="index"
                     class="border-b border-dashed border-gray-300"
                 >
-                    <td class="py-1 pr-1 whitespace-nowrap">{{ formatDate(entry.Date) }}</td>
+                    <td class="py-1 pr-1 whitespace-nowrap">
+                        {{ formatDate(entry.Date) }}
+                    </td>
                     <td class="py-1 pr-1 capitalize">{{ entry.Type }}</td>
                     <td class="py-1 pr-1">{{ entry.Reference || '-' }}</td>
                     <td class="py-1 pr-1 text-right whitespace-nowrap">
-                        {{ Number(entry.Debit) ? formatCurrency(entry.Debit) : '' }}
+                        {{
+                            Number(entry.Debit)
+                                ? formatCurrency(entry.Debit)
+                                : ''
+                        }}
                     </td>
                     <td class="py-1 pr-1 text-right whitespace-nowrap">
-                        {{ Number(entry.Credit) ? formatCurrency(entry.Credit) : '' }}
+                        {{
+                            Number(entry.Credit)
+                                ? formatCurrency(entry.Credit)
+                                : ''
+                        }}
                     </td>
                     <td class="py-1 text-right whitespace-nowrap">
                         {{ formatCurrency(entry.Balance) }}
@@ -141,9 +158,15 @@ const formatDate = (value: string) => {
                 </tr>
                 <tr class="border-t-2 border-black font-bold">
                     <td colspan="3" class="py-1">Total</td>
-                    <td class="py-1 text-right">{{ formatCurrency(totalDebit) }}</td>
-                    <td class="py-1 text-right">{{ formatCurrency(totalCredit) }}</td>
-                    <td class="py-1 text-right">{{ formatCurrency(party.current_balance) }}</td>
+                    <td class="py-1 text-right">
+                        {{ formatCurrency(totalDebit) }}
+                    </td>
+                    <td class="py-1 text-right">
+                        {{ formatCurrency(totalCredit) }}
+                    </td>
+                    <td class="py-1 text-right">
+                        {{ formatCurrency(party.current_balance) }}
+                    </td>
                 </tr>
             </tbody>
         </table>

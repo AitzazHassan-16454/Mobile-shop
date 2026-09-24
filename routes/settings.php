@@ -28,7 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('throttle:6,1')
         ->name('user-password.update');
 
-    Route::inertia('settings/appearance', 'settings/Appearance')->name('appearance.edit');
+    Route::redirect('settings/appearance', '/settings/profile')->name('appearance.edit');
 
     Route::get('settings/shop', [ShopSettingsController::class, 'edit'])->name('shop-settings.edit');
     Route::patch('settings/shop', [ShopSettingsController::class, 'update'])->name('shop-settings.update');

@@ -9,11 +9,10 @@ use SimpleXMLElement;
 use ZipArchive;
 
 /**
- * Minimal native Office Open XML writer/reader.
+ * Modern native Office Open XML writer/reader.
  *
- * Writes single-sheet XLSX workbooks using inline strings and reads back the
- * first worksheet (supporting shared strings, inline strings and raw values).
- * This avoids a spreadsheet dependency for template export / import.
+ * Writes styled XLSX workbooks with headers, auto column widths, zebra striping,
+ * and cell alignments using inline strings and styles without external dependencies.
  */
 class XlsxService
 {
@@ -60,6 +59,7 @@ class XlsxService
         $zip->addFromString('_rels/.rels', self::ROOT_RELS);
         $zip->addFromString('xl/workbook.xml', self::workbookXml($names));
         $zip->addFromString('xl/_rels/workbook.xml.rels', self::workbookRels(count($names)));
+        $zip->addFromString('xl/styles.xml', self::stylesXml());
 
         foreach ($sheets as $index => $sheet) {
             $rows = array_map(
@@ -120,6 +120,7 @@ class XlsxService
             <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
             <Default Extension="xml" ContentType="application/xml"/>
             <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+            <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 
         XML;
 
@@ -161,7 +162,86 @@ class XlsxService
             $xml .= "        <Relationship Id=\"rId{$i}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet{$i}.xml\"/>\n";
         }
 
+        $xml .= "        <Relationship Id=\"rIdStyles\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>\n";
+
         return $xml.'    </Relationships>'."\n";
+    }
+
+    private static function stylesXml(): string
+    {
+        return <<<'XML'
+        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+            <fonts count="4">
+                <font>
+                    <sz val="10"/>
+                    <color rgb="FF0F172A"/>
+                    <name val="Segoe UI"/>
+                </font>
+                <font>
+                    <b/>
+                    <sz val="11"/>
+                    <color rgb="FFFFFFFF"/>
+                    <name val="Segoe UI"/>
+                </font>
+                <font>
+                    <b/>
+                    <sz val="12"/>
+                    <color rgb="FF003B7D"/>
+                    <name val="Segoe UI"/>
+                </font>
+                <font>
+                    <i/>
+                    <sz val="10"/>
+                    <color rgb="FF475569"/>
+                    <name val="Segoe UI"/>
+                </font>
+            </fonts>
+            <fills count="6">
+                <fill><patternFill patternType="none"/></fill>
+                <fill><patternFill patternType="gray125"/></fill>
+                <fill><patternFill patternType="solid"><fgColor rgb="FF003B7D"/><bgColor indexed="64"/></patternFill></fill>
+                <fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill>
+                <fill><patternFill patternType="solid"><fgColor rgb="FFE0F2FE"/><bgColor indexed="64"/></patternFill></fill>
+                <fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>
+            </fills>
+            <borders count="2">
+                <border><left/><right/><top/><bottom/></border>
+                <border>
+                    <left style="thin"><color rgb="E2E8F0"/></left>
+                    <right style="thin"><color rgb="E2E8F0"/></right>
+                    <top style="thin"><color rgb="E2E8F0"/></top>
+                    <bottom style="thin"><color rgb="CBD5E1"/></bottom>
+                </border>
+            </borders>
+            <cellStyleXfs count="1">
+                <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+            </cellStyleXfs>
+            <cellXfs count="7">
+                <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="left" vertical="center"/>
+                </xf>
+                <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="left" vertical="center"/>
+                </xf>
+                <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="right" vertical="center"/>
+                </xf>
+                <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="left" vertical="center"/>
+                </xf>
+                <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="right" vertical="center"/>
+                </xf>
+                <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="right" vertical="center"/>
+                </xf>
+                <xf numFmtId="0" fontId="3" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+                    <alignment horizontal="left" vertical="center"/>
+                </xf>
+            </cellXfs>
+        </styleSheet>
+        XML;
     }
 
     private static function escapeSheetName(string $name): string
@@ -177,16 +257,56 @@ class XlsxService
     private static function worksheetXml(array $rows): string
     {
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
-        $xml .= '<worksheet xmlns="'.self::MAIN_NS.'"><sheetData>';
+        $xml .= '<worksheet xmlns="'.self::MAIN_NS.'">';
+        $xml .= '<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane showGridLines="1"/></sheetView></sheetViews>';
+
+        $columnWidths = [];
+        foreach ($rows as $cells) {
+            foreach (array_values($cells) as $colIndex => $value) {
+                $len = mb_strlen((string) $value);
+                $columnWidths[$colIndex] = max($columnWidths[$colIndex] ?? 0, $len);
+            }
+        }
+
+        if (! empty($columnWidths)) {
+            $xml .= '<cols>';
+            foreach ($columnWidths as $colIndex => $maxLen) {
+                $colNum = $colIndex + 1;
+                $width = min(55, max(14, $maxLen + 5));
+                $xml .= "<col min=\"{$colNum}\" max=\"{$colNum}\" width=\"{$width}\" customWidth=\"1\"/>";
+            }
+            $xml .= '</cols>';
+        }
+
+        $xml .= '<sheetData>';
 
         foreach ($rows as $rowIndex => $cells) {
             $rowNumber = $rowIndex + 1;
-            $xml .= "<row r=\"{$rowNumber}\">";
+            $isHeader = ($rowIndex === 0);
+            $height = $isHeader ? 28 : 22;
+            $xml .= "<row r=\"{$rowNumber}\" ht=\"{$height}\" customHeight=\"1\">";
+
+            $firstCellVal = trim((string) reset($cells));
+            $isCommentRow = str_starts_with($firstCellVal, '#');
+            $isEvenDataRow = ($rowIndex % 2 === 0);
 
             foreach (array_values($cells) as $columnIndex => $value) {
                 $reference = self::columnName($columnIndex).$rowNumber;
-                $xml .= '<c r="'.$reference.'" t="inlineStr"><is><t xml:space="preserve">'
-                    .self::escape((string) $value)
+                $strVal = (string) $value;
+                $isNumeric = self::isNumericValue($strVal);
+
+                if ($isHeader) {
+                    $styleId = $isNumeric ? 2 : 1;
+                } elseif ($isCommentRow) {
+                    $styleId = 6;
+                } elseif ($isEvenDataRow) {
+                    $styleId = $isNumeric ? 5 : 3;
+                } else {
+                    $styleId = $isNumeric ? 4 : 0;
+                }
+
+                $xml .= '<c r="'.$reference.'" t="inlineStr" s="'.$styleId.'"><is><t xml:space="preserve">'
+                    .self::escape($strVal)
                     .'</t></is></c>';
             }
 
@@ -194,6 +314,25 @@ class XlsxService
         }
 
         return $xml.'</sheetData></worksheet>';
+    }
+
+    private static function isNumericValue(mixed $value): bool
+    {
+        if (is_int($value) || is_float($value)) {
+            return true;
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+
+            if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+                return false;
+            }
+
+            return is_numeric($trimmed) || (bool) preg_match('/^-?\$?\d+([.,]\d+)?%?$/', $trimmed);
+        }
+
+        return false;
     }
 
     /**

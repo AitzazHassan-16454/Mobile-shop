@@ -251,7 +251,9 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" class="w-60 rounded-xl p-1.5">
-                    <DropdownMenuLabel class="px-2.5 py-1.5 text-xs text-slate-500">
+                    <DropdownMenuLabel
+                        class="px-2.5 py-1.5 text-xs text-slate-500"
+                    >
                         Download with current date filter
                     </DropdownMenuLabel>
                     <DropdownMenuItem :as-child="true">
@@ -259,7 +261,9 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                             class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700"
                             :href="reportExportUrl('csv')"
                         >
-                            <Download class="h-4 w-4 text-emerald-600 shrink-0" />
+                            <Download
+                                class="h-4 w-4 shrink-0 text-emerald-600"
+                            />
                             CSV (Device Profits)
                         </a>
                     </DropdownMenuItem>
@@ -268,7 +272,7 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                             class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700"
                             :href="reportExportUrl('xlsx')"
                         >
-                            <Download class="h-4 w-4 text-blue-600 shrink-0" />
+                            <Download class="h-4 w-4 shrink-0 text-blue-600" />
                             Excel Workbook (All Sections)
                         </a>
                     </DropdownMenuItem>
@@ -300,7 +304,8 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                     class="block text-xs font-semibold tracking-wider text-slate-500 uppercase"
                     >Net Profit</span
                 >
-                <span class="tnum block text-3xl font-black text-emerald-600"
+                <span
+                    class="tnum block text-3xl font-black text-emerald-600 dark:text-emerald-400"
                     >Rs {{ summary.net_profit.toLocaleString() }}</span
                 >
                 <span class="block text-xs text-slate-500"
@@ -382,7 +387,7 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                 <span class="block text-xs text-slate-500"
                     >Repairing Revenue:</span
                 >
-                <span class="tnum text-lg font-bold text-sky-600"
+                <span class="tnum text-lg font-bold text-sky-600 dark:text-sky-400"
                     >Rs {{ summary.repair_revenue.toLocaleString() }}</span
                 >
             </div>
@@ -505,8 +510,8 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                                 <span
                                     :class="[
                                         d.condition === 'new'
-                                            ? 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]'
-                                            : 'border border-sky-200 bg-sky-50 text-sky-600',
+                                            ? 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300'
+                                            : 'border border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300',
                                         'rounded px-2 py-0.5 text-xs font-semibold capitalize',
                                     ]"
                                 >
@@ -668,8 +673,8 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                                 <span
                                     :class="[
                                         item.type === 'Handset'
-                                            ? 'border border-sky-200 bg-sky-50 text-sky-600'
-                                            : 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D]',
+                                            ? 'border border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300'
+                                            : 'border border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300',
                                         'rounded px-2 py-0.5 text-xs font-semibold',
                                     ]"
                                 >

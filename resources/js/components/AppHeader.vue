@@ -110,6 +110,7 @@ const secondaryNavItems = computed(() => [
         href: backupUrl.value,
         icon: Database,
         desc: 'Download offline backup',
+        external: true,
     },
 ]);
 
@@ -346,7 +347,8 @@ const isMobileMenuOpen = ref(false);
                                 :key="subItem.title"
                                 :as-child="true"
                             >
-                                <Link
+                                <component
+                                    :is="subItem.external || String(subItem.href).includes('/backup/download') ? 'a' : Link"
                                     :href="subItem.href"
                                     :class="[
                                         'flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold transition',
@@ -367,7 +369,7 @@ const isMobileMenuOpen = ref(false);
                                             {{ subItem.desc }}
                                         </div>
                                     </div>
-                                </Link>
+                                </component>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

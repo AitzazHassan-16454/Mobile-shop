@@ -321,9 +321,9 @@ const confirmCancelInvitation = (invitation: TeamInvitation) => {
                 description="Permanently delete your team"
             />
             <div
-                class="space-y-4 rounded-lg border border-rose-200 bg-rose-500/[0.06] p-4"
+                class="space-y-4 rounded-lg border border-rose-200 bg-rose-500/[0.06] p-4 dark:border-rose-500/30 dark:bg-rose-500/10"
             >
-                <div class="relative space-y-0.5 text-rose-200">
+                <div class="relative space-y-0.5 text-rose-200 dark:text-rose-100">
                     <p class="font-medium">Warning</p>
                     <p class="text-sm">
                         Please proceed with caution, this cannot be undone.

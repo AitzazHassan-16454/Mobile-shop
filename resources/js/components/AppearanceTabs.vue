@@ -1,33 +1,17 @@
 <script setup lang="ts">
-import { Monitor, Moon, Sun } from '@lucide/vue';
-import { useAppearance } from '@/composables/useAppearance';
-
-const { appearance, updateAppearance } = useAppearance();
-
-const tabs = [
-    { value: 'light', Icon: Sun, label: 'Light' },
-    { value: 'dark', Icon: Moon, label: 'Dark' },
-    { value: 'system', Icon: Monitor, label: 'System' },
-] as const;
+import { Sun } from '@lucide/vue';
 </script>
 
 <template>
-    <div
-        class="inline-flex gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1"
-    >
-        <button
-            v-for="{ value, Icon, label } in tabs"
-            :key="value"
-            @click="updateAppearance(value)"
-            :class="[
-                'flex items-center rounded-md px-3.5 py-1.5 transition-all',
-                appearance === value
-                    ? 'bg-[#003B7D] text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-white hover:text-slate-900',
-            ]"
+    <div class="flex flex-col gap-2">
+        <div
+            class="inline-flex w-fit items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-2.5 text-sm font-semibold text-[#003B7D] shadow-2xs"
         >
-            <component :is="Icon" class="-ml-1 h-4 w-4" />
-            <span class="ml-1.5 text-sm">{{ label }}</span>
-        </button>
+            <Sun class="h-4 w-4 text-amber-500" />
+            <span>Light Mode (Active)</span>
+        </div>
+        <p class="text-xs text-slate-500">
+            The application operates exclusively in Light Mode.
+        </p>
     </div>
 </template>

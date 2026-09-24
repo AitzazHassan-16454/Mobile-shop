@@ -31,7 +31,12 @@ const currentTeamSlug = computed(
 );
 
 interface PaymentRowData {
-    source: 'sale' | 'customer_payment' | 'installment' | 'supplier_payment' | 'expense';
+    source:
+        | 'sale'
+        | 'customer_payment'
+        | 'installment'
+        | 'supplier_payment'
+        | 'expense';
     ref: string;
     description: string;
     method: string;
@@ -85,8 +90,12 @@ const applyFilters = () => {
         `/${currentTeamSlug.value}/all-payments`,
         {
             search: search.value || undefined,
-            source: sourceFilter.value === 'all' ? undefined : sourceFilter.value,
-            direction: directionFilter.value === 'all' ? undefined : directionFilter.value,
+            source:
+                sourceFilter.value === 'all' ? undefined : sourceFilter.value,
+            direction:
+                directionFilter.value === 'all'
+                    ? undefined
+                    : directionFilter.value,
             date_from: dateFrom.value || undefined,
             date_to: dateTo.value || undefined,
         },
@@ -113,11 +122,15 @@ const clearFilters = () => {
 };
 
 const sourceStyles: Record<string, string> = {
-    sale: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    customer_payment: 'bg-teal-50 text-teal-700 border-teal-200',
-    installment: 'bg-sky-50 text-sky-700 border-sky-200',
-    supplier_payment: 'bg-rose-50 text-rose-600 border-rose-200',
-    expense: 'bg-amber-50 text-amber-600 border-amber-200',
+    sale: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-900/40',
+    customer_payment:
+        'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-900/40',
+    installment:
+        'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-900/40',
+    supplier_payment:
+        'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900/40',
+    expense:
+        'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-900/40',
 };
 
 const sourceLabels: Record<string, string> = {
@@ -136,8 +149,10 @@ const sourceIcons: Record<string, Component> = {
     expense: Wrench,
 };
 
-const currency = (val: number | string) => `Rs ${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-const netThisMonth = props.summary.received_this_month - props.summary.paid_this_month;
+const currency = (val: number | string) =>
+    `Rs ${Number(val || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+const netThisMonth =
+    props.summary.received_this_month - props.summary.paid_this_month;
 
 // Quick record payment
 const isRecordOpen = ref(false);
@@ -162,17 +177,24 @@ const availableParties = computed(() =>
 );
 
 const selectedPartyBalance = computed(() => {
-    const party = availableParties.value.find((p) => p.id === recordPartyId.value);
+    const party = availableParties.value.find(
+        (p) => p.id === recordPartyId.value,
+    );
     return party ? Number(party.current_balance) : 0;
 });
 
 const submitPayment = async () => {
     if (!recordPartyId.value) {
-        toast.error('Select Party', { description: 'Choose a customer or supplier to record the payment for.' });
+        toast.error('Select Party', {
+            description:
+                'Choose a customer or supplier to record the payment for.',
+        });
         return;
     }
     if (!recordAmount.value || recordAmount.value <= 0) {
-        toast.error('Invalid Amount', { description: 'Enter an amount greater than zero.' });
+        toast.error('Invalid Amount', {
+            description: 'Enter an amount greater than zero.',
+        });
         return;
     }
 
@@ -180,8 +202,16 @@ const submitPayment = async () => {
     try {
         const payload =
             recordType.value === 'customer'
-                ? { amount: recordAmount.value, payment_method: paymentMethod.value, notes: notes.value }
-                : { amount: recordAmount.value, reference_id: paymentMethod.value, notes: notes.value };
+                ? {
+                      amount: recordAmount.value,
+                      payment_method: paymentMethod.value,
+                      notes: notes.value,
+                  }
+                : {
+                      amount: recordAmount.value,
+                      reference_id: paymentMethod.value,
+                      notes: notes.value,
+                  };
 
         await router.post(
             `/${currentTeamSlug.value}/${recordType.value}s/${recordPartyId.value}/payments`,
@@ -190,11 +220,17 @@ const submitPayment = async () => {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
-                    toast.success('Payment Recorded', { description: 'Payment saved and ledger updated.' });
+                    toast.success('Payment Recorded', {
+                        description: 'Payment saved and ledger updated.',
+                    });
                     isRecordOpen.value = false;
                 },
                 onError: (errors) => {
-                    toast.error('Could Not Save', { description: Object.values(errors).flat().join(' ') || 'Validation failed.' });
+                    toast.error('Could Not Save', {
+                        description:
+                            Object.values(errors).flat().join(' ') ||
+                            'Validation failed.',
+                    });
                 },
             },
         );
@@ -208,21 +244,35 @@ const submitPayment = async () => {
     <Head title="All Payments" />
 
     <div class="flex h-full flex-1 flex-col gap-5 p-4 sm:p-6">
-        <section class="glass-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <section
+            class="glass-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+        >
             <div>
                 <p class="eyebrow mb-1.5">Cash Book Explorer</p>
-                <h1 class="flex items-center gap-2.5 text-2xl font-black text-slate-900">
-                    <Wallet class="h-7 w-7 text-primary" /> All Payments
+                <h1
+                    class="flex items-center gap-2.5 text-2xl font-black text-slate-900"
+                >
+                    <Wallet class="text-primary h-7 w-7" /> All Payments
                 </h1>
-                <p class="mt-1 text-xs text-slate-500 font-medium">
-                    Every rupee in and out — sales, khata receipts, installments, supplier payments and expenses.
+                <p class="mt-1 text-xs font-medium text-slate-500">
+                    Every rupee in and out — sales, khata receipts,
+                    installments, supplier payments and expenses.
                 </p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <Button type="button" variant="outline" class="gap-2 text-xs font-bold" @click="openRecord('customer')">
-                    <ArrowDownCircle class="h-4 w-4 text-emerald-600" /> Receive
+                <Button
+                    type="button"
+                    variant="outline"
+                    class="gap-2 text-xs font-bold"
+                    @click="openRecord('customer')"
+                >
+                    <ArrowDownCircle class="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Receive
                 </Button>
-                <Button type="button" class="gap-2 bg-primary font-bold text-white shadow-md hover:bg-primary/90" @click="openRecord('supplier')">
+                <Button
+                    type="button"
+                    class="bg-primary hover:bg-primary/90 gap-2 font-bold text-white shadow-md"
+                    @click="openRecord('supplier')"
+                >
                     <ArrowUpCircle class="h-4 w-4" /> Pay Out
                 </Button>
             </div>
@@ -230,36 +280,65 @@ const submitPayment = async () => {
 
         <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <div class="glass-card p-4">
-                <p class="eyebrow text-emerald-600">Received (This Month)</p>
-                <p class="mt-1 text-xl font-black text-emerald-600">{{ currency(summary.received_this_month) }}</p>
-                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">khata + installment receipts</p>
+                <p class="eyebrow text-emerald-600 dark:text-emerald-400">Received (This Month)</p>
+                <p
+                    class="mt-1 text-xl font-black text-emerald-600 dark:text-emerald-400"
+                >
+                    {{ currency(summary.received_this_month) }}
+                </p>
+                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">
+                    khata + installment receipts
+                </p>
             </div>
             <div class="glass-card p-4">
-                <p class="eyebrow text-rose-500">Paid Out (This Month)</p>
-                <p class="mt-1 text-xl font-black text-rose-500">{{ currency(summary.paid_this_month) }}</p>
-                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">supplier + shop expenses</p>
+                <p class="eyebrow text-rose-500 dark:text-rose-400">Paid Out (This Month)</p>
+                <p
+                    class="mt-1 text-xl font-black text-rose-500 dark:text-rose-400"
+                >
+                    {{ currency(summary.paid_this_month) }}
+                </p>
+                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">
+                    supplier + shop expenses
+                </p>
             </div>
             <div class="glass-card p-4">
                 <p class="eyebrow text-primary">Net Movement</p>
-                <p :class="netThisMonth >= 0 ? 'text-emerald-600' : 'text-rose-500'" class="mt-1 text-xl font-black">
+                <p
+                    :class="
+                        netThisMonth >= 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-rose-500 dark:text-rose-400'
+                    "
+                    class="mt-1 text-xl font-black"
+                >
                     {{ currency(Math.abs(netThisMonth)) }}
                 </p>
-                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">{{ netThisMonth >= 0 ? 'net received' : 'net spent' }}</p>
+                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">
+                    {{ netThisMonth >= 0 ? 'net received' : 'net spent' }}
+                </p>
             </div>
             <div class="glass-card p-4">
                 <p class="eyebrow text-slate-500">All-Time Received vs Paid</p>
-                <p class="mt-1 text-xl font-black text-slate-900">{{ currency(summary.received_all_time) }}</p>
-                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">vs {{ currency(summary.paid_all_time) }} paid</p>
+                <p class="mt-1 text-xl font-black text-slate-900">
+                    {{ currency(summary.received_all_time) }}
+                </p>
+                <p class="mt-0.5 text-[10px] font-semibold text-slate-400">
+                    vs {{ currency(summary.paid_all_time) }} paid
+                </p>
             </div>
         </div>
 
-        <section class="glass-card flex flex-col gap-3 p-3.5 lg:flex-row lg:items-center">
+        <section
+            class="glass-card flex flex-col gap-3 p-3.5 lg:flex-row lg:items-center"
+        >
             <div class="relative flex-1">
-                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search
+                    class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
+                />
                 <input
                     v-model="search"
                     placeholder="Search party, reference, notes..."
-                    class="h-10 w-full rounded-xl border border-slate-200 bg-white/70 pl-9 pr-3 text-xs font-semibold placeholder:text-slate-400 focus:border-primary focus:outline-none"
+                    class="focus:border-primary h-10 w-full rounded-xl border border-slate-200 bg-white/70 pr-3 pl-9 text-xs font-semibold placeholder:text-slate-400 focus:outline-none"
                     @keydown.enter="applyFilters"
                 />
             </div>
@@ -269,12 +348,20 @@ const submitPayment = async () => {
                     :key="option"
                     type="button"
                     @click="setDirection(option)"
-                    :class="directionFilter === option ? 'bg-primary text-white font-black' : 'bg-white/60 text-slate-600 hover:bg-white font-bold'"
-                    class="h-10 rounded-xl px-3 text-xs capitalize transition whitespace-nowrap"
+                    :class="
+                        directionFilter === option
+                            ? 'bg-primary font-black text-white'
+                            : 'bg-white/60 font-bold text-slate-600 hover:bg-white'
+                    "
+                    class="h-10 rounded-xl px-3 text-xs whitespace-nowrap capitalize transition"
                 >
                     {{ option === 'all' ? 'Both' : option }}
                 </button>
-                <select v-model="sourceFilter" @change="setSource" class="h-10 rounded-xl border border-slate-200 bg-white/70 px-2 text-xs font-bold text-slate-600 focus:border-primary focus:outline-none">
+                <select
+                    v-model="sourceFilter"
+                    @change="setSource"
+                    class="focus:border-primary h-10 rounded-xl border border-slate-200 bg-white/70 px-2 text-xs font-bold text-slate-600 focus:outline-none"
+                >
                     <option value="all">All Sources</option>
                     <option value="sale">Sales</option>
                     <option value="customer_payment">Customer Payments</option>
@@ -282,9 +369,25 @@ const submitPayment = async () => {
                     <option value="supplier_payment">Supplier Payments</option>
                     <option value="expense">Expenses</option>
                 </select>
-                <input v-model="dateFrom" type="date" @change="applyFilters" class="h-10 rounded-xl border border-slate-200 bg-white/70 px-2 text-xs font-bold text-slate-600 focus:border-primary focus:outline-none" />
-                <input v-model="dateTo" type="date" @change="applyFilters" class="h-10 rounded-xl border border-slate-200 bg-white/70 px-2 text-xs font-bold text-slate-600 focus:border-primary focus:outline-none" />
-                <Button type="button" size="sm" variant="ghost" class="h-10 text-[10px] font-bold text-slate-400" @click="clearFilters">
+                <input
+                    v-model="dateFrom"
+                    type="date"
+                    @change="applyFilters"
+                    class="focus:border-primary h-10 rounded-xl border border-slate-200 bg-white/70 px-2 text-xs font-bold text-slate-600 focus:outline-none"
+                />
+                <input
+                    v-model="dateTo"
+                    type="date"
+                    @change="applyFilters"
+                    class="focus:border-primary h-10 rounded-xl border border-slate-200 bg-white/70 px-2 text-xs font-bold text-slate-600 focus:outline-none"
+                />
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    class="h-10 text-[10px] font-bold text-slate-400"
+                    @click="clearFilters"
+                >
                     Clear
                 </Button>
             </div>
@@ -294,7 +397,9 @@ const submitPayment = async () => {
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
                     <thead class="border-b border-slate-100 bg-white/60">
-                        <tr class="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        <tr
+                            class="text-[10px] font-black tracking-wider text-slate-400 uppercase"
+                        >
                             <th class="px-4 py-3">Source</th>
                             <th class="px-4 py-3">Party / Ref</th>
                             <th class="px-4 py-3">Details</th>
@@ -305,37 +410,87 @@ const submitPayment = async () => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <tr v-for="(payment, index) in payments.data" :key="`${payment.source}-${payment.ref}-${payment.paid_at}-${index}`">
+                        <tr
+                            v-for="(payment, index) in payments.data"
+                            :key="`${payment.source}-${payment.ref}-${payment.paid_at}-${index}`"
+                        >
                             <td class="px-4 py-3">
-                                <span :class="['inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black', sourceStyles[payment.source]]">
+                                <span
+                                    :class="[
+                                        'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black',
+                                        sourceStyles[payment.source],
+                                    ]"
+                                >
                                     {{ sourceLabels[payment.source] }}
                                 </span>
                             </td>
                             <td class="px-4 py-3">
-                                <div class="font-bold text-slate-800">{{ payment.party }}</div>
-                                <div class="font-mono text-[10px] text-slate-400">#{{ payment.ref }}</div>
+                                <div class="font-bold text-slate-800">
+                                    {{ payment.party }}
+                                </div>
+                                <div
+                                    class="font-mono text-[10px] text-slate-400"
+                                >
+                                    #{{ payment.ref }}
+                                </div>
                             </td>
-                            <td class="px-4 py-3 font-semibold text-slate-500 max-w-[200px] truncate">{{ payment.description }}</td>
+                            <td
+                                class="max-w-[200px] truncate px-4 py-3 font-semibold text-slate-500"
+                            >
+                                {{ payment.description }}
+                            </td>
                             <td class="px-4 py-3">
-                                <span v-if="payment.method" class="capitalize font-bold text-slate-500">{{ payment.method }}</span>
+                                <span
+                                    v-if="payment.method"
+                                    class="font-bold text-slate-500 capitalize"
+                                    >{{ payment.method }}</span
+                                >
                                 <span v-else class="text-slate-300">—</span>
                             </td>
                             <td class="px-4 py-3">
-                                <span :class="payment.direction === 'in' ? 'text-emerald-600' : 'text-rose-500'" class="inline-flex items-center gap-1 text-[10px] font-black uppercase">
-                                    <ArrowDownCircle v-if="payment.direction === 'in'" class="h-3 w-3" />
+                                <span
+                                    :class="
+                                        payment.direction === 'in'
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : 'text-rose-500 dark:text-rose-400'
+                                    "
+                                    class="inline-flex items-center gap-1 text-[10px] font-black uppercase"
+                                >
+                                    <ArrowDownCircle
+                                        v-if="payment.direction === 'in'"
+                                        class="h-3 w-3"
+                                    />
                                     <ArrowUpCircle v-else class="h-3 w-3" />
                                     {{ payment.direction }}
                                 </span>
                             </td>
-                            <td :class="payment.direction === 'in' ? 'text-emerald-600' : 'text-rose-500'" class="px-4 py-3 text-right font-black">
-                                {{ payment.direction === 'in' ? '+' : '−' }}{{ currency(payment.amount) }}
+                            <td
+                                :class="
+                                    payment.direction === 'in'
+                                        ? 'text-emerald-600'
+                                        : 'text-rose-500'
+                                "
+                                class="px-4 py-3 text-right font-black"
+                            >
+                                {{ payment.direction === 'in' ? '+' : '−'
+                                }}{{ currency(payment.amount) }}
                             </td>
-                            <td class="px-4 py-3 text-slate-500">{{ new Date(payment.paid_at).toLocaleDateString() }}</td>
+                            <td class="px-4 py-3 text-slate-500">
+                                {{
+                                    new Date(
+                                        payment.paid_at,
+                                    ).toLocaleDateString()
+                                }}
+                            </td>
                         </tr>
                         <tr v-if="payments.data.length === 0">
                             <td colspan="7" class="px-4 py-10 text-center">
-                                <Banknote class="mx-auto mb-2 h-8 w-8 text-slate-200" />
-                                <p class="text-xs font-bold text-slate-400">No payments match these filters.</p>
+                                <Banknote
+                                    class="mx-auto mb-2 h-8 w-8 text-slate-200"
+                                />
+                                <p class="text-xs font-bold text-slate-400">
+                                    No payments match these filters.
+                                </p>
                             </td>
                         </tr>
                     </tbody>
@@ -344,11 +499,20 @@ const submitPayment = async () => {
         </section>
     </div>
 
-    <Dialog :open="isRecordOpen" @update:open="(value: boolean) => !value && (isRecordOpen = false)">
-        <DialogContent class="max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+    <Dialog
+        :open="isRecordOpen"
+        @update:open="(value: boolean) => !value && (isRecordOpen = false)"
+    >
+        <DialogContent
+            class="max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+        >
             <DialogHeader>
                 <DialogTitle class="text-lg font-black text-slate-900">
-                    {{ recordType === 'customer' ? 'Record Received Payment' : 'Record Supplier Payment' }}
+                    {{
+                        recordType === 'customer'
+                            ? 'Record Received Payment'
+                            : 'Record Supplier Payment'
+                    }}
                 </DialogTitle>
                 <DialogDescription class="text-xs text-slate-500">
                     Posts directly to the party ledger.
@@ -357,28 +521,66 @@ const submitPayment = async () => {
 
             <div class="space-y-4 py-2">
                 <div>
-                    <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">{{ recordType === 'customer' ? 'Customer' : 'Supplier' }} *</label>
-                    <select v-model="recordPartyId" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold bg-white focus:border-primary focus:outline-none">
-                        <option :value="null" disabled>Select {{ recordType }}...</option>
-                        <option v-for="party in availableParties" :key="party.id" :value="party.id">
-                            {{ party.name }} ({{ currency(party.current_balance) }})
+                    <label
+                        class="mb-1 block text-[11px] font-bold text-slate-700 uppercase"
+                        >{{
+                            recordType === 'customer' ? 'Customer' : 'Supplier'
+                        }}
+                        *</label
+                    >
+                    <select
+                        v-model="recordPartyId"
+                        class="focus:border-primary h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold focus:outline-none"
+                    >
+                        <option :value="null" disabled>
+                            Select {{ recordType }}...
+                        </option>
+                        <option
+                            v-for="party in availableParties"
+                            :key="party.id"
+                            :value="party.id"
+                        >
+                            {{ party.name }} ({{
+                                currency(party.current_balance)
+                            }})
                         </option>
                     </select>
-                    <p v-if="recordPartyId" class="mt-1 text-[10px] font-bold text-slate-400">
+                    <p
+                        v-if="recordPartyId"
+                        class="mt-1 text-[10px] font-bold text-slate-400"
+                    >
                         Current balance: {{ currency(selectedPartyBalance) }}
                     </p>
                 </div>
 
                 <div>
-                    <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Amount *</label>
-                    <input v-model="recordAmount" type="number" min="0" step="0.01" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-sm font-black focus:border-primary focus:outline-none" />
+                    <label
+                        class="mb-1 block text-[11px] font-bold text-slate-700 uppercase"
+                        >Amount *</label
+                    >
+                    <input
+                        v-model="recordAmount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="focus:border-primary h-10 w-full rounded-xl border border-slate-300 px-3 text-sm font-black focus:outline-none"
+                    />
                 </div>
 
                 <div>
-                    <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">
-                        {{ recordType === 'customer' ? 'Payment Method' : 'Reference' }}
+                    <label
+                        class="mb-1 block text-[11px] font-bold text-slate-700 uppercase"
+                    >
+                        {{
+                            recordType === 'customer'
+                                ? 'Payment Method'
+                                : 'Reference'
+                        }}
                     </label>
-                    <select v-model="paymentMethod" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold bg-white focus:border-primary focus:outline-none">
+                    <select
+                        v-model="paymentMethod"
+                        class="focus:border-primary h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-semibold focus:outline-none"
+                    >
                         <option value="cash">Cash</option>
                         <option value="jazzcash">JazzCash</option>
                         <option value="easypaisa">EasyPaisa</option>
@@ -388,15 +590,35 @@ const submitPayment = async () => {
                 </div>
 
                 <div>
-                    <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Notes</label>
-                    <input v-model="notes" placeholder="Optional note..." class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-primary focus:outline-none" />
+                    <label
+                        class="mb-1 block text-[11px] font-bold text-slate-700 uppercase"
+                        >Notes</label
+                    >
+                    <input
+                        v-model="notes"
+                        placeholder="Optional note..."
+                        class="focus:border-primary h-10 w-full rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:outline-none"
+                    />
                 </div>
             </div>
 
             <DialogFooter class="pt-3">
-                <Button type="button" variant="outline" @click="isRecordOpen = false">Cancel</Button>
-                <Button type="button" :disabled="isSaving" class="bg-primary text-white font-bold hover:bg-primary/90" @click="submitPayment">
-                    <span v-if="isSaving" class="inline-block h-3.5 w-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1.5"></span>
+                <Button
+                    type="button"
+                    variant="outline"
+                    @click="isRecordOpen = false"
+                    >Cancel</Button
+                >
+                <Button
+                    type="button"
+                    :disabled="isSaving"
+                    class="bg-primary hover:bg-primary/90 font-bold text-white"
+                    @click="submitPayment"
+                >
+                    <span
+                        v-if="isSaving"
+                        class="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                    ></span>
                     Save Payment
                 </Button>
             </DialogFooter>

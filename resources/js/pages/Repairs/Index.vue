@@ -81,7 +81,10 @@ onMounted(() => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+            visibleColumns.value = {
+                ...defaultVisibleColumns,
+                ...JSON.parse(saved),
+            };
         }
         const savedPerPage = localStorage.getItem(PER_PAGE_STORAGE_KEY);
         if (savedPerPage && Number(savedPerPage) !== perPage.value) {
@@ -371,17 +374,17 @@ const formatCurrency = (val: number | string) => {
 const getStatusBadgeClass = (status: string) => {
     switch (status) {
         case 'received':
-            return 'bg-sky-50 text-sky-600 border border-sky-200';
+            return 'bg-sky-50 text-sky-600 border border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-900/40';
         case 'in_diagnosis':
-            return 'bg-amber-50 text-amber-600 border border-amber-200';
+            return 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-900/40';
         case 'waiting_parts':
             return 'bg-purple-500/10 text-purple-300 border border-purple-500/25';
         case 'ready':
-            return 'bg-[#003B7D]/5 text-[#003B7D] border border-[#003B7D]/20';
+            return 'bg-[#003B7D]/5 text-[#003B7D] border border-[#003B7D]/20 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/30';
         case 'delivered':
-            return 'bg-[#003B7D] text-white font-semibold';
+            return 'bg-[#003B7D] text-white font-semibold dark:bg-sky-600';
         case 'cancelled':
-            return 'bg-rose-50 text-rose-600 border border-rose-200';
+            return 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900/40';
         default:
             return 'bg-muted text-muted-foreground';
     }
@@ -438,9 +441,9 @@ const getStatusBadgeClass = (status: string) => {
             >
                 <div class="flex items-center justify-between">
                     <span class="eyebrow">Tokens Generated</span>
-                    <Clock class="h-5 w-5 text-sky-600" />
+                    <Clock class="h-5 w-5 text-sky-600 dark:text-sky-400" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-sky-600">
+                <div class="tnum mt-2 text-2xl font-bold text-sky-600 dark:text-sky-400">
                     {{ summary.received_count }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">Received / Intake</div>
@@ -504,8 +507,12 @@ const getStatusBadgeClass = (status: string) => {
             </div>
 
             <!-- Status Tabs & Columns Dropdown -->
-            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-3 md:border-t-0 md:pt-0">
-                <div class="no-scrollbar flex gap-1 overflow-x-auto pb-1 text-xs">
+            <div
+                class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/80 pt-3 md:border-t-0 md:pt-0"
+            >
+                <div
+                    class="no-scrollbar flex gap-1 overflow-x-auto pb-1 text-xs"
+                >
                     <button
                         v-for="st in [
                             'all',
@@ -537,20 +544,26 @@ const getStatusBadgeClass = (status: string) => {
                             size="sm"
                             class="h-8 gap-1.5 text-xs font-semibold whitespace-nowrap"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-[#003B7D]"
+                            />
                             <span>Columns</span>
-                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                            <span
+                                class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
+                            >
                                 {{ activeColumnCount }}/7
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-56 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -560,15 +573,19 @@ const getStatusBadgeClass = (status: string) => {
                             v-for="(label, key) in repairColumnLabels"
                             :key="key"
                             @click.stop="toggleRepairColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-gray-100 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none hover:bg-gray-100"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleRepairColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -576,7 +593,9 @@ const getStatusBadgeClass = (status: string) => {
 
                 <!-- Per-Page Selection -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-slate-500">Show:</span>
+                    <span class="text-xs font-medium text-slate-500"
+                        >Show:</span
+                    >
                     <select
                         v-model="perPage"
                         @change="applyFilters"
@@ -602,13 +621,33 @@ const getStatusBadgeClass = (status: string) => {
                         class="bg-muted/50 text-muted-foreground font-semibold uppercase"
                     >
                         <tr>
-                            <th v-if="visibleColumns.ticket" class="px-4 py-3">Ticket # & Date</th>
-                            <th v-if="visibleColumns.customer" class="px-4 py-3">Customer Details</th>
-                            <th v-if="visibleColumns.device" class="px-4 py-3">Device & Security</th>
-                            <th v-if="visibleColumns.problem" class="px-4 py-3">Problem / Complaint</th>
-                            <th v-if="visibleColumns.cost" class="px-4 py-3">Est. Cost & Balance</th>
-                            <th v-if="visibleColumns.status" class="px-4 py-3">Status</th>
-                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right">Actions</th>
+                            <th v-if="visibleColumns.ticket" class="px-4 py-3">
+                                Ticket # & Date
+                            </th>
+                            <th
+                                v-if="visibleColumns.customer"
+                                class="px-4 py-3"
+                            >
+                                Customer Details
+                            </th>
+                            <th v-if="visibleColumns.device" class="px-4 py-3">
+                                Device & Security
+                            </th>
+                            <th v-if="visibleColumns.problem" class="px-4 py-3">
+                                Problem / Complaint
+                            </th>
+                            <th v-if="visibleColumns.cost" class="px-4 py-3">
+                                Est. Cost & Balance
+                            </th>
+                            <th v-if="visibleColumns.status" class="px-4 py-3">
+                                Status
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right"
+                            >
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-border divide-y">
@@ -641,7 +680,10 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td v-if="visibleColumns.customer" class="px-4 py-3">
+                            <td
+                                v-if="visibleColumns.customer"
+                                class="px-4 py-3"
+                            >
                                 <div class="text-foreground text-sm font-bold">
                                     {{ ticket.customer_name }}
                                 </div>
@@ -669,7 +711,10 @@ const getStatusBadgeClass = (status: string) => {
                                 </div>
                             </td>
 
-                            <td v-if="visibleColumns.problem" class="max-w-xs px-4 py-3">
+                            <td
+                                v-if="visibleColumns.problem"
+                                class="max-w-xs px-4 py-3"
+                            >
                                 <div
                                     class="text-foreground line-clamp-2 font-medium"
                                 >
@@ -710,7 +755,11 @@ const getStatusBadgeClass = (status: string) => {
                                 <Select
                                     :model-value="ticket.status"
                                     @update:model-value="
-                                        (val) => updateTicketStatus(ticket, val)
+                                        (val) =>
+                                            updateTicketStatus(
+                                                ticket,
+                                                String(val ?? ''),
+                                            )
                                     "
                                 >
                                     <SelectTrigger
@@ -741,7 +790,10 @@ const getStatusBadgeClass = (status: string) => {
                                 </Select>
                             </td>
 
-                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right"
+                            >
                                 <div
                                     class="flex items-center justify-end gap-1"
                                 >
@@ -770,7 +822,7 @@ const getStatusBadgeClass = (status: string) => {
                                         variant="ghost"
                                         @click="deleteTicket(ticket)"
                                         title="Delete Ticket"
-                                        class="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-600"
+                                        class="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-600 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                                     >
                                         <Trash2 class="h-4 w-4" />
                                     </Button>

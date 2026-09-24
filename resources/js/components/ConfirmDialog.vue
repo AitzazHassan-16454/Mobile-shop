@@ -105,7 +105,10 @@ const confirmButtonClasses = computed(() => {
                     type="button"
                     size="sm"
                     @click="handleConfirm"
-                    :class="['h-8.5 px-4 text-xs font-bold shadow-sm', confirmButtonClasses]"
+                    :class="[
+                        'h-8.5 px-4 text-xs font-bold shadow-sm',
+                        confirmButtonClasses,
+                    ]"
                 >
                     {{ options.confirmText || 'OK' }}
                 </Button>

@@ -49,7 +49,10 @@ const defaultVisibleColumns = {
 
 const visibleColumns = ref({ ...defaultVisibleColumns });
 
-const adjustmentColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+const adjustmentColumnLabels: Record<
+    keyof typeof defaultVisibleColumns,
+    string
+> = {
     date: 'Date & Time',
     product: 'Product & Details',
     type: 'Adjustment Type',
@@ -66,7 +69,10 @@ onMounted(() => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+            visibleColumns.value = {
+                ...defaultVisibleColumns,
+                ...JSON.parse(saved),
+            };
         }
     } catch (e) {
         console.error(e);
@@ -241,9 +247,12 @@ const form = useForm({
 });
 
 const onProductSelect = (productIdVal: string) => {
-    form.product_id = productIdVal;
+    const productId = String(productIdVal ?? '');
+    form.product_id = productId;
     form.product_imei_id = '';
-    const found = props.products.find((p) => String(p.id) === String(productIdVal));
+    const found = props.products.find(
+        (p) => String(p.id) === productId,
+    );
     selectedProduct.value = found || null;
 };
 
@@ -275,7 +284,9 @@ const deleteAdjustment = async (adjustment: StockAdjustmentItem) => {
     });
 
     if (ok) {
-        router.delete(`/${currentTeamSlug.value}/stock-adjustments/${adjustment.id}`);
+        router.delete(
+            `/${currentTeamSlug.value}/stock-adjustments/${adjustment.id}`,
+        );
     }
 };
 
@@ -316,15 +327,17 @@ const formatReasonLabel = (r: string) => {
                 <h1
                     class="flex items-center gap-2.5 text-2xl font-black text-slate-900"
                 >
-                    <SlidersHorizontal class="h-7 w-7 text-primary" /> Stock Adjustments
+                    <SlidersHorizontal class="text-primary h-7 w-7" /> Stock
+                    Adjustments
                 </h1>
-                <p class="mt-1 text-xs text-slate-500 font-medium">
-                    Reconcile stock count discrepancies, damaged items, lost units, or manual audit adjustments.
+                <p class="mt-1 text-xs font-medium text-slate-500">
+                    Reconcile stock count discrepancies, damaged items, lost
+                    units, or manual audit adjustments.
                 </p>
             </div>
             <Button
                 @click="openCreateAdjustmentModal"
-                class="gap-2 bg-primary font-bold text-white shadow-md hover:bg-primary/90"
+                class="bg-primary hover:bg-primary/90 gap-2 font-bold text-white shadow-md"
             >
                 <Plus class="h-4 w-4" />
                 Record Stock Adjustment
@@ -335,39 +348,47 @@ const formatReasonLabel = (r: string) => {
         <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="glass-card p-4">
                 <div class="flex items-center justify-between">
-                    <span class="eyebrow text-slate-500">Total Audit Entries</span>
-                    <SlidersHorizontal class="h-5 w-5 text-primary" />
+                    <span class="eyebrow text-slate-500"
+                        >Total Audit Entries</span
+                    >
+                    <SlidersHorizontal class="text-primary h-5 w-5" />
                 </div>
                 <div class="tnum mt-2 text-2xl font-black text-slate-900">
                     {{ summary.total_adjustments }}
                 </div>
-                <div class="mt-1 text-xs text-slate-500 font-medium">
+                <div class="mt-1 text-xs font-medium text-slate-500">
                     Recorded adjustment logs
                 </div>
             </div>
 
             <div class="glass-card p-4">
                 <div class="flex items-center justify-between">
-                    <span class="eyebrow text-emerald-600">Stock Additions (+)</span>
-                    <ArrowUpRight class="h-5 w-5 text-emerald-600" />
+                    <span class="eyebrow text-emerald-600 dark:text-emerald-400"
+                        >Stock Additions (+)</span
+                    >
+                    <ArrowUpRight class="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-black text-emerald-600">
+                <div
+                    class="tnum mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400"
+                >
                     +{{ summary.total_additions }} Units
                 </div>
-                <div class="mt-1 text-xs text-slate-500 font-medium">
+                <div class="mt-1 text-xs font-medium text-slate-500">
                     Found or corrected items added
                 </div>
             </div>
 
             <div class="glass-card p-4">
                 <div class="flex items-center justify-between">
-                    <span class="eyebrow text-rose-600">Stock Deductions (-)</span>
+                    <span class="eyebrow text-rose-600"
+                        >Stock Deductions (-)</span
+                    >
                     <ArrowDownLeft class="h-5 w-5 text-rose-600" />
                 </div>
                 <div class="tnum mt-2 text-2xl font-black text-rose-600">
                     -{{ summary.total_subtractions }} Units
                 </div>
-                <div class="mt-1 text-xs text-slate-500 font-medium">
+                <div class="mt-1 text-xs font-medium text-slate-500">
                     Damaged, lost, or stolen items
                 </div>
             </div>
@@ -380,50 +401,68 @@ const formatReasonLabel = (r: string) => {
                 <div class="tnum mt-2 text-2xl font-black text-amber-600">
                     {{ summary.damaged_count }} Items
                 </div>
-                <div class="mt-1 text-xs text-slate-500 font-medium">
+                <div class="mt-1 text-xs font-medium text-slate-500">
                     Marked as damaged or defective
                 </div>
             </div>
         </section>
 
         <!-- Search & Filter Section -->
-        <section class="glass-card flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+        <section
+            class="glass-card flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between"
+        >
             <div class="relative flex-1">
-                <Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search
+                    class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
+                />
                 <Input
                     v-model="search"
                     placeholder="Search by product name, barcode, IMEI or notes..."
-                    class="pl-9 bg-white text-xs text-slate-900 border-slate-200"
+                    class="border-slate-200 bg-white pl-9 text-xs text-slate-900"
                 />
             </div>
 
             <div class="flex flex-wrap items-center gap-3">
                 <div class="w-44">
                     <Select v-model="selectedType">
-                        <SelectTrigger class="h-9 text-xs border-slate-200 bg-white">
+                        <SelectTrigger
+                            class="h-9 border-slate-200 bg-white text-xs"
+                        >
                             <SelectValue placeholder="All Adjustment Types" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Types</SelectItem>
-                            <SelectItem value="addition">Stock Addition (+)</SelectItem>
-                            <SelectItem value="subtraction">Stock Subtraction (-)</SelectItem>
+                            <SelectItem value="addition"
+                                >Stock Addition (+)</SelectItem
+                            >
+                            <SelectItem value="subtraction"
+                                >Stock Subtraction (-)</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                 </div>
 
                 <div class="w-48">
                     <Select v-model="selectedReason">
-                        <SelectTrigger class="h-9 text-xs border-slate-200 bg-white">
+                        <SelectTrigger
+                            class="h-9 border-slate-200 bg-white text-xs"
+                        >
                             <SelectValue placeholder="All Reasons" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Reasons</SelectItem>
-                            <SelectItem value="damaged">Damaged / Defective</SelectItem>
+                            <SelectItem value="damaged"
+                                >Damaged / Defective</SelectItem
+                            >
                             <SelectItem value="lost">Lost / Missing</SelectItem>
                             <SelectItem value="stolen">Stolen</SelectItem>
-                            <SelectItem value="audit_reconciliation">Audit Reconciliation</SelectItem>
+                            <SelectItem value="audit_reconciliation"
+                                >Audit Reconciliation</SelectItem
+                            >
                             <SelectItem value="found">Found Stock</SelectItem>
-                            <SelectItem value="other">Other / Correction</SelectItem>
+                            <SelectItem value="other"
+                                >Other / Correction</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                 </div>
@@ -434,22 +473,28 @@ const formatReasonLabel = (r: string) => {
                         <Button
                             variant="outline"
                             size="sm"
-                            class="h-9 gap-1.5 text-xs font-semibold whitespace-nowrap bg-white border-slate-200"
+                            class="h-9 gap-1.5 border-slate-200 bg-white text-xs font-semibold whitespace-nowrap"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-primary" />
+                            <SlidersHorizontal
+                                class="text-primary h-3.5 w-3.5"
+                            />
                             <span>Columns</span>
-                            <span class="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                            <span
+                                class="bg-primary/10 text-primary ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                            >
                                 {{ activeColumnCount }}/8
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-56 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                                class="text-primary cursor-pointer text-[11px] font-semibold hover:underline"
                             >
                                 Reset All
                             </button>
@@ -459,15 +504,19 @@ const formatReasonLabel = (r: string) => {
                             v-for="(label, key) in adjustmentColumnLabels"
                             :key="key"
                             @click.stop="toggleAdjustmentColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-slate-100 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none hover:bg-slate-100"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleAdjustmentColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                                class="text-primary focus:ring-primary h-4 w-4 cursor-pointer rounded border-slate-300"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -479,42 +528,89 @@ const formatReasonLabel = (r: string) => {
         <section class="glass-card overflow-hidden rounded-2xl">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
-                    <thead class="border-b border-slate-200 bg-slate-50/80 text-[11px] font-black tracking-wider text-slate-500 uppercase">
+                    <thead
+                        class="border-b border-slate-200 bg-slate-50/80 text-[11px] font-black tracking-wider text-slate-500 uppercase"
+                    >
                         <tr>
-                            <th v-if="visibleColumns.date" class="px-5 py-3.5">Date & Time</th>
-                            <th v-if="visibleColumns.product" class="px-5 py-3.5">Product & Details</th>
-                            <th v-if="visibleColumns.type" class="px-5 py-3.5">Adjustment Type</th>
-                            <th v-if="visibleColumns.qty" class="px-5 py-3.5 text-center">Qty</th>
-                            <th v-if="visibleColumns.reason" class="px-5 py-3.5">Reason</th>
-                            <th v-if="visibleColumns.notes" class="px-5 py-3.5">Notes / Remarks</th>
-                            <th v-if="visibleColumns.user" class="px-5 py-3.5">Recorded By</th>
-                            <th v-if="visibleColumns.actions" class="px-5 py-3.5 text-right">Actions</th>
+                            <th v-if="visibleColumns.date" class="px-5 py-3.5">
+                                Date & Time
+                            </th>
+                            <th
+                                v-if="visibleColumns.product"
+                                class="px-5 py-3.5"
+                            >
+                                Product & Details
+                            </th>
+                            <th v-if="visibleColumns.type" class="px-5 py-3.5">
+                                Adjustment Type
+                            </th>
+                            <th
+                                v-if="visibleColumns.qty"
+                                class="px-5 py-3.5 text-center"
+                            >
+                                Qty
+                            </th>
+                            <th
+                                v-if="visibleColumns.reason"
+                                class="px-5 py-3.5"
+                            >
+                                Reason
+                            </th>
+                            <th v-if="visibleColumns.notes" class="px-5 py-3.5">
+                                Notes / Remarks
+                            </th>
+                            <th v-if="visibleColumns.user" class="px-5 py-3.5">
+                                Recorded By
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-5 py-3.5 text-right"
+                            >
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <tr v-if="adjustments.data.length === 0">
-                            <td colspan="8" class="px-5 py-12 text-center text-slate-400 font-medium">
-                                No stock adjustments found. Click "Record Stock Adjustment" to create an audit record.
+                            <td
+                                colspan="8"
+                                class="px-5 py-12 text-center font-medium text-slate-400"
+                            >
+                                No stock adjustments found. Click "Record Stock
+                                Adjustment" to create an audit record.
                             </td>
                         </tr>
 
                         <tr
                             v-for="adj in adjustments.data"
                             :key="adj.id"
-                            class="transition-colors hover:bg-slate-50/60 text-slate-600"
+                            class="text-slate-600 transition-colors hover:bg-slate-50/60"
                         >
-                            <td v-if="visibleColumns.date" class="px-5 py-4 text-xs text-slate-500 whitespace-nowrap">
+                            <td
+                                v-if="visibleColumns.date"
+                                class="px-5 py-4 text-xs whitespace-nowrap text-slate-500"
+                            >
                                 {{ formatDate(adj.created_at) }}
                             </td>
 
                             <td v-if="visibleColumns.product" class="px-5 py-4">
-                                <div class="font-bold text-slate-900 text-sm">
+                                <div class="text-sm font-bold text-slate-900">
                                     {{ adj.product?.name || 'Unknown Product' }}
                                 </div>
-                                <div class="mt-0.5 text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                                    <span class="font-bold text-primary">{{ adj.product?.brand }}</span>
-                                    <span>&bull; {{ adj.product?.category }}</span>
-                                    <span v-if="adj.imei" class="font-mono text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                                <div
+                                    class="mt-0.5 flex items-center gap-1.5 text-xs font-medium text-slate-500"
+                                >
+                                    <span class="text-primary font-bold">{{
+                                        adj.product?.brand
+                                    }}</span>
+                                    <span
+                                        >&bull;
+                                        {{ adj.product?.category }}</span
+                                    >
+                                    <span
+                                        v-if="adj.imei"
+                                        class="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-700"
+                                    >
                                         IMEI: {{ adj.imei.imei_1 }}
                                     </span>
                                 </div>
@@ -525,17 +621,32 @@ const formatReasonLabel = (r: string) => {
                                     class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase"
                                     :class="
                                         adj.type === 'addition'
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-rose-100 text-rose-800'
+                                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
                                     "
                                 >
-                                    <component :is="adj.type === 'addition' ? ArrowUpRight : ArrowDownLeft" class="h-3.5 w-3.5" />
-                                    {{ adj.type === 'addition' ? 'Stock Addition' : 'Stock Deduction' }}
+                                    <component
+                                        :is="
+                                            adj.type === 'addition'
+                                                ? ArrowUpRight
+                                                : ArrowDownLeft
+                                        "
+                                        class="h-3.5 w-3.5"
+                                    />
+                                    {{
+                                        adj.type === 'addition'
+                                            ? 'Stock Addition'
+                                            : 'Stock Deduction'
+                                    }}
                                 </span>
                             </td>
 
-                            <td v-if="visibleColumns.qty" class="px-5 py-4 text-center tnum font-black text-slate-900 text-base">
-                                {{ adj.type === 'addition' ? '+' : '-' }}{{ adj.quantity }}
+                            <td
+                                v-if="visibleColumns.qty"
+                                class="tnum px-5 py-4 text-center text-base font-black text-slate-900"
+                            >
+                                {{ adj.type === 'addition' ? '+' : '-'
+                                }}{{ adj.quantity }}
                             </td>
 
                             <td v-if="visibleColumns.reason" class="px-5 py-4">
@@ -543,31 +654,41 @@ const formatReasonLabel = (r: string) => {
                                     class="rounded-md px-2 py-0.5 text-[11px] font-bold"
                                     :class="
                                         adj.reason === 'damaged'
-                                            ? 'bg-amber-100 text-amber-800'
-                                            : adj.reason === 'lost' || adj.reason === 'stolen'
-                                            ? 'bg-rose-100 text-rose-800'
-                                            : adj.reason === 'found'
-                                            ? 'bg-emerald-100 text-emerald-800'
-                                            : 'bg-slate-100 text-slate-700'
+                                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                            : adj.reason === 'lost' ||
+                                                adj.reason === 'stolen'
+                                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                                              : adj.reason === 'found'
+                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                                : 'bg-slate-100 text-slate-700'
                                     "
                                 >
                                     {{ formatReasonLabel(adj.reason) }}
                                 </span>
                             </td>
 
-                            <td v-if="visibleColumns.notes" class="px-5 py-4 text-xs text-slate-500 max-w-[200px] truncate">
+                            <td
+                                v-if="visibleColumns.notes"
+                                class="max-w-[200px] truncate px-5 py-4 text-xs text-slate-500"
+                            >
                                 {{ adj.notes || '-' }}
                             </td>
 
-                            <td v-if="visibleColumns.user" class="px-5 py-4 text-xs text-slate-700 font-semibold">
+                            <td
+                                v-if="visibleColumns.user"
+                                class="px-5 py-4 text-xs font-semibold text-slate-700"
+                            >
                                 {{ adj.user?.name || 'Admin' }}
                             </td>
 
-                            <td v-if="visibleColumns.actions" class="px-5 py-4 text-right">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-5 py-4 text-right"
+                            >
                                 <Button
                                     size="sm"
                                     variant="ghost"
-                                    class="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-700"
+                                    class="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                                     @click="deleteAdjustment(adj)"
                                     title="Revert / Delete Adjustment Record"
                                 >
@@ -581,42 +702,84 @@ const formatReasonLabel = (r: string) => {
         </section>
 
         <!-- New Stock Adjustment Modal Window -->
-        <Dialog :open="isAdjustmentModalOpen" @update:open="isAdjustmentModalOpen = $event">
+        <Dialog
+            :open="isAdjustmentModalOpen"
+            @update:open="isAdjustmentModalOpen = $event"
+        >
             <DialogContent class="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle class="text-lg font-black text-slate-900 flex items-center gap-2">
-                        <SlidersHorizontal class="h-5 w-5 text-primary" />
+                    <DialogTitle
+                        class="flex items-center gap-2 text-lg font-black text-slate-900"
+                    >
+                        <SlidersHorizontal class="text-primary h-5 w-5" />
                         Record Stock Adjustment
                     </DialogTitle>
                     <DialogDescription class="text-xs text-slate-500">
-                        Adjust product inventory levels for damage, lost units, returns, or physical count audits.
+                        Adjust product inventory levels for damage, lost units,
+                        returns, or physical count audits.
                     </DialogDescription>
                 </DialogHeader>
 
                 <form class="space-y-4 py-2" @submit.prevent="submitAdjustment">
                     <!-- Product Selector -->
                     <div>
-                        <Label class="text-xs font-bold text-slate-700">Select Product Catalog Item *</Label>
-                        <Select :model-value="form.product_id" @update:model-value="onProductSelect">
-                            <SelectTrigger class="mt-1 bg-white border-slate-200 text-xs">
-                                <SelectValue placeholder="Choose a product from catalog..." />
+                        <Label class="text-xs font-bold text-slate-700"
+                            >Select Product Catalog Item *</Label
+                        >
+                        <Select
+                            :model-value="form.product_id"
+                            @update:model-value="
+                                (val) => onProductSelect(String(val ?? ''))
+                            "
+                        >
+                            <SelectTrigger
+                                class="mt-1 border-slate-200 bg-white text-xs"
+                            >
+                                <SelectValue
+                                    placeholder="Choose a product from catalog..."
+                                />
                             </SelectTrigger>
                             <SelectContent class="max-h-60">
-                                <SelectItem v-for="p in products" :key="p.id" :value="String(p.id)">
-                                    {{ p.name }} ({{ p.brand }}) &bull; Stock: {{ p.is_serialized ? p.imeis?.length || 0 : p.stock_quantity }}
+                                <SelectItem
+                                    v-for="p in products"
+                                    :key="p.id"
+                                    :value="String(p.id)"
+                                >
+                                    {{ p.name }} ({{ p.brand }}) &bull; Stock:
+                                    {{
+                                        p.is_serialized
+                                            ? p.imeis?.length || 0
+                                            : p.stock_quantity
+                                    }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <!-- Optional Serial / IMEI Selector for Handsets -->
-                    <div v-if="selectedProduct?.is_serialized" class="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
-                        <Label class="text-xs font-bold text-primary">Select Specific IMEI Unit (Optional)</Label>
+                    <div
+                        v-if="selectedProduct?.is_serialized"
+                        class="border-primary/20 bg-primary/5 space-y-2 rounded-xl border p-3"
+                    >
+                        <Label class="text-primary text-xs font-bold"
+                            >Select Specific IMEI Unit (Optional)</Label
+                        >
                         <Select v-model="form.product_imei_id">
-                            <SelectTrigger class="bg-white border-slate-200 text-xs"><SelectValue placeholder="Select IMEI serial..." /></SelectTrigger>
+                            <SelectTrigger
+                                class="border-slate-200 bg-white text-xs"
+                                ><SelectValue
+                                    placeholder="Select IMEI serial..."
+                            /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem v-for="i in selectedProduct.imeis" :key="i.id" :value="String(i.id)">
-                                    IMEI: {{ i.imei_1 }} ({{ i.color || 'No color' }} &bull; {{ i.storage || 'No storage' }})
+                                <SelectItem
+                                    v-for="i in selectedProduct.imeis"
+                                    :key="i.id"
+                                    :value="String(i.id)"
+                                >
+                                    IMEI: {{ i.imei_1 }} ({{
+                                        i.color || 'No color'
+                                    }}
+                                    &bull; {{ i.storage || 'No storage' }})
                                 </SelectItem>
                             </SelectContent>
                         </Select>
@@ -624,14 +787,17 @@ const formatReasonLabel = (r: string) => {
 
                     <!-- Adjustment Type Toggle -->
                     <div>
-                        <Label class="text-xs font-bold text-slate-700 mb-1.5 block">Adjustment Type</Label>
+                        <Label
+                            class="mb-1.5 block text-xs font-bold text-slate-700"
+                            >Adjustment Type</Label
+                        >
                         <div class="grid grid-cols-2 gap-2">
                             <button
                                 type="button"
-                                class="flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all text-left"
+                                class="flex items-center justify-center gap-2 rounded-xl border p-2.5 text-left text-xs font-bold transition-all"
                                 :class="
                                     form.type === 'subtraction'
-                                        ? 'border-rose-500 bg-rose-50 text-rose-900 ring-2 ring-rose-500/20 shadow-xs'
+                                        ? 'border-rose-500 bg-rose-50 text-rose-900 shadow-xs ring-2 ring-rose-500/20 dark:border-rose-500/50 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-500/30'
                                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                 "
                                 @click="form.type = 'subtraction'"
@@ -639,24 +805,34 @@ const formatReasonLabel = (r: string) => {
                                 <ArrowDownLeft class="h-4 w-4 text-rose-600" />
                                 <div>
                                     <div>- Deduct Stock</div>
-                                    <div class="text-[10px] font-normal text-slate-500">Damaged / Lost / Missing</div>
+                                    <div
+                                        class="text-[10px] font-normal text-slate-500"
+                                    >
+                                        Damaged / Lost / Missing
+                                    </div>
                                 </div>
                             </button>
 
                             <button
                                 type="button"
-                                class="flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all text-left"
+                                class="flex items-center justify-center gap-2 rounded-xl border p-2.5 text-left text-xs font-bold transition-all"
                                 :class="
                                     form.type === 'addition'
-                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-500/20 shadow-xs'
+                                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-xs ring-2 ring-emerald-500/20 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/30'
                                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                                 "
                                 @click="form.type = 'addition'"
                             >
-                                <ArrowUpRight class="h-4 w-4 text-emerald-600" />
+                                <ArrowUpRight
+                                    class="h-4 w-4 text-emerald-600"
+                                />
                                 <div>
                                     <div>+ Add Stock</div>
-                                    <div class="text-[10px] font-normal text-slate-500">Found / Reconciled Item</div>
+                                    <div
+                                        class="text-[10px] font-normal text-slate-500"
+                                    >
+                                        Found / Reconciled Item
+                                    </div>
                                 </div>
                             </button>
                         </div>
@@ -665,27 +841,43 @@ const formatReasonLabel = (r: string) => {
                     <!-- Quantity & Reason -->
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <Label for="adj-qty" class="text-xs font-bold">Quantity *</Label>
+                            <Label for="adj-qty" class="text-xs font-bold"
+                                >Quantity *</Label
+                            >
                             <Input
                                 id="adj-qty"
                                 v-model="form.quantity"
                                 type="number"
                                 min="1"
                                 required
-                                class="mt-1 text-xs bg-white font-bold"
+                                class="mt-1 bg-white text-xs font-bold"
                             />
                         </div>
                         <div>
                             <Label class="text-xs font-bold">Reason *</Label>
                             <Select v-model="form.reason">
-                                <SelectTrigger class="mt-1 h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="mt-1 h-9 bg-white text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="damaged">Damaged / Defective</SelectItem>
-                                    <SelectItem value="lost">Lost / Missing</SelectItem>
-                                    <SelectItem value="stolen">Stolen</SelectItem>
-                                    <SelectItem value="audit_reconciliation">Audit Reconciliation</SelectItem>
-                                    <SelectItem value="found">Found Stock</SelectItem>
-                                    <SelectItem value="other">Other / Correction</SelectItem>
+                                    <SelectItem value="damaged"
+                                        >Damaged / Defective</SelectItem
+                                    >
+                                    <SelectItem value="lost"
+                                        >Lost / Missing</SelectItem
+                                    >
+                                    <SelectItem value="stolen"
+                                        >Stolen</SelectItem
+                                    >
+                                    <SelectItem value="audit_reconciliation"
+                                        >Audit Reconciliation</SelectItem
+                                    >
+                                    <SelectItem value="found"
+                                        >Found Stock</SelectItem
+                                    >
+                                    <SelectItem value="other"
+                                        >Other / Correction</SelectItem
+                                    >
                                 </SelectContent>
                             </Select>
                         </div>
@@ -693,18 +885,28 @@ const formatReasonLabel = (r: string) => {
 
                     <!-- Notes -->
                     <div>
-                        <Label for="adj-notes" class="text-xs font-semibold">Notes / Audit Explanation</Label>
+                        <Label for="adj-notes" class="text-xs font-semibold"
+                            >Notes / Audit Explanation</Label
+                        >
                         <Input
                             id="adj-notes"
                             v-model="form.notes"
                             placeholder="e.g. Screen cracked during display setup"
-                            class="mt-1 text-xs bg-white"
+                            class="mt-1 bg-white text-xs"
                         />
                     </div>
 
-                    <DialogFooter class="pt-3 border-t border-slate-100">
-                        <Button type="button" variant="outline" @click="isAdjustmentModalOpen = false">Cancel</Button>
-                        <Button class="bg-primary text-white font-bold shadow-md" :disabled="form.processing">
+                    <DialogFooter class="border-t border-slate-100 pt-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="isAdjustmentModalOpen = false"
+                            >Cancel</Button
+                        >
+                        <Button
+                            class="bg-primary font-bold text-white shadow-md"
+                            :disabled="form.processing"
+                        >
                             Save Adjustment Log
                         </Button>
                     </DialogFooter>

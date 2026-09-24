@@ -50,7 +50,8 @@ import {
 } from '@/components/ui/select';
 import { useConfirm } from '@/composables/useConfirm';
 import ImportDialog from '@/components/ImportDialog.vue';
-import imeis from '@/routes/imeis';
+import { default as productImeis } from '@/routes/products/imeis';
+import { default as imeis } from '@/routes/imeis';
 import inventory from '@/routes/inventory';
 import products from '@/routes/products';
 import type { Team } from '@/types';
@@ -133,13 +134,9 @@ const importActionUrl = computed(
     () => `/${currentTeamSlug.value}/products/import`,
 );
 
-const productList = computed<ProductItem[]>(
-    () => props.products?.data || [],
-);
+const productList = computed<ProductItem[]>(() => props.products?.data || []);
 
-const categoryList = computed<string[]>(
-    () => props.categories || [],
-);
+const categoryList = computed<string[]>(() => props.categories || []);
 
 const summaryStats = computed(() => ({
     total_products: props.summary?.total_products ?? 0,
@@ -380,7 +377,9 @@ const submitQuickEditForm = () => {
 
 // Inline Cell Editing State for Products
 const inlineEditingProductId = ref<number | null>(null);
-const inlineEditingField = ref<'sale_price' | 'cost_price' | 'stock_quantity' | null>(null);
+const inlineEditingField = ref<
+    'sale_price' | 'cost_price' | 'stock_quantity' | null
+>(null);
 const inlineEditForm = useForm({
     name: '',
     brand: '',
@@ -393,7 +392,10 @@ const inlineEditForm = useForm({
     alert_quantity: 5,
 });
 
-const startInlineEdit = (product: ProductItem, field: 'sale_price' | 'cost_price' | 'stock_quantity') => {
+const startInlineEdit = (
+    product: ProductItem,
+    field: 'sale_price' | 'cost_price' | 'stock_quantity',
+) => {
     inlineEditingProductId.value = product.id;
     inlineEditingField.value = field;
     inlineEditForm.clearErrors();
@@ -416,7 +418,8 @@ const cancelInlineEdit = () => {
 const saveInlineEdit = () => {
     if (!inlineEditingProductId.value) return;
     inlineEditForm.put(
-        products.update([currentTeamSlug.value, inlineEditingProductId.value]).url,
+        products.update([currentTeamSlug.value, inlineEditingProductId.value])
+            .url,
         {
             onSuccess: () => {
                 inlineEditingProductId.value = null;
@@ -506,7 +509,7 @@ const submitSingleImeiForm = () => {
     if (!activeImeiProduct.value) return;
 
     singleImeiForm.post(
-        imeis.store([currentTeamSlug.value, activeImeiProduct.value.id]).url,
+        productImeis.store([currentTeamSlug.value, activeImeiProduct.value.id]).url,
         {
             onSuccess: () => {
                 isAddSingleImeiModalOpen.value = false;
@@ -669,7 +672,7 @@ const submitBulkImeiForm = () => {
     }
 
     bulkImeiForm.post(
-        imeis.bulkStore([currentTeamSlug.value, bulkImeiForm.product_id]).url,
+        productImeis.bulkStore([currentTeamSlug.value, bulkImeiForm.product_id]).url,
         {
             onSuccess: () => {
                 isBulkImeiModalOpen.value = false;
@@ -696,12 +699,13 @@ const serializedProductsList = computed(() =>
         >
             <div>
                 <h1
-                    class="text-xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-2xl"
+                    class="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl dark:text-white"
                 >
                     Products & Stock Inventory
                 </h1>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Manage Mobile Handsets (IMEI tracked), Accessories & Stock Control
+                    Manage Mobile Handsets (IMEI tracked), Accessories & Stock
+                    Control
                 </p>
             </div>
 
@@ -731,7 +735,8 @@ const serializedProductsList = computed(() =>
                     variant="outline"
                     class="gap-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
-                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import / Export
+                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import /
+                    Export
                 </Button>
             </div>
         </div>
@@ -742,7 +747,9 @@ const serializedProductsList = computed(() =>
                 class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
             >
                 <div class="flex items-center justify-between text-gray-500">
-                    <span class="text-xs font-semibold">Total Catalog Items</span>
+                    <span class="text-xs font-semibold"
+                        >Total Catalog Items</span
+                    >
                     <Boxes class="h-4 w-4 text-[#003B7D]" />
                 </div>
                 <div
@@ -759,11 +766,17 @@ const serializedProductsList = computed(() =>
             <div
                 class="rounded-xl border border-blue-200 bg-blue-50/50 p-4 shadow-sm dark:border-blue-900/30 dark:bg-blue-950/20"
             >
-                <div class="flex items-center justify-between text-blue-800 dark:text-blue-300">
-                    <span class="text-xs font-semibold">In-Stock Handsets (IMEIs)</span>
+                <div
+                    class="flex items-center justify-between text-blue-800 dark:text-blue-300"
+                >
+                    <span class="text-xs font-semibold"
+                        >In-Stock Handsets (IMEIs)</span
+                    >
                     <Smartphone class="h-4 w-4 text-[#003B7D]" />
                 </div>
-                <div class="mt-2 text-2xl font-bold text-[#003B7D] dark:text-blue-400">
+                <div
+                    class="mt-2 text-2xl font-bold text-[#003B7D] dark:text-blue-400"
+                >
                     {{ summaryStats.in_stock_imeis_count }} Units
                 </div>
                 <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -774,11 +787,15 @@ const serializedProductsList = computed(() =>
             <div
                 class="rounded-xl border border-amber-200 bg-amber-50/50 p-4 shadow-sm dark:border-amber-900/30 dark:bg-amber-950/20"
             >
-                <div class="flex items-center justify-between text-amber-800 dark:text-amber-300">
+                <div
+                    class="flex items-center justify-between text-amber-800 dark:text-amber-300"
+                >
                     <span class="text-xs font-semibold">Accessory Items</span>
-                    <Tag class="h-4 w-4 text-amber-600" />
+                    <Tag class="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
-                <div class="mt-2 text-2xl font-bold text-amber-600">
+                <div
+                    class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"
+                >
                     {{ summaryStats.accessories_count }} Products
                 </div>
                 <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -789,11 +806,20 @@ const serializedProductsList = computed(() =>
             <div
                 class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-sm dark:border-emerald-900/30 dark:bg-emerald-950/20"
             >
-                <div class="flex items-center justify-between text-emerald-800 dark:text-emerald-300">
-                    <span class="text-xs font-semibold">Stock Valuation (COGS)</span>
-                    <span class="text-xs font-bold text-emerald-600 uppercase">PKR</span>
+                <div
+                    class="flex items-center justify-between text-emerald-800 dark:text-emerald-300"
+                >
+                    <span class="text-xs font-semibold"
+                        >Stock Valuation (COGS)</span
+                    >
+                    <span
+                        class="text-xs font-bold text-emerald-600 uppercase dark:text-emerald-400"
+                        >PKR</span
+                    >
                 </div>
-                <div class="mt-2 text-2xl font-bold text-emerald-600">
+                <div
+                    class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400"
+                >
                     {{ formatCurrency(summaryStats.total_stock_value) }}
                 </div>
                 <div class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
@@ -804,7 +830,7 @@ const serializedProductsList = computed(() =>
 
         <!-- Search & Filter Bar + Column Visibility Customizer -->
         <div
-            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:flex-row md:items-center md:justify-between"
+            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between dark:border-gray-800 dark:bg-gray-900"
         >
             <div class="relative max-w-md flex-1">
                 <Search
@@ -825,8 +851,12 @@ const serializedProductsList = computed(() =>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Types</SelectItem>
-                            <SelectItem value="serialized">Handsets (IMEI)</SelectItem>
-                            <SelectItem value="accessories">Accessories / Parts</SelectItem>
+                            <SelectItem value="serialized"
+                                >Handsets (IMEI)</SelectItem
+                            >
+                            <SelectItem value="accessories"
+                                >Accessories / Parts</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                 </div>
@@ -838,7 +868,11 @@ const serializedProductsList = computed(() =>
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Categories</SelectItem>
-                            <SelectItem v-for="cat in categoryList" :key="cat" :value="cat">
+                            <SelectItem
+                                v-for="cat in categoryList"
+                                :key="cat"
+                                :value="cat"
+                            >
                                 {{ cat }}
                             </SelectItem>
                         </SelectContent>
@@ -851,9 +885,15 @@ const serializedProductsList = computed(() =>
                             <SelectValue placeholder="All Stock Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Stock Status</SelectItem>
-                            <SelectItem value="low_stock">Low Stock Warning</SelectItem>
-                            <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                            <SelectItem value="all"
+                                >All Stock Status</SelectItem
+                            >
+                            <SelectItem value="low_stock"
+                                >Low Stock Warning</SelectItem
+                            >
+                            <SelectItem value="out_of_stock"
+                                >Out of Stock</SelectItem
+                            >
                         </SelectContent>
                     </Select>
                 </div>
@@ -866,7 +906,9 @@ const serializedProductsList = computed(() =>
                             size="sm"
                             class="h-9 gap-1.5 text-xs text-gray-700 dark:text-gray-300"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-[#003B7D]"
+                            />
                             <span>Columns</span>
                             <span
                                 class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
@@ -875,13 +917,15 @@ const serializedProductsList = computed(() =>
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-60 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-60 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold text-gray-900 dark:text-white"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -891,15 +935,19 @@ const serializedProductsList = computed(() =>
                             v-for="(label, key) in productColumnLabels"
                             :key="key"
                             @click.stop="toggleProductColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 transition-colors select-none hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleProductColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -912,18 +960,53 @@ const serializedProductsList = computed(() =>
             class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"
         >
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-xs min-w-[900px]">
+                <table class="w-full min-w-[900px] text-left text-xs">
                     <thead
                         class="border-b border-gray-200 bg-gray-50 text-gray-600 uppercase dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
                     >
                         <tr>
-                            <th v-if="visibleColumns.info" class="px-4 py-3 font-semibold">Product Name & Category</th>
-                            <th v-if="visibleColumns.type" class="px-4 py-3 font-semibold">Type</th>
-                            <th v-if="visibleColumns.identifier" class="px-4 py-3 font-semibold">Identifier / Barcode</th>
-                            <th v-if="visibleColumns.sale_price" class="px-4 py-3 font-semibold">Sale Price</th>
-                            <th v-if="visibleColumns.cost_price" class="px-4 py-3 font-semibold">Cost Price</th>
-                            <th v-if="visibleColumns.stock" class="px-4 py-3 text-center font-semibold">Stock Level</th>
-                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right font-semibold">Actions</th>
+                            <th
+                                v-if="visibleColumns.info"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Product Name & Category
+                            </th>
+                            <th
+                                v-if="visibleColumns.type"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Type
+                            </th>
+                            <th
+                                v-if="visibleColumns.identifier"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Identifier / Barcode
+                            </th>
+                            <th
+                                v-if="visibleColumns.sale_price"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Sale Price
+                            </th>
+                            <th
+                                v-if="visibleColumns.cost_price"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Cost Price
+                            </th>
+                            <th
+                                v-if="visibleColumns.stock"
+                                class="px-4 py-3 text-center font-semibold"
+                            >
+                                Stock Level
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right font-semibold"
+                            >
+                                Actions
+                            </th>
                         </tr>
                     </thead>
                     <tbody
@@ -941,15 +1024,21 @@ const serializedProductsList = computed(() =>
                         <tr
                             v-for="product in productList"
                             :key="product.id"
-                            class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors"
+                            class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
                         >
                             <!-- Info -->
                             <td v-if="visibleColumns.info" class="px-4 py-3">
-                                <div class="font-bold text-gray-900 dark:text-white">
+                                <div
+                                    class="font-bold text-gray-900 dark:text-white"
+                                >
                                     {{ product.name }}
                                 </div>
-                                <div class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400">
-                                    <span class="font-bold text-[#003B7D]">{{ product.brand }}</span>
+                                <div
+                                    class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400"
+                                >
+                                    <span class="font-bold text-[#003B7D]">{{
+                                        product.brand
+                                    }}</span>
                                     &bull; {{ product.category }}
                                 </div>
                             </td>
@@ -973,16 +1062,31 @@ const serializedProductsList = computed(() =>
                             </td>
 
                             <!-- Identifier / Barcode -->
-                            <td v-if="visibleColumns.identifier" class="px-4 py-3 font-mono text-[11px]">
-                                <div v-if="product.is_serialized" class="flex flex-col gap-0.5">
-                                    <span class="font-bold text-[#003B7D] dark:text-blue-400">
-                                        {{ product.in_stock_imeis_count || 0 }} IMEIs In Stock
+                            <td
+                                v-if="visibleColumns.identifier"
+                                class="px-4 py-3 font-mono text-[11px]"
+                            >
+                                <div
+                                    v-if="product.is_serialized"
+                                    class="flex flex-col gap-0.5"
+                                >
+                                    <span
+                                        class="font-bold text-[#003B7D] dark:text-blue-400"
+                                    >
+                                        {{
+                                            product.in_stock_imeis_count || 0
+                                        }}
+                                        IMEIs In Stock
                                     </span>
-                                    <span class="text-gray-400 text-[10px]">
-                                        ({{ product.imeis_count || 0 }} Lifetime Total)
+                                    <span class="text-[10px] text-gray-400">
+                                        ({{ product.imeis_count || 0 }} Lifetime
+                                        Total)
                                     </span>
                                 </div>
-                                <div v-else-if="product.barcode" class="flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
+                                <div
+                                    v-else-if="product.barcode"
+                                    class="flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300"
+                                >
                                     <QrCode class="h-3.5 w-3.5 text-gray-400" />
                                     {{ product.barcode }}
                                 </div>
@@ -992,28 +1096,57 @@ const serializedProductsList = computed(() =>
                             </td>
 
                             <!-- Sale Price -->
-                            <td v-if="visibleColumns.sale_price" class="px-4 py-3 font-bold text-gray-900 dark:text-white">
-                                <div v-if="inlineEditingProductId === product.id && inlineEditingField === 'sale_price'" class="flex items-center gap-1">
+                            <td
+                                v-if="visibleColumns.sale_price"
+                                class="px-4 py-3 font-bold text-gray-900 dark:text-white"
+                            >
+                                <div
+                                    v-if="
+                                        inlineEditingProductId === product.id &&
+                                        inlineEditingField === 'sale_price'
+                                    "
+                                    class="flex items-center gap-1"
+                                >
                                     <Input
                                         v-model="inlineEditForm.sale_price"
                                         type="number"
                                         step="0.01"
                                         class="h-7 w-28 text-xs font-bold"
                                         @keydown.enter.prevent="saveInlineEdit"
-                                        @keydown.escape.prevent="cancelInlineEdit"
+                                        @keydown.escape.prevent="
+                                            cancelInlineEdit
+                                        "
                                         autofocus
                                     />
-                                    <button @click="saveInlineEdit" :disabled="inlineEditForm.processing" class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700" title="Save Price">
+                                    <button
+                                        @click="saveInlineEdit"
+                                        :disabled="inlineEditForm.processing"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                        title="Save Price"
+                                    >
                                         <Check class="h-3.5 w-3.5" />
                                     </button>
-                                    <button @click="cancelInlineEdit" class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300" title="Cancel">
+                                    <button
+                                        @click="cancelInlineEdit"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300"
+                                        title="Cancel"
+                                    >
                                         <X class="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                                <div v-else class="flex items-center gap-1.5 group cursor-pointer" @click="startInlineEdit(product, 'sale_price')" title="Click to edit Sale Price inline">
-                                    <span>{{ formatCurrency(product.sale_price) }}</span>
+                                <div
+                                    v-else
+                                    class="group flex cursor-pointer items-center gap-1.5"
+                                    @click="
+                                        startInlineEdit(product, 'sale_price')
+                                    "
+                                    title="Click to edit Sale Price inline"
+                                >
+                                    <span>{{
+                                        formatCurrency(product.sale_price)
+                                    }}</span>
                                     <button
-                                        class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#003B7D]"
+                                        class="text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#003B7D]"
                                         title="Edit Sale Price"
                                     >
                                         <Edit3 class="h-3 w-3" />
@@ -1022,117 +1155,205 @@ const serializedProductsList = computed(() =>
                             </td>
 
                             <!-- Cost Price -->
-                            <td v-if="visibleColumns.cost_price" class="px-4 py-3 text-gray-600 dark:text-gray-300">
-                                <div v-if="inlineEditingProductId === product.id && inlineEditingField === 'cost_price'" class="flex items-center gap-1">
+                            <td
+                                v-if="visibleColumns.cost_price"
+                                class="px-4 py-3 text-gray-600 dark:text-gray-300"
+                            >
+                                <div
+                                    v-if="
+                                        inlineEditingProductId === product.id &&
+                                        inlineEditingField === 'cost_price'
+                                    "
+                                    class="flex items-center gap-1"
+                                >
                                     <Input
                                         v-model="inlineEditForm.cost_price"
                                         type="number"
                                         step="0.01"
                                         class="h-7 w-28 text-xs"
                                         @keydown.enter.prevent="saveInlineEdit"
-                                        @keydown.escape.prevent="cancelInlineEdit"
+                                        @keydown.escape.prevent="
+                                            cancelInlineEdit
+                                        "
                                         autofocus
                                     />
-                                    <button @click="saveInlineEdit" :disabled="inlineEditForm.processing" class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700" title="Save Cost Price">
+                                    <button
+                                        @click="saveInlineEdit"
+                                        :disabled="inlineEditForm.processing"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                        title="Save Cost Price"
+                                    >
                                         <Check class="h-3.5 w-3.5" />
                                     </button>
-                                    <button @click="cancelInlineEdit" class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300" title="Cancel">
+                                    <button
+                                        @click="cancelInlineEdit"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300"
+                                        title="Cancel"
+                                    >
                                         <X class="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                                <div v-else-if="!product.is_serialized" class="flex items-center gap-1.5 group cursor-pointer" @click="startInlineEdit(product, 'cost_price')" title="Click to edit Cost Price inline">
-                                    <span>{{ formatCurrency(product.cost_price) }}</span>
+                                <div
+                                    v-else-if="!product.is_serialized"
+                                    class="group flex cursor-pointer items-center gap-1.5"
+                                    @click="
+                                        startInlineEdit(product, 'cost_price')
+                                    "
+                                    title="Click to edit Cost Price inline"
+                                >
+                                    <span>{{
+                                        formatCurrency(product.cost_price)
+                                    }}</span>
                                     <button
-                                        class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#003B7D]"
+                                        class="text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#003B7D]"
                                         title="Edit Cost Price"
                                     >
                                         <Edit3 class="h-3 w-3" />
                                     </button>
                                 </div>
-                                <span v-else class="text-[11px] italic text-gray-400">IMEI Specific</span>
+                                <span
+                                    v-else
+                                    class="text-[11px] text-gray-400 italic"
+                                    >IMEI Specific</span
+                                >
                             </td>
 
                             <!-- Stock Level -->
-                            <td v-if="visibleColumns.stock" class="px-4 py-3 text-center">
-                                <div v-if="product.is_serialized" class="flex flex-col items-center gap-0.5">
+                            <td
+                                v-if="visibleColumns.stock"
+                                class="px-4 py-3 text-center"
+                            >
+                                <div
+                                    v-if="product.is_serialized"
+                                    class="flex flex-col items-center gap-0.5"
+                                >
                                     <span
                                         class="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
                                         :class="
-                                            (product.in_stock_imeis_count || 0) <= 0
+                                            (product.in_stock_imeis_count ||
+                                                0) <= 0
                                                 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                                                : (product.in_stock_imeis_count || 0) <= product.alert_quantity
-                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                                : (product.in_stock_imeis_count ||
+                                                        0) <=
+                                                    product.alert_quantity
+                                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                                         "
                                     >
                                         {{
-                                            (product.in_stock_imeis_count || 0) <= 0
+                                            (product.in_stock_imeis_count ||
+                                                0) <= 0
                                                 ? 'Out of Stock'
-                                                : (product.in_stock_imeis_count || 0) <= product.alert_quantity
-                                                ? 'Low Stock'
-                                                : 'In Stock'
+                                                : (product.in_stock_imeis_count ||
+                                                        0) <=
+                                                    product.alert_quantity
+                                                  ? 'Low Stock'
+                                                  : 'In Stock'
                                         }}
                                     </span>
-                                    <span class="font-bold text-gray-900 dark:text-white text-xs">
-                                        {{ product.in_stock_imeis_count || 0 }} Units
+                                    <span
+                                        class="text-xs font-bold text-gray-900 dark:text-white"
+                                    >
+                                        {{
+                                            product.in_stock_imeis_count || 0
+                                        }}
+                                        Units
                                     </span>
                                 </div>
-                                <div v-else-if="inlineEditingProductId === product.id && inlineEditingField === 'stock_quantity'" class="flex items-center justify-center gap-1">
+                                <div
+                                    v-else-if="
+                                        inlineEditingProductId === product.id &&
+                                        inlineEditingField === 'stock_quantity'
+                                    "
+                                    class="flex items-center justify-center gap-1"
+                                >
                                     <Input
                                         v-model="inlineEditForm.stock_quantity"
                                         type="number"
-                                        class="h-7 w-20 text-xs text-center font-bold"
+                                        class="h-7 w-20 text-center text-xs font-bold"
                                         @keydown.enter.prevent="saveInlineEdit"
-                                        @keydown.escape.prevent="cancelInlineEdit"
+                                        @keydown.escape.prevent="
+                                            cancelInlineEdit
+                                        "
                                         autofocus
                                     />
-                                    <button @click="saveInlineEdit" :disabled="inlineEditForm.processing" class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700" title="Save Stock">
+                                    <button
+                                        @click="saveInlineEdit"
+                                        :disabled="inlineEditForm.processing"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700"
+                                        title="Save Stock"
+                                    >
                                         <Check class="h-3.5 w-3.5" />
                                     </button>
-                                    <button @click="cancelInlineEdit" class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300" title="Cancel">
+                                    <button
+                                        @click="cancelInlineEdit"
+                                        class="flex h-6 w-6 items-center justify-center rounded bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300"
+                                        title="Cancel"
+                                    >
                                         <X class="h-3.5 w-3.5" />
                                     </button>
                                 </div>
-                                <div v-else class="flex flex-col items-center gap-0.5 group cursor-pointer" @click="startInlineEdit(product, 'stock_quantity')" title="Click to edit Stock inline">
+                                <div
+                                    v-else
+                                    class="group flex cursor-pointer flex-col items-center gap-0.5"
+                                    @click="
+                                        startInlineEdit(
+                                            product,
+                                            'stock_quantity',
+                                        )
+                                    "
+                                    title="Click to edit Stock inline"
+                                >
                                     <span
                                         class="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase"
                                         :class="
                                             product.stock_quantity <= 0
                                                 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
-                                                : product.stock_quantity <= product.alert_quantity
-                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                                                : product.stock_quantity <=
+                                                    product.alert_quantity
+                                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
+                                                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
                                         "
                                     >
                                         {{
                                             product.stock_quantity <= 0
                                                 ? 'Out of Stock'
-                                                : product.stock_quantity <= product.alert_quantity
-                                                ? 'Low Stock'
-                                                : 'In Stock'
+                                                : product.stock_quantity <=
+                                                    product.alert_quantity
+                                                  ? 'Low Stock'
+                                                  : 'In Stock'
                                         }}
                                     </span>
                                     <div class="flex items-center gap-1">
-                                        <span class="font-bold text-gray-900 dark:text-white text-xs">
+                                        <span
+                                            class="text-xs font-bold text-gray-900 dark:text-white"
+                                        >
                                             {{ product.stock_quantity }} Pcs
                                         </span>
-                                        <Edit3 class="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#003B7D]" />
+                                        <Edit3
+                                            class="h-3 w-3 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#003B7D]"
+                                        />
                                     </div>
                                 </div>
                             </td>
 
                             <!-- Actions -->
-                            <td v-if="visibleColumns.actions" class="px-4 py-3 text-right">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right"
+                            >
                                 <div class="flex items-center justify-end">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger as-child>
                                             <button
                                                 type="button"
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 shadow-2xs transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#003B7D]/20 data-[state=open]:bg-gray-100 data-[state=open]:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:data-[state=open]:bg-gray-700"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 shadow-2xs transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900 focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none data-[state=open]:border-gray-300 data-[state=open]:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white dark:data-[state=open]:bg-gray-700"
                                                 title="Product Actions"
                                             >
                                                 <MoreVertical class="h-4 w-4" />
-                                                <span class="sr-only">Product Actions</span>
+                                                <span class="sr-only"
+                                                    >Product Actions</span
+                                                >
                                             </button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
@@ -1141,40 +1362,71 @@ const serializedProductsList = computed(() =>
                                         >
                                             <DropdownMenuItem
                                                 v-if="product.is_serialized"
-                                                @click="openImeiManageModal(product)"
+                                                @click="
+                                                    openImeiManageModal(product)
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <Smartphone class="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                                <Smartphone
+                                                    class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+                                                />
                                                 <span>View & Manage IMEIs</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 v-if="product.is_serialized"
-                                                @click="openAddSingleImeiModal(product)"
+                                                @click="
+                                                    openAddSingleImeiModal(
+                                                        product,
+                                                    )
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <Plus class="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                                <span>Add Single IMEI Unit</span>
+                                                <Plus
+                                                    class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                                />
+                                                <span
+                                                    >Add Single IMEI Unit</span
+                                                >
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
-                                                @click="openQuickEditModal(product)"
+                                                @click="
+                                                    openQuickEditModal(product)
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <SlidersHorizontal class="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0" />
-                                                <span>Quick Edit (Price & Stock)</span>
+                                                <SlidersHorizontal
+                                                    class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400"
+                                                />
+                                                <span
+                                                    >Quick Edit (Price &
+                                                    Stock)</span
+                                                >
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
-                                                @click="openEditProductModal(product)"
+                                                @click="
+                                                    openEditProductModal(
+                                                        product,
+                                                    )
+                                                "
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
                                             >
-                                                <Edit3 class="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
-                                                <span>Edit Product Details</span>
+                                                <Edit3
+                                                    class="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400"
+                                                />
+                                                <span
+                                                    >Edit Product Details</span
+                                                >
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator class="my-1 bg-gray-100 dark:bg-gray-800" />
+                                            <DropdownMenuSeparator
+                                                class="my-1 bg-gray-100 dark:bg-gray-800"
+                                            />
                                             <DropdownMenuItem
                                                 @click="deleteProduct(product)"
                                                 class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                                             >
-                                                <Trash2 class="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                                                <Trash2
+                                                    class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+                                                />
                                                 <span>Delete Product</span>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -1188,14 +1440,16 @@ const serializedProductsList = computed(() =>
 
             <!-- Pagination Footer with Editable Items Per Page -->
             <div
-                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
+                class="flex flex-col gap-3 border-t border-gray-200 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900/50"
             >
                 <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <span class="font-semibold text-gray-700 dark:text-gray-300">Items per page:</span>
+                    <span class="font-semibold text-gray-700 dark:text-gray-300"
+                        >Items per page:</span
+                    >
                     <select
                         v-model="perPage"
                         @change="changePerPage()"
-                        class="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-800 shadow-2xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#003B7D]"
+                        class="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-bold text-gray-800 shadow-2xs focus:ring-2 focus:ring-[#003B7D] focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     >
                         <option :value="10">10 per page</option>
                         <option :value="15">15 per page (default)</option>
@@ -1206,11 +1460,25 @@ const serializedProductsList = computed(() =>
                         <option :value="500">500 per page (All)</option>
                     </select>
                     <span class="ml-1 text-gray-400">&bull;</span>
-                    <span>Total {{ props.products?.total ?? productList.length }} items</span>
+                    <span
+                        >Total
+                        {{
+                            props.products?.total ?? productList.length
+                        }}
+                        items</span
+                    >
                 </div>
 
-                <div v-if="props.products?.links && props.products.links.length > 3" class="flex items-center gap-1">
-                    <template v-for="(link, i) in props.products.links" :key="i">
+                <div
+                    v-if="
+                        props.products?.links && props.products.links.length > 3
+                    "
+                    class="flex items-center gap-1"
+                >
+                    <template
+                        v-for="(link, i) in props.products.links"
+                        :key="i"
+                    >
                         <Button
                             v-if="link.url"
                             size="sm"
@@ -1247,7 +1515,10 @@ const serializedProductsList = computed(() =>
                     </DialogDescription>
                 </DialogHeader>
 
-                <form @submit.prevent="submitQuickEditForm" class="space-y-3 py-2 text-xs">
+                <form
+                    @submit.prevent="submitQuickEditForm"
+                    class="space-y-3 py-2 text-xs"
+                >
                     <div class="space-y-1">
                         <Label class="font-medium">Sale Price (PKR) *</Label>
                         <Input
@@ -1259,7 +1530,10 @@ const serializedProductsList = computed(() =>
                         />
                     </div>
 
-                    <div v-if="!quickEditTarget?.is_serialized" class="space-y-1">
+                    <div
+                        v-if="!quickEditTarget?.is_serialized"
+                        class="space-y-1"
+                    >
                         <Label class="font-medium">Cost Price (PKR)</Label>
                         <Input
                             v-model="quickEditForm.cost_price"
@@ -1269,7 +1543,10 @@ const serializedProductsList = computed(() =>
                         />
                     </div>
 
-                    <div v-if="!quickEditTarget?.is_serialized" class="space-y-1">
+                    <div
+                        v-if="!quickEditTarget?.is_serialized"
+                        class="space-y-1"
+                    >
                         <Label class="font-medium">Stock Quantity (Pcs)</Label>
                         <Input
                             v-model="quickEditForm.stock_quantity"
@@ -1302,21 +1579,39 @@ const serializedProductsList = computed(() =>
         </Dialog>
 
         <!-- Create / Edit Product Modal -->
-        <Dialog :open="isProductModalOpen" @update:open="isProductModalOpen = $event">
-            <DialogContent class="max-w-xl max-h-[90vh] overflow-y-auto">
+        <Dialog
+            :open="isProductModalOpen"
+            @update:open="isProductModalOpen = $event"
+        >
+            <DialogContent class="max-h-[90vh] max-w-xl overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle class="text-base font-bold">
-                        {{ editingProduct ? 'Edit Product Details' : productForm.is_serialized ? 'Add New Mobile Handset' : 'Add New Accessory / Spare Part' }}
+                        {{
+                            editingProduct
+                                ? 'Edit Product Details'
+                                : productForm.is_serialized
+                                  ? 'Add New Mobile Handset'
+                                  : 'Add New Accessory / Spare Part'
+                        }}
                     </DialogTitle>
                     <DialogDescription class="text-xs text-gray-500">
-                        {{ productForm.is_serialized ? 'Create phone model with IMEI serial tracking capability.' : 'Create accessory or spare part with barcode & standard quantity stock.' }}
+                        {{
+                            productForm.is_serialized
+                                ? 'Create phone model with IMEI serial tracking capability.'
+                                : 'Create accessory or spare part with barcode & standard quantity stock.'
+                        }}
                     </DialogDescription>
                 </DialogHeader>
 
-                <form class="space-y-3 py-2 text-xs" @submit.prevent="submitProductForm">
+                <form
+                    class="space-y-3 py-2 text-xs"
+                    @submit.prevent="submitProductForm"
+                >
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1">
-                            <Label for="prod-name" class="font-medium">Product Name *</Label>
+                            <Label for="prod-name" class="font-medium"
+                                >Product Name *</Label
+                            >
                             <Input
                                 id="prod-name"
                                 v-model="productForm.name"
@@ -1326,7 +1621,9 @@ const serializedProductsList = computed(() =>
                             />
                         </div>
                         <div class="space-y-1">
-                            <Label for="prod-brand" class="font-medium">Brand *</Label>
+                            <Label for="prod-brand" class="font-medium"
+                                >Brand *</Label
+                            >
                             <Input
                                 id="prod-brand"
                                 v-model="productForm.brand"
@@ -1339,7 +1636,9 @@ const serializedProductsList = computed(() =>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1">
-                            <Label for="prod-category" class="font-medium">Category *</Label>
+                            <Label for="prod-category" class="font-medium"
+                                >Category *</Label
+                            >
                             <Input
                                 id="prod-category"
                                 v-model="productForm.category"
@@ -1349,22 +1648,33 @@ const serializedProductsList = computed(() =>
                             />
                         </div>
                         <div class="space-y-1">
-                            <Label for="prod-barcode" class="font-medium flex items-center justify-between">
+                            <Label
+                                for="prod-barcode"
+                                class="flex items-center justify-between font-medium"
+                            >
                                 <span>Barcode / SKU</span>
-                                <button type="button" class="text-[10px] font-semibold text-[#003B7D] hover:underline" @click="generateBarcode">Auto Generate</button>
+                                <button
+                                    type="button"
+                                    class="text-[10px] font-semibold text-[#003B7D] hover:underline"
+                                    @click="generateBarcode"
+                                >
+                                    Auto Generate
+                                </button>
                             </Label>
                             <Input
                                 id="prod-barcode"
                                 v-model="productForm.barcode"
                                 placeholder="890123456789"
-                                class="h-9 text-xs font-mono"
+                                class="h-9 font-mono text-xs"
                             />
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1">
-                            <Label for="prod-sale-price" class="font-medium">Sale Price (PKR) *</Label>
+                            <Label for="prod-sale-price" class="font-medium"
+                                >Sale Price (PKR) *</Label
+                            >
                             <Input
                                 id="prod-sale-price"
                                 v-model="productForm.sale_price"
@@ -1377,7 +1687,9 @@ const serializedProductsList = computed(() =>
                             />
                         </div>
                         <div class="space-y-1">
-                            <Label for="prod-alert-qty" class="font-medium">Low Stock Alert Qty *</Label>
+                            <Label for="prod-alert-qty" class="font-medium"
+                                >Low Stock Alert Qty *</Label
+                            >
                             <Input
                                 id="prod-alert-qty"
                                 v-model="productForm.alert_quantity"
@@ -1390,9 +1702,14 @@ const serializedProductsList = computed(() =>
                         </div>
                     </div>
 
-                    <div v-if="!productForm.is_serialized" class="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-800/40">
+                    <div
+                        v-if="!productForm.is_serialized"
+                        class="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-800/40"
+                    >
                         <div class="space-y-1">
-                            <Label for="prod-cost-price" class="font-medium">Cost Price (PKR)</Label>
+                            <Label for="prod-cost-price" class="font-medium"
+                                >Cost Price (PKR)</Label
+                            >
                             <Input
                                 id="prod-cost-price"
                                 v-model="productForm.cost_price"
@@ -1400,84 +1717,173 @@ const serializedProductsList = computed(() =>
                                 step="0.01"
                                 min="0"
                                 placeholder="0"
-                                class="h-9 text-xs bg-white dark:bg-gray-900"
+                                class="h-9 bg-white text-xs dark:bg-gray-900"
                             />
                         </div>
                         <div class="space-y-1">
-                            <Label for="prod-stock-qty" class="font-medium">Initial Stock Qty</Label>
+                            <Label for="prod-stock-qty" class="font-medium"
+                                >Initial Stock Qty</Label
+                            >
                             <Input
                                 id="prod-stock-qty"
                                 v-model="productForm.stock_quantity"
                                 type="number"
                                 min="0"
                                 placeholder="0"
-                                class="h-9 text-xs bg-white dark:bg-gray-900"
+                                class="h-9 bg-white text-xs dark:bg-gray-900"
                             />
                         </div>
                     </div>
 
                     <!-- Optional Initial IMEI registration for Handsets -->
-                    <div v-if="productForm.is_serialized && !editingProduct" class="rounded-lg border border-blue-200 bg-blue-50/40 p-3 space-y-2 dark:border-blue-900/40 dark:bg-blue-950/20">
-                        <Label class="text-[11px] font-bold text-[#003B7D] dark:text-blue-300 uppercase tracking-wider block">+ Register First Handset IMEI (Optional)</Label>
+                    <div
+                        v-if="productForm.is_serialized && !editingProduct"
+                        class="space-y-2 rounded-lg border border-blue-200 bg-blue-50/40 p-3 dark:border-blue-900/40 dark:bg-blue-950/20"
+                    >
+                        <Label
+                            class="block text-[11px] font-bold tracking-wider text-[#003B7D] uppercase dark:text-blue-300"
+                            >+ Register First Handset IMEI (Optional)</Label
+                        >
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <Label class="text-[10px] font-medium">Primary IMEI (IMEI 1) *</Label>
-                                <Input v-model="productForm.initial_imei_1" placeholder="358901234567890" class="h-8 text-xs font-mono bg-white dark:bg-gray-900" />
+                                <Label class="text-[10px] font-medium"
+                                    >Primary IMEI (IMEI 1) *</Label
+                                >
+                                <Input
+                                    v-model="productForm.initial_imei_1"
+                                    placeholder="358901234567890"
+                                    class="h-8 bg-white font-mono text-xs dark:bg-gray-900"
+                                />
                             </div>
                             <div>
-                                <Label class="text-[10px] font-medium text-gray-500">Secondary IMEI (IMEI 2)</Label>
-                                <Input v-model="productForm.initial_imei_2" placeholder="358901234567891" class="h-8 text-xs font-mono bg-white dark:bg-gray-900" />
+                                <Label
+                                    class="text-[10px] font-medium text-gray-500"
+                                    >Secondary IMEI (IMEI 2)</Label
+                                >
+                                <Input
+                                    v-model="productForm.initial_imei_2"
+                                    placeholder="358901234567891"
+                                    class="h-8 bg-white font-mono text-xs dark:bg-gray-900"
+                                />
                             </div>
                         </div>
                         <div class="grid grid-cols-4 gap-2">
                             <div>
-                                <Label class="text-[10px] font-medium text-gray-500">Color</Label>
-                                <Input v-model="productForm.initial_color" placeholder="Titanium" class="h-8 text-xs bg-white dark:bg-gray-900" />
+                                <Label
+                                    class="text-[10px] font-medium text-gray-500"
+                                    >Color</Label
+                                >
+                                <Input
+                                    v-model="productForm.initial_color"
+                                    placeholder="Titanium"
+                                    class="h-8 bg-white text-xs dark:bg-gray-900"
+                                />
                             </div>
                             <div>
-                                <Label class="text-[10px] font-medium text-gray-500">Storage</Label>
-                                <Input v-model="productForm.initial_storage" placeholder="256GB" class="h-8 text-xs bg-white dark:bg-gray-900" />
+                                <Label
+                                    class="text-[10px] font-medium text-gray-500"
+                                    >Storage</Label
+                                >
+                                <Input
+                                    v-model="productForm.initial_storage"
+                                    placeholder="256GB"
+                                    class="h-8 bg-white text-xs dark:bg-gray-900"
+                                />
                             </div>
                             <div>
-                                <Label class="text-[10px] font-medium text-gray-500">Condition</Label>
+                                <Label
+                                    class="text-[10px] font-medium text-gray-500"
+                                    >Condition</Label
+                                >
                                 <Select v-model="productForm.initial_condition">
-                                    <SelectTrigger class="h-8 text-xs bg-white dark:bg-gray-900"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger
+                                        class="h-8 bg-white text-xs dark:bg-gray-900"
+                                        ><SelectValue
+                                    /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="new">New</SelectItem>
-                                        <SelectItem value="used">Used</SelectItem>
+                                        <SelectItem value="used"
+                                            >Used</SelectItem
+                                        >
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div>
-                                <Label class="text-[10px] font-medium text-gray-500">PTA Status</Label>
-                                <Select v-model="productForm.initial_pta_status">
-                                    <SelectTrigger class="h-8 text-xs bg-white dark:bg-gray-900"><SelectValue /></SelectTrigger>
+                                <Label
+                                    class="text-[10px] font-medium text-gray-500"
+                                    >PTA Status</Label
+                                >
+                                <Select
+                                    v-model="productForm.initial_pta_status"
+                                >
+                                    <SelectTrigger
+                                        class="h-8 bg-white text-xs dark:bg-gray-900"
+                                        ><SelectValue
+                                    /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="approved">Approved</SelectItem>
-                                        <SelectItem value="non_pta">Non-PTA</SelectItem>
+                                        <SelectItem value="approved"
+                                            >Approved</SelectItem
+                                        >
+                                        <SelectItem value="non_pta"
+                                            >Non-PTA</SelectItem
+                                        >
                                         <SelectItem value="jv">JV</SelectItem>
-                                        <SelectItem value="cpid">CPID</SelectItem>
-                                        <SelectItem value="software">Software</SelectItem>
+                                        <SelectItem value="cpid"
+                                            >CPID</SelectItem
+                                        >
+                                        <SelectItem value="software"
+                                            >Software</SelectItem
+                                        >
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <Label class="text-[10px] font-medium">Purchase Cost (PKR) *</Label>
-                                <Input v-model="productForm.initial_purchase_cost" type="number" min="0" placeholder="0" class="h-8 text-xs bg-white dark:bg-gray-900 font-bold" />
+                                <Label class="text-[10px] font-medium"
+                                    >Purchase Cost (PKR) *</Label
+                                >
+                                <Input
+                                    v-model="productForm.initial_purchase_cost"
+                                    type="number"
+                                    min="0"
+                                    placeholder="0"
+                                    class="h-8 bg-white text-xs font-bold dark:bg-gray-900"
+                                />
                             </div>
                             <div>
-                                <Label class="text-[10px] font-medium text-gray-500">Warranty Days</Label>
-                                <Input v-model="productForm.initial_warranty_days" type="number" min="0" placeholder="7" class="h-8 text-xs bg-white dark:bg-gray-900" />
+                                <Label
+                                    class="text-[10px] font-medium text-gray-500"
+                                    >Warranty Days</Label
+                                >
+                                <Input
+                                    v-model="productForm.initial_warranty_days"
+                                    type="number"
+                                    min="0"
+                                    placeholder="7"
+                                    class="h-8 bg-white text-xs dark:bg-gray-900"
+                                />
                             </div>
                         </div>
                     </div>
 
                     <DialogFooter class="pt-3">
-                        <Button type="button" variant="outline" size="sm" @click="isProductModalOpen = false" class="text-xs">Cancel</Button>
-                        <Button size="sm" class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]" :disabled="productForm.processing">
-                            {{ editingProduct ? 'Save Changes' : 'Create Item' }}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isProductModalOpen = false"
+                            class="text-xs"
+                            >Cancel</Button
+                        >
+                        <Button
+                            size="sm"
+                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            :disabled="productForm.processing"
+                        >
+                            {{
+                                editingProduct ? 'Save Changes' : 'Create Item'
+                            }}
                         </Button>
                     </DialogFooter>
                 </form>
@@ -1485,58 +1891,118 @@ const serializedProductsList = computed(() =>
         </Dialog>
 
         <!-- Manage IMEIs Modal -->
-        <Dialog :open="isImeiManageModalOpen" @update:open="isImeiManageModalOpen = $event">
-            <DialogContent class="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader class="border-b border-gray-200 dark:border-gray-800 pb-3">
+        <Dialog
+            :open="isImeiManageModalOpen"
+            @update:open="isImeiManageModalOpen = $event"
+        >
+            <DialogContent
+                class="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden"
+            >
+                <DialogHeader
+                    class="border-b border-gray-200 pb-3 dark:border-gray-800"
+                >
                     <div class="flex items-center justify-between">
                         <div>
-                            <DialogTitle class="text-base font-bold flex items-center gap-2">
+                            <DialogTitle
+                                class="flex items-center gap-2 text-base font-bold"
+                            >
                                 <Smartphone class="h-4 w-4 text-[#003B7D]" />
-                                Registered IMEIs &bull; {{ activeImeiProduct?.name }}
+                                Registered IMEIs &bull;
+                                {{ activeImeiProduct?.name }}
                             </DialogTitle>
                             <DialogDescription class="text-xs text-gray-500">
-                                View stock status, PTA status, and purchase history for individual handset units.
+                                View stock status, PTA status, and purchase
+                                history for individual handset units.
                             </DialogDescription>
                         </div>
-                        <Button size="sm" class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]" @click="openAddSingleImeiModal(activeImeiProduct!)">
+                        <Button
+                            size="sm"
+                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            @click="openAddSingleImeiModal(activeImeiProduct!)"
+                        >
                             + Add Single IMEI
                         </Button>
                     </div>
                 </DialogHeader>
 
-                <div class="flex-1 overflow-y-auto p-2 space-y-3">
-                    <div class="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div class="flex-1 space-y-3 overflow-y-auto p-2">
+                    <div
+                        class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800"
+                    >
                         <table class="w-full text-left text-xs">
-                            <thead class="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
+                            <thead
+                                class="border-b border-gray-200 bg-gray-50 font-semibold text-gray-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
+                            >
                                 <tr>
-                                    <th class="px-4 py-3">IMEI Serial Numbers</th>
+                                    <th class="px-4 py-3">
+                                        IMEI Serial Numbers
+                                    </th>
                                     <th class="px-4 py-3">Variant / Spec</th>
                                     <th class="px-4 py-3">PTA & Condition</th>
-                                    <th class="px-4 py-3 text-right">Purchase Cost</th>
-                                    <th class="px-4 py-3 text-center">Status</th>
-                                    <th class="px-4 py-3 text-right">Actions</th>
+                                    <th class="px-4 py-3 text-right">
+                                        Purchase Cost
+                                    </th>
+                                    <th class="px-4 py-3 text-center">
+                                        Status
+                                    </th>
+                                    <th class="px-4 py-3 text-right">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                                <tr v-for="imeiItem in activeImeiProduct?.imeis" :key="imeiItem.id" class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
+                            <tbody
+                                class="divide-y divide-gray-100 dark:divide-gray-800"
+                            >
+                                <tr
+                                    v-for="imeiItem in activeImeiProduct?.imeis"
+                                    :key="imeiItem.id"
+                                    class="hover:bg-gray-50/50 dark:hover:bg-gray-800/30"
+                                >
                                     <td class="px-4 py-3 font-mono">
-                                        <div class="font-bold text-gray-900 dark:text-white">{{ imeiItem.imei_1 }}</div>
-                                        <div v-if="imeiItem.imei_2" class="text-[10px] text-gray-400">IMEI2: {{ imeiItem.imei_2 }}</div>
+                                        <div
+                                            class="font-bold text-gray-900 dark:text-white"
+                                        >
+                                            {{ imeiItem.imei_1 }}
+                                        </div>
+                                        <div
+                                            v-if="imeiItem.imei_2"
+                                            class="text-[10px] text-gray-400"
+                                        >
+                                            IMEI2: {{ imeiItem.imei_2 }}
+                                        </div>
                                     </td>
-                                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">
-                                        <div>{{ imeiItem.color || '-' }} &bull; {{ imeiItem.storage || '-' }}</div>
-                                        <div class="text-[10px] text-gray-400">Warranty: {{ imeiItem.warranty_days }} Days</div>
+                                    <td
+                                        class="px-4 py-3 text-gray-700 dark:text-gray-300"
+                                    >
+                                        <div>
+                                            {{ imeiItem.color || '-' }} &bull;
+                                            {{ imeiItem.storage || '-' }}
+                                        </div>
+                                        <div class="text-[10px] text-gray-400">
+                                            Warranty:
+                                            {{ imeiItem.warranty_days }} Days
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-gray-100 text-gray-800 mr-1 dark:bg-gray-800 dark:text-gray-200">
+                                        <span
+                                            class="mr-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-800 uppercase dark:bg-gray-800 dark:text-gray-200"
+                                        >
                                             {{ imeiItem.condition }}
                                         </span>
-                                        <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-blue-50 text-[#003B7D] dark:bg-blue-950/40 dark:text-blue-300">
+                                        <span
+                                            class="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D] uppercase dark:bg-blue-950/40 dark:text-blue-300"
+                                        >
                                             {{ imeiItem.pta_status }}
                                         </span>
                                     </td>
-                                    <td class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">
-                                        {{ formatCurrency(imeiItem.purchase_cost) }}
+                                    <td
+                                        class="px-4 py-3 text-right font-bold text-gray-900 dark:text-white"
+                                    >
+                                        {{
+                                            formatCurrency(
+                                                imeiItem.purchase_cost,
+                                            )
+                                        }}
                                     </td>
                                     <td class="px-4 py-3 text-center">
                                         <span
@@ -1545,8 +2011,8 @@ const serializedProductsList = computed(() =>
                                                 imeiItem.status === 'in_stock'
                                                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400'
                                                     : imeiItem.status === 'sold'
-                                                    ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                                                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
+                                                      ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400'
                                             "
                                         >
                                             {{ imeiItem.status }}
@@ -1554,18 +2020,37 @@ const serializedProductsList = computed(() =>
                                     </td>
                                     <td class="px-4 py-3 text-right">
                                         <div class="flex justify-end gap-1">
-                                            <Button size="sm" variant="ghost" class="h-7 w-7 p-0" @click="openEditImeiModal(imeiItem)">
-                                                <Pencil class="h-3.5 w-3.5 text-gray-500" />
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                class="h-7 w-7 p-0"
+                                                @click="
+                                                    openEditImeiModal(imeiItem)
+                                                "
+                                            >
+                                                <Pencil
+                                                    class="h-3.5 w-3.5 text-gray-500"
+                                                />
                                             </Button>
-                                            <Button size="sm" variant="ghost" class="h-7 w-7 p-0 text-rose-500" @click="deleteImei(imeiItem)">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                class="h-7 w-7 p-0 text-rose-500"
+                                                @click="deleteImei(imeiItem)"
+                                            >
                                                 <Trash2 class="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
                                     </td>
                                 </tr>
                                 <tr v-if="!activeImeiProduct?.imeis?.length">
-                                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
-                                        No IMEI records registered for this handset yet. Click "+ Add Single IMEI" to register stock.
+                                    <td
+                                        colspan="6"
+                                        class="px-4 py-8 text-center text-gray-500"
+                                    >
+                                        No IMEI records registered for this
+                                        handset yet. Click "+ Add Single IMEI"
+                                        to register stock.
                                     </td>
                                 </tr>
                             </tbody>
@@ -1576,7 +2061,10 @@ const serializedProductsList = computed(() =>
         </Dialog>
 
         <!-- Add Single IMEI Modal -->
-        <Dialog :open="isAddSingleImeiModalOpen" @update:open="isAddSingleImeiModalOpen = $event">
+        <Dialog
+            :open="isAddSingleImeiModalOpen"
+            @update:open="isAddSingleImeiModalOpen = $event"
+        >
             <DialogContent class="max-w-md">
                 <DialogHeader>
                     <DialogTitle class="text-base font-bold">
@@ -1584,30 +2072,54 @@ const serializedProductsList = computed(() =>
                     </DialogTitle>
                 </DialogHeader>
 
-                <form class="space-y-3 py-1 text-xs" @submit.prevent="submitSingleImeiForm">
+                <form
+                    class="space-y-3 py-1 text-xs"
+                    @submit.prevent="submitSingleImeiForm"
+                >
                     <div class="space-y-1">
                         <Label class="font-medium">IMEI 1 *</Label>
-                        <Input v-model="singleImeiForm.imei_1" required placeholder="15 Digit IMEI 1" class="h-9 text-xs font-mono" />
+                        <Input
+                            v-model="singleImeiForm.imei_1"
+                            required
+                            placeholder="15 Digit IMEI 1"
+                            class="h-9 font-mono text-xs"
+                        />
                     </div>
                     <div class="space-y-1">
-                        <Label class="font-medium text-gray-500">IMEI 2 (Optional)</Label>
-                        <Input v-model="singleImeiForm.imei_2" placeholder="15 Digit IMEI 2" class="h-9 text-xs font-mono" />
+                        <Label class="font-medium text-gray-500"
+                            >IMEI 2 (Optional)</Label
+                        >
+                        <Input
+                            v-model="singleImeiForm.imei_2"
+                            placeholder="15 Digit IMEI 2"
+                            class="h-9 font-mono text-xs"
+                        />
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
                             <Label class="font-medium">Color</Label>
-                            <Input v-model="singleImeiForm.color" placeholder="Black" class="h-9 text-xs" />
+                            <Input
+                                v-model="singleImeiForm.color"
+                                placeholder="Black"
+                                class="h-9 text-xs"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Storage</Label>
-                            <Input v-model="singleImeiForm.storage" placeholder="128GB" class="h-9 text-xs" />
+                            <Input
+                                v-model="singleImeiForm.storage"
+                                placeholder="128GB"
+                                class="h-9 text-xs"
+                            />
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
                             <Label class="font-medium">Condition</Label>
                             <Select v-model="singleImeiForm.condition">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="new">New</SelectItem>
                                     <SelectItem value="used">Used</SelectItem>
@@ -1617,67 +2129,125 @@ const serializedProductsList = computed(() =>
                         <div class="space-y-1">
                             <Label class="font-medium">PTA Status</Label>
                             <Select v-model="singleImeiForm.pta_status">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="non_pta">Non-PTA</SelectItem>
+                                    <SelectItem value="approved"
+                                        >Approved</SelectItem
+                                    >
+                                    <SelectItem value="non_pta"
+                                        >Non-PTA</SelectItem
+                                    >
                                     <SelectItem value="jv">JV</SelectItem>
                                     <SelectItem value="cpid">CPID</SelectItem>
-                                    <SelectItem value="software">Software</SelectItem>
+                                    <SelectItem value="software"
+                                        >Software</SelectItem
+                                    >
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
-                            <Label class="font-medium">Purchase Cost (PKR) *</Label>
-                            <Input v-model="singleImeiForm.purchase_cost" type="number" min="0" required placeholder="0" class="h-9 text-xs font-bold" />
+                            <Label class="font-medium"
+                                >Purchase Cost (PKR) *</Label
+                            >
+                            <Input
+                                v-model="singleImeiForm.purchase_cost"
+                                type="number"
+                                min="0"
+                                required
+                                placeholder="0"
+                                class="h-9 text-xs font-bold"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Warranty Days</Label>
-                            <Input v-model="singleImeiForm.warranty_days" type="number" min="0" placeholder="0" class="h-9 text-xs" />
+                            <Input
+                                v-model="singleImeiForm.warranty_days"
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                class="h-9 text-xs"
+                            />
                         </div>
                     </div>
 
                     <DialogFooter class="pt-3">
-                        <Button type="button" variant="outline" size="sm" @click="isAddSingleImeiModalOpen = false" class="text-xs">Cancel</Button>
-                        <Button size="sm" class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]" :disabled="singleImeiForm.processing">Save IMEI Unit</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isAddSingleImeiModalOpen = false"
+                            class="text-xs"
+                            >Cancel</Button
+                        >
+                        <Button
+                            size="sm"
+                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            :disabled="singleImeiForm.processing"
+                            >Save IMEI Unit</Button
+                        >
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
         <!-- Edit IMEI Modal -->
-        <Dialog :open="isEditImeiModalOpen" @update:open="isEditImeiModalOpen = $event">
+        <Dialog
+            :open="isEditImeiModalOpen"
+            @update:open="isEditImeiModalOpen = $event"
+        >
             <DialogContent class="max-w-md">
                 <DialogHeader>
-                    <DialogTitle class="text-base font-bold">Edit IMEI Unit Record</DialogTitle>
+                    <DialogTitle class="text-base font-bold"
+                        >Edit IMEI Unit Record</DialogTitle
+                    >
                 </DialogHeader>
 
-                <form class="space-y-3 py-1 text-xs" @submit.prevent="submitEditImeiForm">
+                <form
+                    class="space-y-3 py-1 text-xs"
+                    @submit.prevent="submitEditImeiForm"
+                >
                     <div class="space-y-1">
                         <Label class="font-medium">IMEI 1 *</Label>
-                        <Input v-model="editImeiForm.imei_1" required class="h-9 text-xs font-mono" />
+                        <Input
+                            v-model="editImeiForm.imei_1"
+                            required
+                            class="h-9 font-mono text-xs"
+                        />
                     </div>
                     <div class="space-y-1">
                         <Label class="font-medium">IMEI 2</Label>
-                        <Input v-model="editImeiForm.imei_2" class="h-9 text-xs font-mono" />
+                        <Input
+                            v-model="editImeiForm.imei_2"
+                            class="h-9 font-mono text-xs"
+                        />
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
                             <Label class="font-medium">Color</Label>
-                            <Input v-model="editImeiForm.color" class="h-9 text-xs" />
+                            <Input
+                                v-model="editImeiForm.color"
+                                class="h-9 text-xs"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Storage</Label>
-                            <Input v-model="editImeiForm.storage" class="h-9 text-xs" />
+                            <Input
+                                v-model="editImeiForm.storage"
+                                class="h-9 text-xs"
+                            />
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
                             <Label class="font-medium">Condition</Label>
                             <Select v-model="editImeiForm.condition">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="new">New</SelectItem>
                                     <SelectItem value="used">Used</SelectItem>
@@ -1687,63 +2257,115 @@ const serializedProductsList = computed(() =>
                         <div class="space-y-1">
                             <Label class="font-medium">PTA Status</Label>
                             <Select v-model="editImeiForm.pta_status">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="non_pta">Non-PTA</SelectItem>
+                                    <SelectItem value="approved"
+                                        >Approved</SelectItem
+                                    >
+                                    <SelectItem value="non_pta"
+                                        >Non-PTA</SelectItem
+                                    >
                                     <SelectItem value="jv">JV</SelectItem>
                                     <SelectItem value="cpid">CPID</SelectItem>
-                                    <SelectItem value="software">Software</SelectItem>
+                                    <SelectItem value="software"
+                                        >Software</SelectItem
+                                    >
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
-                            <Label class="font-medium">Purchase Cost (PKR) *</Label>
-                            <Input v-model="editImeiForm.purchase_cost" type="number" min="0" required class="h-9 text-xs font-bold" />
+                            <Label class="font-medium"
+                                >Purchase Cost (PKR) *</Label
+                            >
+                            <Input
+                                v-model="editImeiForm.purchase_cost"
+                                type="number"
+                                min="0"
+                                required
+                                class="h-9 text-xs font-bold"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Stock Status</Label>
                             <Select v-model="editImeiForm.status">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="in_stock">In Stock</SelectItem>
+                                    <SelectItem value="in_stock"
+                                        >In Stock</SelectItem
+                                    >
                                     <SelectItem value="sold">Sold</SelectItem>
-                                    <SelectItem value="repairing">Repairing</SelectItem>
-                                    <SelectItem value="returned">Returned</SelectItem>
+                                    <SelectItem value="repairing"
+                                        >Repairing</SelectItem
+                                    >
+                                    <SelectItem value="returned"
+                                        >Returned</SelectItem
+                                    >
                                 </SelectContent>
                             </Select>
                         </div>
                     </div>
 
                     <DialogFooter class="pt-3">
-                        <Button type="button" variant="outline" size="sm" @click="isEditImeiModalOpen = false" class="text-xs">Cancel</Button>
-                        <Button size="sm" class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]" :disabled="editImeiForm.processing">Save IMEI Changes</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isEditImeiModalOpen = false"
+                            class="text-xs"
+                            >Cancel</Button
+                        >
+                        <Button
+                            size="sm"
+                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            :disabled="editImeiForm.processing"
+                            >Save IMEI Changes</Button
+                        >
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
         <!-- Bulk Add IMEIs Modal -->
-        <Dialog :open="isBulkImeiModalOpen" @update:open="isBulkImeiModalOpen = $event">
+        <Dialog
+            :open="isBulkImeiModalOpen"
+            @update:open="isBulkImeiModalOpen = $event"
+        >
             <DialogContent class="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle class="text-base font-bold">
                         Bulk Register Handset IMEIs
                     </DialogTitle>
                     <DialogDescription class="text-xs text-gray-500">
-                        Import multiple IMEIs into stock for a handset model at once.
+                        Import multiple IMEIs into stock for a handset model at
+                        once.
                     </DialogDescription>
                 </DialogHeader>
 
-                <form class="space-y-3 py-2 text-xs" @submit.prevent="submitBulkImeiForm">
+                <form
+                    class="space-y-3 py-2 text-xs"
+                    @submit.prevent="submitBulkImeiForm"
+                >
                     <div class="space-y-1">
-                        <Label class="font-medium">Select Handset Product Model *</Label>
+                        <Label class="font-medium"
+                            >Select Handset Product Model *</Label
+                        >
                         <Select v-model="bulkImeiForm.product_id">
-                            <SelectTrigger class="h-9 text-xs"><SelectValue placeholder="Choose a handset model" /></SelectTrigger>
+                            <SelectTrigger class="h-9 text-xs"
+                                ><SelectValue
+                                    placeholder="Choose a handset model"
+                            /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem v-for="p in serializedProductsList" :key="p.id" :value="p.id">
+                                <SelectItem
+                                    v-for="p in serializedProductsList"
+                                    :key="p.id"
+                                    :value="p.id"
+                                >
                                     {{ p.name }} ({{ p.brand }})
                                 </SelectItem>
                             </SelectContent>
@@ -1753,16 +2375,26 @@ const serializedProductsList = computed(() =>
                     <div class="grid grid-cols-4 gap-2">
                         <div class="space-y-1">
                             <Label class="font-medium">Color</Label>
-                            <Input v-model="bulkImeiForm.color" placeholder="Black" class="h-9 text-xs" />
+                            <Input
+                                v-model="bulkImeiForm.color"
+                                placeholder="Black"
+                                class="h-9 text-xs"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Storage</Label>
-                            <Input v-model="bulkImeiForm.storage" placeholder="128GB" class="h-9 text-xs" />
+                            <Input
+                                v-model="bulkImeiForm.storage"
+                                placeholder="128GB"
+                                class="h-9 text-xs"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Condition</Label>
                             <Select v-model="bulkImeiForm.condition">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="new">New</SelectItem>
                                     <SelectItem value="used">Used</SelectItem>
@@ -1772,13 +2404,21 @@ const serializedProductsList = computed(() =>
                         <div class="space-y-1">
                             <Label class="font-medium">PTA Status</Label>
                             <Select v-model="bulkImeiForm.pta_status">
-                                <SelectTrigger class="h-9 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectTrigger class="h-9 text-xs"
+                                    ><SelectValue
+                                /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="non_pta">Non-PTA</SelectItem>
+                                    <SelectItem value="approved"
+                                        >Approved</SelectItem
+                                    >
+                                    <SelectItem value="non_pta"
+                                        >Non-PTA</SelectItem
+                                    >
                                     <SelectItem value="jv">JV</SelectItem>
                                     <SelectItem value="cpid">CPID</SelectItem>
-                                    <SelectItem value="software">Software</SelectItem>
+                                    <SelectItem value="software"
+                                        >Software</SelectItem
+                                    >
                                 </SelectContent>
                             </Select>
                         </div>
@@ -1786,17 +2426,35 @@ const serializedProductsList = computed(() =>
 
                     <div class="grid grid-cols-2 gap-2">
                         <div class="space-y-1">
-                            <Label class="font-medium">Unit Purchase Cost (PKR) *</Label>
-                            <Input v-model="bulkImeiForm.purchase_cost" type="number" min="0" required placeholder="0" class="h-9 text-xs font-bold" />
+                            <Label class="font-medium"
+                                >Unit Purchase Cost (PKR) *</Label
+                            >
+                            <Input
+                                v-model="bulkImeiForm.purchase_cost"
+                                type="number"
+                                min="0"
+                                required
+                                placeholder="0"
+                                class="h-9 text-xs font-bold"
+                            />
                         </div>
                         <div class="space-y-1">
                             <Label class="font-medium">Warranty Days</Label>
-                            <Input v-model="bulkImeiForm.warranty_days" type="number" min="0" placeholder="0" class="h-9 text-xs" />
+                            <Input
+                                v-model="bulkImeiForm.warranty_days"
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                class="h-9 text-xs"
+                            />
                         </div>
                     </div>
 
                     <div class="space-y-1">
-                        <Label class="font-medium block">Paste IMEIs List (One per line or separated by comma/space)</Label>
+                        <Label class="block font-medium"
+                            >Paste IMEIs List (One per line or separated by
+                            comma/space)</Label
+                        >
                         <textarea
                             v-model="bulkRawText"
                             rows="5"
@@ -1806,8 +2464,20 @@ const serializedProductsList = computed(() =>
                     </div>
 
                     <DialogFooter class="pt-3">
-                        <Button type="button" variant="outline" size="sm" @click="isBulkImeiModalOpen = false" class="text-xs">Cancel</Button>
-                        <Button size="sm" class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]" :disabled="bulkImeiForm.processing">Import Bulk IMEIs</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isBulkImeiModalOpen = false"
+                            class="text-xs"
+                            >Cancel</Button
+                        >
+                        <Button
+                            size="sm"
+                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            :disabled="bulkImeiForm.processing"
+                            >Import Bulk IMEIs</Button
+                        >
                     </DialogFooter>
                 </form>
             </DialogContent>

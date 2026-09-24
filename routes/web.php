@@ -8,6 +8,7 @@ use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InstallmentController;
+use App\Http\Controllers\MobilePhonesController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
@@ -37,7 +38,9 @@ Route::prefix('{current_team}')
         // POS Billing Terminal Routes
         Route::get('pos', [PosController::class, 'index'])->name('pos.index');
         Route::get('pos/products', [PosController::class, 'getProductsApi'])->name('pos.products');
+        Route::get('pos/recent-sales', [PosController::class, 'getRecentSalesApi'])->name('pos.recent-sales');
         Route::post('pos/sales', [PosController::class, 'storeSale'])->name('pos.sales.store');
+        Route::put('pos/sales/{sale}', [PosController::class, 'updateSaleApi'])->name('pos.sales.update');
         Route::post('pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
 
         // Mobile Repairing Lab & Ticketing Routes
@@ -75,6 +78,11 @@ Route::prefix('{current_team}')
         Route::get('installments', [InstallmentController::class, 'index'])->name('installments.index');
         Route::post('installments', [InstallmentController::class, 'store'])->name('installments.store');
         Route::post('installments/{plan}/payments', [InstallmentController::class, 'recordPayment'])->name('installments.payments.store');
+
+        // Mobile Phones & Devices Management Routes
+        Route::get('mobile-phones', [MobilePhonesController::class, 'index'])->name('mobile-phones.index');
+        Route::post('mobile-phones', [MobilePhonesController::class, 'store'])->name('mobile-phones.store');
+        Route::post('mobile-phones/used-purchase', [MobilePhonesController::class, 'storeUsedPurchase'])->name('mobile-phones.used-purchase.store');
 
         // Inventory & Product Routes
         Route::get('inventory', [ProductController::class, 'index'])->name('inventory.index');

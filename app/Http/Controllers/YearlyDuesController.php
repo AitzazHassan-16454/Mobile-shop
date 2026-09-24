@@ -107,18 +107,18 @@ class YearlyDuesController extends Controller
 
     private function monthlyBreakdown(int $year, Carbon $yearStart, Carbon $yearEnd): array
     {
-        $formatted = fn (string $month) => (int) $month;
-
-        $customerMonths = CustomerLedger::where('type', 'payment')
+        $customerMonths = CustomerLedger::query()
+            ->where('type', 'payment')
             ->whereBetween('created_at', [$yearStart, $yearEnd])
-            ->selectRaw('strftime("%m", created_at) as month, SUM(amount) as total')
-            ->groupBy('month')
-            ->pluck('total', 'month');
+            ->get(['created_at', 'amount'])
+            ->groupBy(fn ($row) => (int) Carbon::parse($row->created_at)->format('m'))
+            ->map(fn ($rows) => (float) $rows->sum('amount'));
 
-        $installmentMonths = InstallmentPayment::whereBetween('paid_at', [$yearStart, $yearEnd])
-            ->selectRaw('strftime("%m", paid_at) as month, SUM(amount) as total')
-            ->groupBy('month')
-            ->pluck('total', 'month');
+        $installmentMonths = InstallmentPayment::query()
+            ->whereBetween('paid_at', [$yearStart, $yearEnd])
+            ->get(['paid_at', 'amount'])
+            ->groupBy(fn ($row) => (int) Carbon::parse($row->paid_at)->format('m'))
+            ->map(fn ($rows) => (float) $rows->sum('amount'));
 
         $monthNames = [
             1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
@@ -130,8 +130,8 @@ class YearlyDuesController extends Controller
 
         foreach ($monthNames as $number => $label) {
             $monthlyTotal = round(
-                (float) ($customerMonths[$formatted(str_pad((string) $number, 2, '0', STR_PAD_LEFT))] ?? 0)
-                + (float) ($installmentMonths[$formatted(str_pad((string) $number, 2, '0', STR_PAD_LEFT))] ?? 0),
+                (float) ($customerMonths->get($number, 0))
+                + (float) ($installmentMonths->get($number, 0)),
                 2,
             );
 

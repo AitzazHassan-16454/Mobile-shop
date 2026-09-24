@@ -103,11 +103,15 @@ defineOptions({
         breadcrumbs: [
             {
                 title: 'Dashboard',
-                href: layoutProps.currentTeam ? `/${layoutProps.currentTeam.slug}/dashboard` : '/dashboard',
+                href: layoutProps.currentTeam
+                    ? `/${layoutProps.currentTeam.slug}/dashboard`
+                    : '/dashboard',
             },
             {
                 title: 'Expenses',
-                href: layoutProps.currentTeam ? `/${layoutProps.currentTeam.slug}/expenses` : '/expenses',
+                href: layoutProps.currentTeam
+                    ? `/${layoutProps.currentTeam.slug}/expenses`
+                    : '/expenses',
             },
         ],
     }),
@@ -125,14 +129,15 @@ const defaultVisibleColumns = {
 
 const visibleColumns = ref({ ...defaultVisibleColumns });
 
-const expenseColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
-    created_at: 'Date & Time',
-    category: 'Category',
-    amount: 'Amount',
-    user: 'Recorded By / Shift',
-    notes: 'Notes / Description',
-    actions: 'Actions',
-};
+const expenseColumnLabels: Record<keyof typeof defaultVisibleColumns, string> =
+    {
+        created_at: 'Date & Time',
+        category: 'Category',
+        amount: 'Amount',
+        user: 'Recorded By / Shift',
+        notes: 'Notes / Description',
+        actions: 'Actions',
+    };
 
 const STORAGE_KEY = 'faizan_mobile_expenses_table_columns_v1';
 
@@ -140,7 +145,10 @@ onMounted(() => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+            visibleColumns.value = {
+                ...defaultVisibleColumns,
+                ...JSON.parse(saved),
+            };
         }
     } catch (e) {
         console.error(e);
@@ -178,17 +186,24 @@ const dateFrom = ref(props.filters.date_from || '');
 const dateTo = ref(props.filters.date_to || '');
 
 const applyFilters = () => {
-    const routeName = props.currentTeam ? `/${props.currentTeam.slug}/expenses` : '/expenses';
+    const routeName = props.currentTeam
+        ? `/${props.currentTeam.slug}/expenses`
+        : '/expenses';
     router.get(
         routeName,
         {
             search: search.value || undefined,
-            category_filter: categoryFilter.value !== 'all' ? categoryFilter.value : undefined,
-            date_filter: dateFilter.value !== 'all' ? dateFilter.value : undefined,
-            date_from: dateFilter.value === 'custom' ? dateFrom.value : undefined,
+            category_filter:
+                categoryFilter.value !== 'all'
+                    ? categoryFilter.value
+                    : undefined,
+            date_filter:
+                dateFilter.value !== 'all' ? dateFilter.value : undefined,
+            date_from:
+                dateFilter.value === 'custom' ? dateFrom.value : undefined,
             date_to: dateFilter.value === 'custom' ? dateTo.value : undefined,
         },
-        { preserveState: true, preserveScroll: true, replace: true }
+        { preserveState: true, preserveScroll: true, replace: true },
     );
 };
 
@@ -250,7 +265,9 @@ const openEditModal = (expense: ShopExpense) => {
 };
 
 const submitExpense = () => {
-    const finalCategory = isCustomCategory.value ? customCategoryInput.value.trim() : form.category;
+    const finalCategory = isCustomCategory.value
+        ? customCategoryInput.value.trim()
+        : form.category;
     if (!finalCategory) {
         form.setError('category', 'Category is required');
         return;
@@ -327,7 +344,11 @@ const getCategoryColor = (cat: string) => {
     if (lower.includes('tea') || lower.includes('refreshment')) {
         return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800';
     }
-    if (lower.includes('util') || lower.includes('electric') || lower.includes('water')) {
+    if (
+        lower.includes('util') ||
+        lower.includes('electric') ||
+        lower.includes('water')
+    ) {
         return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800';
     }
     if (lower.includes('rent')) {
@@ -351,21 +372,26 @@ const getCategoryColor = (cat: string) => {
 
     <div class="space-y-6 p-4 md:p-6">
         <!-- Header & Action Button -->
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+            class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        >
             <div>
                 <div class="flex items-center gap-2">
                     <Receipt class="h-6 w-6 text-[#003B7D]" />
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+                    <h1
+                        class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
+                    >
                         Expenses Management
                     </h1>
                 </div>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Record, categorize, and track daily shop operating expenses and cash drawer payouts.
+                    Record, categorize, and track daily shop operating expenses
+                    and cash drawer payouts.
                 </p>
             </div>
             <Button
                 @click="openCreateModal"
-                class="bg-[#003B7D] text-white hover:bg-[#002a59] gap-2 font-medium cursor-pointer"
+                class="cursor-pointer gap-2 bg-[#003B7D] font-medium text-white hover:bg-[#002a59]"
             >
                 <Plus class="h-4 w-4" />
                 <span>Record New Expense</span>
@@ -379,11 +405,17 @@ const getCategoryColor = (cat: string) => {
         >
             <div class="flex items-center gap-2.5">
                 <span class="relative flex h-2.5 w-2.5">
-                    <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+                    <span
+                        class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
+                    ></span>
+                    <span
+                        class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500"
+                    ></span>
                 </span>
                 <span class="font-medium">
-                    Active Cash Register Shift #{{ props.activeShift.id }} is currently OPEN. New expenses will automatically deduct from this shift cash drawer.
+                    Active Cash Register Shift #{{ props.activeShift.id }} is
+                    currently OPEN. New expenses will automatically deduct from
+                    this shift cash drawer.
                 </span>
             </div>
         </div>
@@ -391,19 +423,29 @@ const getCategoryColor = (cat: string) => {
             v-else
             class="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-200"
         >
-            <AlertCircle class="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <AlertCircle
+                class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+            />
             <span>
-                No active cash shift is open for your account. Expenses will be recorded as general shop expenses.
+                No active cash shift is open for your account. Expenses will be
+                recorded as general shop expenses.
             </span>
         </div>
 
         <!-- Summary Statistics Cards -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <!-- Today's Expenses -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Today's Expenses</span>
-                    <div class="rounded-lg bg-rose-50 p-2 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >Today's Expenses</span
+                    >
+                    <div
+                        class="rounded-lg bg-rose-50 p-2 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
+                    >
                         <TrendingDown class="h-4 w-4" />
                     </div>
                 </div>
@@ -411,17 +453,32 @@ const getCategoryColor = (cat: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ formatMoney(props.stats.today_total) }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                        {{ props.stats.today_count }} {{ props.stats.today_count === 1 ? 'expense' : 'expenses' }} recorded today
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
+                        {{ props.stats.today_count }}
+                        {{
+                            props.stats.today_count === 1
+                                ? 'expense'
+                                : 'expenses'
+                        }}
+                        recorded today
                     </p>
                 </div>
             </div>
 
             <!-- This Month's Expenses -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">This Month's Expenses</span>
-                    <div class="rounded-lg bg-blue-50 p-2 text-[#003B7D] dark:bg-blue-950/40 dark:text-blue-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >This Month's Expenses</span
+                    >
+                    <div
+                        class="rounded-lg bg-blue-50 p-2 text-[#003B7D] dark:bg-blue-950/40 dark:text-blue-400"
+                    >
                         <Calendar class="h-4 w-4" />
                     </div>
                 </div>
@@ -429,17 +486,32 @@ const getCategoryColor = (cat: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ formatMoney(props.stats.month_total) }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                        {{ props.stats.month_count }} {{ props.stats.month_count === 1 ? 'expense' : 'expenses' }} this month
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
+                        {{ props.stats.month_count }}
+                        {{
+                            props.stats.month_count === 1
+                                ? 'expense'
+                                : 'expenses'
+                        }}
+                        this month
                     </p>
                 </div>
             </div>
 
             <!-- All-Time Expenses -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">All-Time Total</span>
-                    <div class="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >All-Time Total</span
+                    >
+                    <div
+                        class="rounded-lg bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                    >
                         <Wallet class="h-4 w-4" />
                     </div>
                 </div>
@@ -447,19 +519,26 @@ const getCategoryColor = (cat: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ formatMoney(props.stats.all_time_total) }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                        {{ props.stats.all_time_count }} total entries in database
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
+                        {{ props.stats.all_time_count }} total entries in
+                        database
                     </p>
                 </div>
             </div>
         </div>
 
         <!-- Filter Controls Toolbar -->
-        <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900">
+        <div
+            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900"
+        >
             <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
                 <!-- Search Input -->
                 <div class="relative min-w-[220px] flex-1">
-                    <Search class="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Search
+                        class="absolute top-2.5 left-3 h-4 w-4 text-gray-400"
+                    />
                     <Input
                         v-model="search"
                         type="text"
@@ -473,10 +552,14 @@ const getCategoryColor = (cat: string) => {
                     <select
                         v-model="categoryFilter"
                         @change="applyFilters"
-                        class="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-[#003B7D]"
+                        class="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 focus:ring-1 focus:ring-[#003B7D] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     >
                         <option value="all">All Categories</option>
-                        <option v-for="cat in props.categories" :key="cat" :value="cat">
+                        <option
+                            v-for="cat in props.categories"
+                            :key="cat"
+                            :value="cat"
+                        >
                             {{ cat }}
                         </option>
                     </select>
@@ -487,7 +570,7 @@ const getCategoryColor = (cat: string) => {
                     <select
                         v-model="dateFilter"
                         @change="applyFilters"
-                        class="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-[#003B7D]"
+                        class="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 focus:ring-1 focus:ring-[#003B7D] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     >
                         <option value="all">All Time</option>
                         <option value="today">Today</option>
@@ -499,9 +582,19 @@ const getCategoryColor = (cat: string) => {
 
                 <!-- Custom Date Inputs -->
                 <template v-if="dateFilter === 'custom'">
-                    <Input v-model="dateFrom" type="date" class="h-9 text-xs" @change="applyFilters" />
+                    <Input
+                        v-model="dateFrom"
+                        type="date"
+                        class="h-9 text-xs"
+                        @change="applyFilters"
+                    />
                     <span class="text-xs text-gray-400">to</span>
-                    <Input v-model="dateTo" type="date" class="h-9 text-xs" @change="applyFilters" />
+                    <Input
+                        v-model="dateTo"
+                        type="date"
+                        class="h-9 text-xs"
+                        @change="applyFilters"
+                    />
                 </template>
             </div>
 
@@ -524,20 +617,26 @@ const getCategoryColor = (cat: string) => {
                             size="sm"
                             class="h-9 gap-1.5 text-xs text-gray-700 dark:text-gray-300"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-[#003B7D]"
+                            />
                             <span>Columns</span>
-                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                            <span
+                                class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
+                            >
                                 {{ activeColumnCount }}/6
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-60 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-60 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold text-gray-900 dark:text-white"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -547,15 +646,19 @@ const getCategoryColor = (cat: string) => {
                             v-for="(label, key) in expenseColumnLabels"
                             :key="key"
                             @click.stop="toggleExpenseColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 transition-colors select-none hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleExpenseColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -564,36 +667,78 @@ const getCategoryColor = (cat: string) => {
         </div>
 
         <!-- Expenses Table -->
-        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+        <div
+            class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+        >
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
-                    <thead class="border-b border-gray-200 bg-gray-50/70 text-gray-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
+                    <thead
+                        class="border-b border-gray-200 bg-gray-50/70 text-gray-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
+                    >
                         <tr>
-                            <th v-if="visibleColumns.created_at" class="px-4 py-3 font-semibold">Date & Time</th>
-                            <th v-if="visibleColumns.category" class="px-4 py-3 font-semibold">Category</th>
-                            <th v-if="visibleColumns.amount" class="px-4 py-3 font-semibold">Amount</th>
-                            <th v-if="visibleColumns.user" class="px-4 py-3 font-semibold">Recorded By / Shift</th>
-                            <th v-if="visibleColumns.notes" class="px-4 py-3 font-semibold">Notes / Description</th>
-                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right font-semibold">Actions</th>
+                            <th
+                                v-if="visibleColumns.created_at"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Date & Time
+                            </th>
+                            <th
+                                v-if="visibleColumns.category"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Category
+                            </th>
+                            <th
+                                v-if="visibleColumns.amount"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Amount
+                            </th>
+                            <th
+                                v-if="visibleColumns.user"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Recorded By / Shift
+                            </th>
+                            <th
+                                v-if="visibleColumns.notes"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Notes / Description
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right font-semibold"
+                            >
+                                Actions
+                            </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                    <tbody
+                        class="divide-y divide-gray-200 dark:divide-gray-800"
+                    >
                         <tr
                             v-for="expense in props.expenses.data"
                             :key="expense.id"
-                            class="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors"
+                            class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/40"
                         >
                             <!-- Date & Time -->
-                            <td v-if="visibleColumns.created_at" class="px-4 py-3.5 text-gray-600 dark:text-gray-300 font-mono text-[11px]">
+                            <td
+                                v-if="visibleColumns.created_at"
+                                class="px-4 py-3.5 font-mono text-[11px] text-gray-600 dark:text-gray-300"
+                            >
                                 {{ formatDate(expense.created_at) }}
                             </td>
 
                             <!-- Category -->
-                            <td v-if="visibleColumns.category" class="px-4 py-3.5">
+                            <td
+                                v-if="visibleColumns.category"
+                                class="px-4 py-3.5"
+                            >
                                 <span
                                     :class="[
                                         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
-                                        getCategoryColor(expense.category)
+                                        getCategoryColor(expense.category),
                                     ]"
                                 >
                                     <Tag class="h-3 w-3" />
@@ -602,15 +747,25 @@ const getCategoryColor = (cat: string) => {
                             </td>
 
                             <!-- Amount -->
-                            <td v-if="visibleColumns.amount" class="px-4 py-3.5 font-bold text-rose-600 dark:text-rose-400 text-sm">
+                            <td
+                                v-if="visibleColumns.amount"
+                                class="px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400"
+                            >
                                 {{ formatMoney(expense.amount) }}
                             </td>
 
                             <!-- Recorded By & Shift -->
-                            <td v-if="visibleColumns.user" class="px-4 py-3.5 text-gray-700 dark:text-gray-300">
+                            <td
+                                v-if="visibleColumns.user"
+                                class="px-4 py-3.5 text-gray-700 dark:text-gray-300"
+                            >
                                 <div class="flex items-center gap-1.5">
-                                    <UserCheck class="h-3.5 w-3.5 text-gray-400" />
-                                    <span>{{ expense.user?.name || 'Staff' }}</span>
+                                    <UserCheck
+                                        class="h-3.5 w-3.5 text-gray-400"
+                                    />
+                                    <span>{{
+                                        expense.user?.name || 'Staff'
+                                    }}</span>
                                     <span
                                         v-if="expense.register_shift_id"
                                         class="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400"
@@ -622,13 +777,21 @@ const getCategoryColor = (cat: string) => {
                             </td>
 
                             <!-- Notes -->
-                            <td v-if="visibleColumns.notes" class="px-4 py-3.5 text-gray-600 dark:text-gray-300 max-w-xs truncate">
+                            <td
+                                v-if="visibleColumns.notes"
+                                class="max-w-xs truncate px-4 py-3.5 text-gray-600 dark:text-gray-300"
+                            >
                                 {{ expense.notes || '-' }}
                             </td>
 
                             <!-- Actions -->
-                            <td v-if="visibleColumns.actions" class="px-4 py-3.5 text-right">
-                                <div class="flex items-center justify-end gap-1">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3.5 text-right"
+                            >
+                                <div
+                                    class="flex items-center justify-end gap-1"
+                                >
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -653,11 +816,19 @@ const getCategoryColor = (cat: string) => {
 
                         <!-- Empty State -->
                         <tr v-if="props.expenses.data.length === 0">
-                            <td colspan="6" class="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                                <Receipt class="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" />
-                                <p class="mt-2 text-xs font-medium">No expenses found</p>
+                            <td
+                                colspan="6"
+                                class="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
+                            >
+                                <Receipt
+                                    class="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600"
+                                />
+                                <p class="mt-2 text-xs font-medium">
+                                    No expenses found
+                                </p>
                                 <p class="text-[11px] text-gray-400">
-                                    Try adjusting your search query or record a new expense.
+                                    Try adjusting your search query or record a
+                                    new expense.
                                 </p>
                             </td>
                         </tr>
@@ -671,7 +842,17 @@ const getCategoryColor = (cat: string) => {
                 class="flex items-center justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
             >
                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                    Showing <span class="font-semibold text-gray-700 dark:text-gray-300">{{ props.expenses.data.length }}</span> of <span class="font-semibold text-gray-700 dark:text-gray-300">{{ props.expenses.total }}</span> expenses
+                    Showing
+                    <span
+                        class="font-semibold text-gray-700 dark:text-gray-300"
+                        >{{ props.expenses.data.length }}</span
+                    >
+                    of
+                    <span
+                        class="font-semibold text-gray-700 dark:text-gray-300"
+                        >{{ props.expenses.total }}</span
+                    >
+                    expenses
                 </div>
                 <div class="flex items-center gap-1">
                     <component
@@ -681,12 +862,12 @@ const getCategoryColor = (cat: string) => {
                         :href="link.url || undefined"
                         v-html="link.label"
                         :class="[
-                            'px-2.5 py-1 text-xs rounded-md transition-colors',
+                            'rounded-md px-2.5 py-1 text-xs transition-colors',
                             link.active
-                                ? 'bg-[#003B7D] text-white font-bold'
+                                ? 'bg-[#003B7D] font-bold text-white'
                                 : link.url
                                   ? 'text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-800'
-                                  : 'text-gray-400 cursor-not-allowed'
+                                  : 'cursor-not-allowed text-gray-400',
                         ]"
                     />
                 </div>
@@ -698,12 +879,24 @@ const getCategoryColor = (cat: string) => {
     <Dialog v-model:open="isModalOpen">
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle class="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white">
+                <DialogTitle
+                    class="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white"
+                >
                     <Receipt class="h-5 w-5 text-[#003B7D]" />
-                    <span>{{ editingExpense ? 'Edit Expense Record' : 'Record New Expense' }}</span>
+                    <span>{{
+                        editingExpense
+                            ? 'Edit Expense Record'
+                            : 'Record New Expense'
+                    }}</span>
                 </DialogTitle>
-                <DialogDescription class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ editingExpense ? 'Update category, amount or notes for this expense entry.' : 'Enter details for shop expense payment or cash register payout.' }}
+                <DialogDescription
+                    class="text-xs text-gray-500 dark:text-gray-400"
+                >
+                    {{
+                        editingExpense
+                            ? 'Update category, amount or notes for this expense entry.'
+                            : 'Enter details for shop expense payment or cash register payout.'
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
@@ -711,22 +904,28 @@ const getCategoryColor = (cat: string) => {
                 <!-- Shift Link Indicator -->
                 <div
                     v-if="props.activeShift && !editingExpense"
-                    class="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                    class="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
                 >
                     ✓ Linked to active shift #{{ props.activeShift.id }}
                 </div>
 
                 <!-- Category Selection -->
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <label
+                        class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
                         Expense Category <span class="text-rose-500">*</span>
                     </label>
                     <select
                         v-if="!isCustomCategory"
                         v-model="form.category"
-                        class="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-1 focus:ring-[#003B7D]"
+                        class="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-900 focus:ring-1 focus:ring-[#003B7D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     >
-                        <option v-for="cat in props.categories" :key="cat" :value="cat">
+                        <option
+                            v-for="cat in props.categories"
+                            :key="cat"
+                            :value="cat"
+                        >
                             {{ cat }}
                         </option>
                         <option value="custom">+ Add Custom Category...</option>
@@ -736,57 +935,77 @@ const getCategoryColor = (cat: string) => {
                             v-model="customCategoryInput"
                             type="text"
                             placeholder="Type new category name..."
-                            class="text-xs flex-1"
+                            class="flex-1 text-xs"
                         />
                         <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            @click="isCustomCategory = false; form.category = props.categories[0] || ''"
+                            @click="
+                                isCustomCategory = false;
+                                form.category = props.categories[0] || '';
+                            "
                             class="text-xs text-gray-500 hover:text-gray-800"
                         >
                             Cancel
                         </Button>
                     </div>
-                    <span v-if="form.errors.category" class="text-[11px] font-medium text-rose-500">
+                    <span
+                        v-if="form.errors.category"
+                        class="text-[11px] font-medium text-rose-500"
+                    >
                         {{ form.errors.category }}
                     </span>
                 </div>
 
                 <!-- Amount Input -->
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        Expense Amount (PKR) <span class="text-rose-500">*</span>
+                    <label
+                        class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
+                        Expense Amount (PKR)
+                        <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
-                        <span class="absolute left-3 top-2 text-xs font-bold text-gray-500">Rs.</span>
+                        <span
+                            class="absolute top-2 left-3 text-xs font-bold text-gray-500"
+                            >Rs.</span
+                        >
                         <Input
                             v-model="form.amount"
                             type="number"
                             step="0.01"
                             min="0.01"
                             placeholder="0.00"
-                            class="pl-10 text-xs font-mono font-bold"
+                            class="pl-10 font-mono text-xs font-bold"
                             required
                         />
                     </div>
-                    <span v-if="form.errors.amount" class="text-[11px] font-medium text-rose-500">
+                    <span
+                        v-if="form.errors.amount"
+                        class="text-[11px] font-medium text-rose-500"
+                    >
                         {{ form.errors.amount }}
                     </span>
                 </div>
 
                 <!-- Notes / Description -->
                 <div class="space-y-1.5">
-                    <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <label
+                        class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
                         Notes / Description
                     </label>
                     <textarea
                         v-model="form.notes"
                         rows="3"
                         placeholder="E.g. Electricity bill paid for September, Tea for guests..."
-                        class="w-full rounded-md border border-gray-200 bg-white p-2.5 text-xs text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:ring-1 focus:ring-[#003B7D]"
+                        class="w-full rounded-md border border-gray-200 bg-white p-2.5 text-xs text-gray-900 focus:ring-1 focus:ring-[#003B7D] dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     ></textarea>
-                    <span v-if="form.errors.notes" class="text-[11px] font-medium text-rose-500">
+                    <span
+                        v-if="form.errors.notes"
+                        class="text-[11px] font-medium text-rose-500"
+                    >
                         {{ form.errors.notes }}
                     </span>
                 </div>
@@ -803,10 +1022,12 @@ const getCategoryColor = (cat: string) => {
                     <Button
                         type="submit"
                         :disabled="form.processing"
-                        class="bg-[#003B7D] text-white hover:bg-[#002a59] text-xs font-medium cursor-pointer"
+                        class="cursor-pointer bg-[#003B7D] text-xs font-medium text-white hover:bg-[#002a59]"
                     >
                         <span v-if="form.processing">Saving...</span>
-                        <span v-else>{{ editingExpense ? 'Update Expense' : 'Save Expense' }}</span>
+                        <span v-else>{{
+                            editingExpense ? 'Update Expense' : 'Save Expense'
+                        }}</span>
                     </Button>
                 </DialogFooter>
             </form>
@@ -817,14 +1038,23 @@ const getCategoryColor = (cat: string) => {
     <Dialog v-model:open="isDeleteModalOpen">
         <DialogContent class="sm:max-w-sm">
             <DialogHeader>
-                <DialogTitle class="text-base font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                <DialogTitle
+                    class="flex items-center gap-2 text-base font-bold text-rose-600 dark:text-rose-400"
+                >
                     <Trash2 class="h-5 w-5" />
                     <span>Delete Expense Record</span>
                 </DialogTitle>
-                <DialogDescription class="text-xs text-gray-500 dark:text-gray-400">
+                <DialogDescription
+                    class="text-xs text-gray-500 dark:text-gray-400"
+                >
                     Are you sure you want to delete the expense entry of
-                    <strong class="text-gray-900 dark:text-white">{{ deletingExpense ? formatMoney(deletingExpense.amount) : '' }}</strong>
-                    ({{ deletingExpense?.category }})? This action cannot be undone.
+                    <strong class="text-gray-900 dark:text-white">{{
+                        deletingExpense
+                            ? formatMoney(deletingExpense.amount)
+                            : ''
+                    }}</strong>
+                    ({{ deletingExpense?.category }})? This action cannot be
+                    undone.
                 </DialogDescription>
             </DialogHeader>
             <DialogFooter class="pt-3">
@@ -841,7 +1071,7 @@ const getCategoryColor = (cat: string) => {
                     variant="destructive"
                     :disabled="deleteForm.processing"
                     @click="handleDelete"
-                    class="text-xs cursor-pointer"
+                    class="cursor-pointer text-xs"
                 >
                     <span v-if="deleteForm.processing">Deleting...</span>
                     <span v-else>Confirm Delete</span>

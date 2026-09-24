@@ -130,11 +130,15 @@ defineOptions({
         breadcrumbs: [
             {
                 title: 'Dashboard',
-                href: layoutProps.currentTeam ? `/${layoutProps.currentTeam.slug}/dashboard` : '/dashboard',
+                href: layoutProps.currentTeam
+                    ? `/${layoutProps.currentTeam.slug}/dashboard`
+                    : '/dashboard',
             },
             {
                 title: 'Sale Returns',
-                href: layoutProps.currentTeam ? `/${layoutProps.currentTeam.slug}/sales-returns` : '/sales-returns',
+                href: layoutProps.currentTeam
+                    ? `/${layoutProps.currentTeam.slug}/sales-returns`
+                    : '/sales-returns',
             },
         ],
     }),
@@ -209,16 +213,20 @@ const dateFrom = ref(props.filters.date_from || '');
 const dateTo = ref(props.filters.date_to || '');
 
 const applyFilters = () => {
-    const routeName = props.currentTeam ? `/${props.currentTeam.slug}/sales-returns` : '/sales-returns';
+    const routeName = props.currentTeam
+        ? `/${props.currentTeam.slug}/sales-returns`
+        : '/sales-returns';
     router.get(
         routeName,
         {
             search: search.value || undefined,
-            date_filter: dateFilter.value !== 'all' ? dateFilter.value : undefined,
-            date_from: dateFilter.value === 'custom' ? dateFrom.value : undefined,
+            date_filter:
+                dateFilter.value !== 'all' ? dateFilter.value : undefined,
+            date_from:
+                dateFilter.value === 'custom' ? dateFrom.value : undefined,
             date_to: dateFilter.value === 'custom' ? dateTo.value : undefined,
         },
-        { preserveState: true, preserveScroll: true, replace: true }
+        { preserveState: true, preserveScroll: true, replace: true },
     );
 };
 
@@ -365,21 +373,26 @@ const formatDate = (dateStr: string) => {
 
     <div class="space-y-6 p-4 md:p-6">
         <!-- Header & Action -->
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+            class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        >
             <div>
                 <div class="flex items-center gap-2">
-                    <RotateCcw class="h-6 w-6 text-rose-600" />
-                    <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+                    <RotateCcw class="h-6 w-6 text-rose-600 dark:text-rose-400" />
+                    <h1
+                        class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
+                    >
                         Sale Returns & Stock Reversals
                     </h1>
                 </div>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Process customer product returns, restore inventory stock, and track cash or Khata refunds.
+                    Process customer product returns, restore inventory stock,
+                    and track cash or Khata refunds.
                 </p>
             </div>
             <Button
                 @click="openProcessModal"
-                class="bg-rose-600 text-white hover:bg-rose-700 gap-2 font-medium cursor-pointer"
+                class="cursor-pointer gap-2 bg-rose-600 font-medium text-white hover:bg-rose-700"
             >
                 <RotateCcw class="h-4 w-4" />
                 <span>+ Process Sale Return</span>
@@ -389,10 +402,17 @@ const formatDate = (dateStr: string) => {
         <!-- Summary Statistics Cards -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <!-- Today's Refund Total -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Today's Refunds</span>
-                    <div class="rounded-lg bg-rose-50 p-2 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >Today's Refunds</span
+                    >
+                    <div
+                        class="rounded-lg bg-rose-50 p-2 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400"
+                    >
                         <TrendingDown class="h-4 w-4" />
                     </div>
                 </div>
@@ -400,17 +420,32 @@ const formatDate = (dateStr: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ formatMoney(props.stats.today_return_total) }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                        {{ props.stats.today_return_count }} {{ props.stats.today_return_count === 1 ? 'return' : 'returns' }} today
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
+                        {{ props.stats.today_return_count }}
+                        {{
+                            props.stats.today_return_count === 1
+                                ? 'return'
+                                : 'returns'
+                        }}
+                        today
                     </p>
                 </div>
             </div>
 
             <!-- Today's Return Count -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Today's Return Entries</span>
-                    <div class="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >Today's Return Entries</span
+                    >
+                    <div
+                        class="rounded-lg bg-blue-50 p-2 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+                    >
                         <RotateCcw class="h-4 w-4" />
                     </div>
                 </div>
@@ -418,17 +453,26 @@ const formatDate = (dateStr: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ props.stats.today_return_count }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
                         Total return orders today
                     </p>
                 </div>
             </div>
 
             <!-- All Time Returns Total -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">All-Time Refunds</span>
-                    <div class="rounded-lg bg-purple-50 p-2 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >All-Time Refunds</span
+                    >
+                    <div
+                        class="rounded-lg bg-purple-50 p-2 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400"
+                    >
                         <Wallet class="h-4 w-4" />
                     </div>
                 </div>
@@ -436,17 +480,26 @@ const formatDate = (dateStr: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ formatMoney(props.stats.all_time_return_total) }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
                         Total refund payouts
                     </p>
                 </div>
             </div>
 
             <!-- All Time Count -->
-            <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+            <div
+                class="rounded-xl border border-gray-200 bg-white p-5 shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">All-Time Entries</span>
-                    <div class="rounded-lg bg-amber-50 p-2 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                    <span
+                        class="text-xs font-semibold text-gray-500 dark:text-gray-400"
+                        >All-Time Entries</span
+                    >
+                    <div
+                        class="rounded-lg bg-amber-50 p-2 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
+                    >
                         <Calendar class="h-4 w-4" />
                     </div>
                 </div>
@@ -454,7 +507,9 @@ const formatDate = (dateStr: string) => {
                     <p class="text-2xl font-bold text-gray-900 dark:text-white">
                         {{ props.stats.all_time_return_count }}
                     </p>
-                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                    <p
+                        class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
+                    >
                         Total recorded return receipts
                     </p>
                 </div>
@@ -462,10 +517,14 @@ const formatDate = (dateStr: string) => {
         </div>
 
         <!-- Filter Toolbar & Interactive Columns Dropdown -->
-        <div class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900">
+        <div
+            class="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between dark:border-gray-800 dark:bg-gray-900"
+        >
             <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
                 <div class="relative min-w-[220px] flex-1">
-                    <Search class="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Search
+                        class="absolute top-2.5 left-3 h-4 w-4 text-gray-400"
+                    />
                     <Input
                         v-model="search"
                         type="text"
@@ -478,7 +537,7 @@ const formatDate = (dateStr: string) => {
                     <select
                         v-model="dateFilter"
                         @change="applyFilters"
-                        class="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-[#003B7D]"
+                        class="h-9 w-full rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 focus:ring-1 focus:ring-[#003B7D] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     >
                         <option value="all">All Time</option>
                         <option value="today">Today</option>
@@ -489,9 +548,19 @@ const formatDate = (dateStr: string) => {
                 </div>
 
                 <template v-if="dateFilter === 'custom'">
-                    <Input v-model="dateFrom" type="date" class="h-9 text-xs" @change="applyFilters" />
+                    <Input
+                        v-model="dateFrom"
+                        type="date"
+                        class="h-9 text-xs"
+                        @change="applyFilters"
+                    />
                     <span class="text-xs text-gray-400">to</span>
-                    <Input v-model="dateTo" type="date" class="h-9 text-xs" @change="applyFilters" />
+                    <Input
+                        v-model="dateTo"
+                        type="date"
+                        class="h-9 text-xs"
+                        @change="applyFilters"
+                    />
                 </template>
             </div>
 
@@ -514,20 +583,26 @@ const formatDate = (dateStr: string) => {
                             size="sm"
                             class="h-9 gap-1.5 text-xs text-gray-700 dark:text-gray-300"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-rose-600" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400"
+                            />
                             <span>Columns</span>
-                            <span class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                            <span
+                                class="ml-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                            >
                                 {{ activeColumnCount }}/8
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-60 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold text-gray-900 dark:text-white px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-60 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold text-gray-900 dark:text-white"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-rose-600 hover:underline dark:text-rose-400"
                             >
                                 Reset All
                             </button>
@@ -537,15 +612,19 @@ const formatDate = (dateStr: string) => {
                             v-for="(label, key) in returnColumnLabels"
                             :key="key"
                             @click.stop="toggleReturnColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-800 transition-colors select-none hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleReturnColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-rose-600 focus:ring-rose-500 dark:text-rose-400 dark:focus:ring-rose-400"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -554,56 +633,132 @@ const formatDate = (dateStr: string) => {
         </div>
 
         <!-- Returns Data Table -->
-        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xs dark:border-gray-800 dark:bg-gray-900">
+        <div
+            class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xs dark:border-gray-800 dark:bg-gray-900"
+        >
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs">
-                    <thead class="border-b border-gray-200 bg-gray-50/70 text-gray-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400">
+                    <thead
+                        class="border-b border-gray-200 bg-gray-50/70 text-gray-600 dark:border-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
+                    >
                         <tr>
-                            <th v-if="visibleColumns.return_no" class="px-4 py-3 font-semibold">Return #</th>
-                            <th v-if="visibleColumns.invoice_no" class="px-4 py-3 font-semibold">Original Invoice #</th>
-                            <th v-if="visibleColumns.created_at" class="px-4 py-3 font-semibold">Date & Time</th>
-                            <th v-if="visibleColumns.customer" class="px-4 py-3 font-semibold">Customer</th>
-                            <th v-if="visibleColumns.items" class="px-4 py-3 font-semibold">Items Returned</th>
-                            <th v-if="visibleColumns.refund_amount" class="px-4 py-3 font-semibold">Refund Amount</th>
-                            <th v-if="visibleColumns.refund_method" class="px-4 py-3 font-semibold">Refund Method</th>
-                            <th v-if="visibleColumns.actions" class="px-4 py-3 text-right font-semibold">Action</th>
+                            <th
+                                v-if="visibleColumns.return_no"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Return #
+                            </th>
+                            <th
+                                v-if="visibleColumns.invoice_no"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Original Invoice #
+                            </th>
+                            <th
+                                v-if="visibleColumns.created_at"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Date & Time
+                            </th>
+                            <th
+                                v-if="visibleColumns.customer"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Customer
+                            </th>
+                            <th
+                                v-if="visibleColumns.items"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Items Returned
+                            </th>
+                            <th
+                                v-if="visibleColumns.refund_amount"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Refund Amount
+                            </th>
+                            <th
+                                v-if="visibleColumns.refund_method"
+                                class="px-4 py-3 font-semibold"
+                            >
+                                Refund Method
+                            </th>
+                            <th
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3 text-right font-semibold"
+                            >
+                                Action
+                            </th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                    <tbody
+                        class="divide-y divide-gray-200 dark:divide-gray-800"
+                    >
                         <tr
                             v-for="ret in props.returns.data"
                             :key="ret.id"
-                            class="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors"
+                            class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/40"
                         >
-                            <td v-if="visibleColumns.return_no" class="px-4 py-3.5 font-bold font-mono text-rose-600 dark:text-rose-400">
+                            <td
+                                v-if="visibleColumns.return_no"
+                                class="px-4 py-3.5 font-mono font-bold text-rose-600 dark:text-rose-400"
+                            >
                                 {{ ret.return_no }}
                             </td>
-                            <td v-if="visibleColumns.invoice_no" class="px-4 py-3.5 font-mono text-[#003B7D] dark:text-blue-400">
+                            <td
+                                v-if="visibleColumns.invoice_no"
+                                class="px-4 py-3.5 font-mono text-[#003B7D] dark:text-blue-400"
+                            >
                                 {{ ret.sale?.invoice_no || '-' }}
                             </td>
-                            <td v-if="visibleColumns.created_at" class="px-4 py-3.5 text-gray-600 dark:text-gray-300 font-mono text-[11px]">
+                            <td
+                                v-if="visibleColumns.created_at"
+                                class="px-4 py-3.5 font-mono text-[11px] text-gray-600 dark:text-gray-300"
+                            >
                                 {{ formatDate(ret.created_at) }}
                             </td>
-                            <td v-if="visibleColumns.customer" class="px-4 py-3.5 font-medium text-gray-900 dark:text-white">
+                            <td
+                                v-if="visibleColumns.customer"
+                                class="px-4 py-3.5 font-medium text-gray-900 dark:text-white"
+                            >
                                 {{ ret.customer?.name || 'Walk-in Customer' }}
                             </td>
                             <td v-if="visibleColumns.items" class="px-4 py-3.5">
-                                <span class="rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-                                    {{ ret.items.length }} {{ ret.items.length === 1 ? 'item' : 'items' }}
+                                <span
+                                    class="rounded bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+                                >
+                                    {{ ret.items.length }}
+                                    {{
+                                        ret.items.length === 1
+                                            ? 'item'
+                                            : 'items'
+                                    }}
                                 </span>
                             </td>
-                            <td v-if="visibleColumns.refund_amount" class="px-4 py-3.5 font-bold text-rose-600 dark:text-rose-400 text-sm">
+                            <td
+                                v-if="visibleColumns.refund_amount"
+                                class="px-4 py-3.5 text-sm font-bold text-rose-600 dark:text-rose-400"
+                            >
                                 {{ formatMoney(ret.refund_amount) }}
                             </td>
-                            <td v-if="visibleColumns.refund_method" class="px-4 py-3.5 capitalize text-gray-700 dark:text-gray-300">
-                                {{ ret.refund_payment_method.replace('_', ' ') }}
+                            <td
+                                v-if="visibleColumns.refund_method"
+                                class="px-4 py-3.5 text-gray-700 capitalize dark:text-gray-300"
+                            >
+                                {{
+                                    ret.refund_payment_method.replace('_', ' ')
+                                }}
                             </td>
-                            <td v-if="visibleColumns.actions" class="px-4 py-3.5 text-right">
+                            <td
+                                v-if="visibleColumns.actions"
+                                class="px-4 py-3.5 text-right"
+                            >
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     @click="viewReturnDetails(ret)"
-                                    class="h-7 gap-1 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                                    class="h-7 cursor-pointer gap-1 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
                                 >
                                     <Eye class="h-3.5 w-3.5" />
                                     <span>Details</span>
@@ -612,11 +767,19 @@ const formatDate = (dateStr: string) => {
                         </tr>
 
                         <tr v-if="props.returns.data.length === 0">
-                            <td colspan="8" class="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                                <RotateCcw class="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600" />
-                                <p class="mt-2 text-xs font-medium">No sale returns recorded</p>
+                            <td
+                                colspan="8"
+                                class="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
+                            >
+                                <RotateCcw
+                                    class="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600"
+                                />
+                                <p class="mt-2 text-xs font-medium">
+                                    No sale returns recorded
+                                </p>
                                 <p class="text-[11px] text-gray-400">
-                                    Process product returns using the + Process Sale Return button above.
+                                    Process product returns using the + Process
+                                    Sale Return button above.
                                 </p>
                             </td>
                         </tr>
@@ -629,7 +792,17 @@ const formatDate = (dateStr: string) => {
                 class="flex items-center justify-between border-t border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/50"
             >
                 <div class="text-xs text-gray-500 dark:text-gray-400">
-                    Showing <span class="font-semibold text-gray-700 dark:text-gray-300">{{ props.returns.data.length }}</span> of <span class="font-semibold text-gray-700 dark:text-gray-300">{{ props.returns.total }}</span> returns
+                    Showing
+                    <span
+                        class="font-semibold text-gray-700 dark:text-gray-300"
+                        >{{ props.returns.data.length }}</span
+                    >
+                    of
+                    <span
+                        class="font-semibold text-gray-700 dark:text-gray-300"
+                        >{{ props.returns.total }}</span
+                    >
+                    returns
                 </div>
                 <div class="flex items-center gap-1">
                     <component
@@ -639,12 +812,12 @@ const formatDate = (dateStr: string) => {
                         :href="link.url || undefined"
                         v-html="link.label"
                         :class="[
-                            'px-2.5 py-1 text-xs rounded-md transition-colors',
+                            'rounded-md px-2.5 py-1 text-xs transition-colors',
                             link.active
-                                ? 'bg-rose-600 text-white font-bold'
+                                ? 'bg-rose-600 font-bold text-white'
                                 : link.url
                                   ? 'text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-800'
-                                  : 'text-gray-400 cursor-not-allowed'
+                                  : 'cursor-not-allowed text-gray-400',
                         ]"
                     />
                 </div>
@@ -656,12 +829,15 @@ const formatDate = (dateStr: string) => {
     <Dialog v-model:open="isProcessModalOpen">
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle class="flex items-center gap-2 text-base font-bold text-rose-600 dark:text-rose-400">
+                <DialogTitle
+                    class="flex items-center gap-2 text-base font-bold text-rose-600 dark:text-rose-400"
+                >
                     <RotateCcw class="h-5 w-5" />
                     <span>Process Product Sale Return</span>
                 </DialogTitle>
                 <DialogDescription class="text-xs text-gray-500">
-                    Quickly record product returns, restore stock, and issue refund.
+                    Quickly record product returns, restore stock, and issue
+                    refund.
                 </DialogDescription>
             </DialogHeader>
 
@@ -669,68 +845,105 @@ const formatDate = (dateStr: string) => {
                 <!-- Sale & Refund Method -->
                 <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <div>
-                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        <label
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                        >
                             Invoice (Optional)
                         </label>
                         <select
                             v-model="returnForm.sale_id"
-                            class="w-full mt-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            class="mt-1 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                         >
                             <option value="">General Return</option>
-                            <option v-for="s in props.recentSales" :key="s.id" :value="s.id">
-                                Inv #{{ s.invoice_no }} ({{ s.customer?.name || 'Walk-in' }})
+                            <option
+                                v-for="s in props.recentSales"
+                                :key="s.id"
+                                :value="s.id"
+                            >
+                                Inv #{{ s.invoice_no }} ({{
+                                    s.customer?.name || 'Walk-in'
+                                }})
                             </option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                        <label
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                        >
                             Refund Method
                         </label>
                         <select
                             v-model="returnForm.refund_payment_method"
-                            class="w-full mt-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            class="mt-1 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                         >
                             <option value="cash">Cash Refund</option>
                             <option value="jazzcash">JazzCash</option>
                             <option value="easypaisa">EasyPaisa</option>
                             <option value="bank">Bank Payout</option>
-                            <option value="khata_deduction">Khata Balance Deduction</option>
+                            <option value="khata_deduction">
+                                Khata Balance Deduction
+                            </option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Product Dropdown Picker -->
                 <div>
-                    <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    <label
+                        class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                    >
                         Select Product to Return
                     </label>
                     <select
                         v-model="selectedProductToAdd"
                         @change="handleSelectProductToReturn"
-                        class="w-full mt-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        class="mt-1 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
                     >
-                        <option value="">+ Choose product from inventory...</option>
-                        <option v-for="p in props.products" :key="p.id" :value="p.id">
+                        <option value="">
+                            + Choose product from inventory...
+                        </option>
+                        <option
+                            v-for="p in props.products"
+                            :key="p.id"
+                            :value="p.id"
+                        >
                             {{ p.name }} - {{ formatMoney(p.sale_price) }}
                         </option>
                     </select>
                 </div>
 
                 <!-- Compact Returned Items List -->
-                <div v-if="returnCart.length > 0" class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+                <div
+                    v-if="returnCart.length > 0"
+                    class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800"
+                >
                     <table class="w-full text-left text-xs">
-                        <thead class="bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                        <thead
+                            class="bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                        >
                             <tr>
-                                <th class="px-2.5 py-1.5 font-semibold">Item</th>
-                                <th class="px-2.5 py-1.5 font-semibold w-16 text-center">Qty</th>
-                                <th class="px-2.5 py-1.5 font-semibold">Refund</th>
+                                <th class="px-2.5 py-1.5 font-semibold">
+                                    Item
+                                </th>
+                                <th
+                                    class="w-16 px-2.5 py-1.5 text-center font-semibold"
+                                >
+                                    Qty
+                                </th>
+                                <th class="px-2.5 py-1.5 font-semibold">
+                                    Refund
+                                </th>
                                 <th class="px-2.5 py-1.5 text-right">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                        <tbody
+                            class="divide-y divide-gray-200 dark:divide-gray-800"
+                        >
                             <tr v-for="(item, idx) in returnCart" :key="idx">
-                                <td class="px-2.5 py-1.5 font-medium text-gray-900 dark:text-white max-w-[140px] truncate">
+                                <td
+                                    class="max-w-[140px] truncate px-2.5 py-1.5 font-medium text-gray-900 dark:text-white"
+                                >
                                     {{ item.product_name }}
                                 </td>
                                 <td class="px-2.5 py-1.5 text-center">
@@ -738,15 +951,23 @@ const formatDate = (dateStr: string) => {
                                         v-model.number="item.quantity"
                                         type="number"
                                         min="1"
-                                        class="h-6 w-14 text-xs text-center p-1"
-                                        @input="item.line_total = item.quantity * item.unit_price"
+                                        class="h-6 w-14 p-1 text-center text-xs"
+                                        @input="
+                                            item.line_total =
+                                                item.quantity * item.unit_price
+                                        "
                                     />
                                 </td>
-                                <td class="px-2.5 py-1.5 font-bold font-mono text-rose-600">
+                                <td
+                                    class="px-2.5 py-1.5 font-mono font-bold text-rose-600 dark:text-rose-400"
+                                >
                                     {{ formatMoney(item.line_total) }}
                                 </td>
                                 <td class="px-2.5 py-1.5 text-right">
-                                    <button @click="removeReturnItem(idx)" class="text-rose-500 hover:text-rose-700">
+                                    <button
+                                        @click="removeReturnItem(idx)"
+                                        class="text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                                    >
                                         <Trash2 class="h-3.5 w-3.5" />
                                     </button>
                                 </td>
@@ -756,36 +977,50 @@ const formatDate = (dateStr: string) => {
                 </div>
 
                 <!-- Total Refund & Notes -->
-                <div class="space-y-2 pt-1 border-t border-gray-200 dark:border-gray-800">
+                <div
+                    class="space-y-2 border-t border-gray-200 pt-1 dark:border-gray-800"
+                >
                     <div class="flex items-center justify-between text-xs">
-                        <label class="font-bold text-gray-900 dark:text-white">Total Refund Amount (Rs.):</label>
+                        <label class="font-bold text-gray-900 dark:text-white"
+                            >Total Refund Amount (Rs.):</label
+                        >
                         <Input
                             v-model.number="returnForm.refund_amount"
                             type="number"
                             min="0"
-                            class="h-7 w-28 font-mono font-bold text-rose-600 text-right text-xs"
+                            class="h-7 w-28 text-right font-mono text-xs font-bold text-rose-600 dark:text-rose-400"
                         />
                     </div>
 
                     <div>
-                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300">Return Reason / Notes</label>
+                        <label
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
+                            >Return Reason / Notes</label
+                        >
                         <Input
                             v-model="returnForm.notes"
                             type="text"
                             placeholder="E.g. Defective handset, customer returned"
-                            class="h-7 text-xs mt-0.5"
+                            class="mt-0.5 h-7 text-xs"
                         />
                     </div>
                 </div>
 
                 <DialogFooter class="pt-2">
-                    <Button type="button" variant="outline" @click="isProcessModalOpen = false" class="text-xs">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="isProcessModalOpen = false"
+                        class="text-xs"
+                    >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
-                        :disabled="returnForm.processing || returnCart.length === 0"
-                        class="bg-rose-600 text-white hover:bg-rose-700 text-xs font-medium cursor-pointer"
+                        :disabled="
+                            returnForm.processing || returnCart.length === 0
+                        "
+                        class="cursor-pointer bg-rose-600 text-xs font-medium text-white hover:bg-rose-700"
                     >
                         <span v-if="returnForm.processing">Processing...</span>
                         <span v-else>Confirm Return</span>
@@ -799,59 +1034,112 @@ const formatDate = (dateStr: string) => {
     <Dialog v-model:open="isDetailModalOpen">
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle class="flex items-center justify-between text-base font-bold text-rose-600">
+                <DialogTitle
+                    class="flex items-center justify-between text-base font-bold text-rose-600 dark:text-rose-400"
+                >
                     <span>Sale Return Details</span>
-                    <span class="font-mono text-sm">{{ selectedReturn?.return_no }}</span>
+                    <span class="font-mono text-sm">{{
+                        selectedReturn?.return_no
+                    }}</span>
                 </DialogTitle>
                 <DialogDescription class="text-xs text-gray-500">
-                    Date: {{ selectedReturn ? formatDate(selectedReturn.created_at) : '' }}
+                    Date:
+                    {{
+                        selectedReturn
+                            ? formatDate(selectedReturn.created_at)
+                            : ''
+                    }}
                 </DialogDescription>
             </DialogHeader>
 
             <div v-if="selectedReturn" class="space-y-4 py-2 text-xs">
                 <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                    <p class="font-semibold text-gray-700 dark:text-gray-300">Customer Details:</p>
-                    <p class="font-bold text-gray-900 dark:text-white mt-0.5">
-                        {{ selectedReturn.customer?.name || 'Walk-in Customer' }}
+                    <p class="font-semibold text-gray-700 dark:text-gray-300">
+                        Customer Details:
                     </p>
-                    <p v-if="selectedReturn.sale?.invoice_no" class="text-gray-500 font-mono">
+                    <p class="mt-0.5 font-bold text-gray-900 dark:text-white">
+                        {{
+                            selectedReturn.customer?.name || 'Walk-in Customer'
+                        }}
+                    </p>
+                    <p
+                        v-if="selectedReturn.sale?.invoice_no"
+                        class="font-mono text-gray-500"
+                    >
                         Original Invoice: {{ selectedReturn.sale.invoice_no }}
                     </p>
                 </div>
 
                 <div class="space-y-1">
-                    <p class="font-semibold text-gray-700 dark:text-gray-300">Returned Items:</p>
-                    <div class="rounded-lg border border-gray-200 divide-y divide-gray-200 dark:border-gray-800 dark:divide-gray-800">
-                        <div v-for="item in selectedReturn.items" :key="item.id" class="flex items-center justify-between p-2.5">
+                    <p class="font-semibold text-gray-700 dark:text-gray-300">
+                        Returned Items:
+                    </p>
+                    <div
+                        class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800"
+                    >
+                        <div
+                            v-for="item in selectedReturn.items"
+                            :key="item.id"
+                            class="flex items-center justify-between p-2.5"
+                        >
                             <div>
-                                <p class="font-bold text-gray-900 dark:text-white">{{ item.product?.name }}</p>
-                                <p v-if="item.product_imei" class="text-[10px] font-mono text-blue-600">
-                                    IMEI Restored: {{ item.product_imei.imei_1 }}
+                                <p
+                                    class="font-bold text-gray-900 dark:text-white"
+                                >
+                                    {{ item.product?.name }}
                                 </p>
-                                <p class="text-[10px] text-gray-500">Qty: {{ item.quantity }} x {{ formatMoney(item.unit_price) }}</p>
+                                <p
+                                    v-if="item.product_imei"
+                                    class="font-mono text-[10px] text-blue-600 dark:text-blue-400"
+                                >
+                                    IMEI Restored:
+                                    {{ item.product_imei.imei_1 }}
+                                </p>
+                                <p class="text-[10px] text-gray-500">
+                                    Qty: {{ item.quantity }} x
+                                    {{ formatMoney(item.unit_price) }}
+                                </p>
                             </div>
-                            <span class="font-bold font-mono text-rose-600">{{ formatMoney(item.line_total) }}</span>
+                            <span class="font-mono font-bold text-rose-600">{{
+                                formatMoney(item.line_total)
+                            }}</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-1 pt-2 border-t border-gray-200 font-mono">
-                    <div class="flex justify-between font-bold text-sm text-rose-600">
+                <div class="space-y-1 border-t border-gray-200 pt-2 font-mono">
+                    <div
+                        class="flex justify-between text-sm font-bold text-rose-600"
+                    >
                         <span>Refund Paid:</span>
-                        <span>{{ formatMoney(selectedReturn.refund_amount) }}</span>
+                        <span>{{
+                            formatMoney(selectedReturn.refund_amount)
+                        }}</span>
                     </div>
                     <div class="flex justify-between text-gray-500">
                         <span>Payment Method:</span>
-                        <span class="capitalize">{{ selectedReturn.refund_payment_method.replace('_', ' ') }}</span>
+                        <span class="capitalize">{{
+                            selectedReturn.refund_payment_method.replace(
+                                '_',
+                                ' ',
+                            )
+                        }}</span>
                     </div>
-                    <p v-if="selectedReturn.notes" class="text-gray-500 font-sans mt-2 pt-1 border-t border-gray-100">
+                    <p
+                        v-if="selectedReturn.notes"
+                        class="mt-2 border-t border-gray-100 pt-1 font-sans text-gray-500"
+                    >
                         Notes: {{ selectedReturn.notes }}
                     </p>
                 </div>
             </div>
 
             <DialogFooter>
-                <Button variant="outline" @click="isDetailModalOpen = false" class="text-xs">
+                <Button
+                    variant="outline"
+                    @click="isDetailModalOpen = false"
+                    class="text-xs"
+                >
                     Close
                 </Button>
             </DialogFooter>

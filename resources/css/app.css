@@ -78,7 +78,6 @@
     }
 
     .tnum {
-        font-family: var(--font-mono);
         font-variant-numeric: tabular-nums;
         font-feature-settings: 'tnum' 1;
         letter-spacing: -0.01em;
@@ -461,7 +460,7 @@
     }
 
     /* Dark Mode Background Overrides */
-    .dark .bg-white:not([class*="bg-gradient-"]):not(.btn-primary) {
+    .dark .bg-white:not([class*='bg-gradient-']):not(.btn-primary) {
         background-color: #131b2e !important;
         color: #f8fafc;
     }
@@ -472,6 +471,10 @@
     .dark .bg-white\/90,
     .dark .bg-white\/95 {
         background-color: rgba(19, 27, 46, 0.88) !important;
+    }
+
+    .dark .bg-white\/60 {
+        background-color: rgba(19, 27, 46, 0.7) !important;
     }
 
     .dark .bg-slate-50,
@@ -516,7 +519,10 @@
     }
 
     /* Dark Mode Inputs, Selects & Tables */
-    .dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+    .dark
+        input:not([type='checkbox']):not([type='radio']):not(
+            [type='submit']
+        ):not([type='button']),
     .dark select,
     .dark textarea {
         background-color: rgba(15, 23, 42, 0.8) !important;
@@ -547,11 +553,17 @@
         background-color: rgba(255, 255, 255, 0.04) !important;
     }
 
-    /* FORCE THERMAL RECEIPT TO REMAIN PURE WHITE PAPER WITH BLACK TEXT IN ALL THEMES */
+    /* FORCE PURCHASE RECEIPTS & SLIPS TO REMAIN PURE WHITE PAPER WITH BLACK TEXT IN ALL THEMES */
     #thermal-invoice-printable,
     #thermal-invoice-printable *,
     .thermal-receipt-container,
-    .thermal-receipt-container * {
+    .thermal-receipt-container *,
+    #khata-statement-slip,
+    #khata-statement-slip *,
+    #repair-token-slip,
+    #repair-token-slip *,
+    #trade-in-slip,
+    #trade-in-slip * {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
@@ -559,7 +571,13 @@
     .dark #thermal-invoice-printable,
     .dark #thermal-invoice-printable *,
     .dark .thermal-receipt-container,
-    .dark .thermal-receipt-container * {
+    .dark .thermal-receipt-container *,
+    .dark #khata-statement-slip,
+    .dark #khata-statement-slip *,
+    .dark #repair-token-slip,
+    .dark #repair-token-slip *,
+    .dark #trade-in-slip,
+    .dark #trade-in-slip * {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
@@ -575,26 +593,46 @@
     .dark #thermal-invoice-printable div,
     .dark #thermal-invoice-printable td,
     .dark #thermal-invoice-printable th,
-    .dark #thermal-invoice-printable h2 {
+    .dark #thermal-invoice-printable h2,
+    #khata-statement-slip p,
+    #khata-statement-slip span,
+    #khata-statement-slip div,
+    #khata-statement-slip td,
+    #khata-statement-slip th,
+    #repair-token-slip p,
+    #repair-token-slip span,
+    #repair-token-slip div,
+    #repair-token-slip td,
+    #repair-token-slip th,
+    .dark #khata-statement-slip p,
+    .dark #khata-statement-slip span,
+    .dark #khata-statement-slip div,
+    .dark #khata-statement-slip td,
+    .dark #khata-statement-slip th,
+    .dark #repair-token-slip p,
+    .dark #repair-token-slip span,
+    .dark #repair-token-slip div,
+    .dark #repair-token-slip td,
+    .dark #repair-token-slip th {
         color: #000000 !important;
     }
 
     /* Search Dropdown Product Hover Fix for Dark Mode */
-    .dark [id^="search-result-item-"] {
+    .dark [id^='search-result-item-'] {
         background-color: rgba(30, 41, 59, 0.85) !important;
         border-color: rgba(255, 255, 255, 0.12) !important;
         color: #f8fafc !important;
     }
 
-    .dark [id^="search-result-item-"]:hover,
-    .dark [id^="search-result-item-"].shadow-md {
+    .dark [id^='search-result-item-']:hover,
+    .dark [id^='search-result-item-'].shadow-md {
         background-color: #2563eb !important;
         border-color: #3b82f6 !important;
         color: #ffffff !important;
     }
 
-    .dark [id^="search-result-item-"]:hover *,
-    .dark [id^="search-result-item-"].shadow-md * {
+    .dark [id^='search-result-item-']:hover *,
+    .dark [id^='search-result-item-'].shadow-md * {
         color: #ffffff !important;
     }
 

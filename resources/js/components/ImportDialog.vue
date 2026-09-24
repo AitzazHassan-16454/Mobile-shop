@@ -70,7 +70,9 @@ const clearSelection = () => {
 
 const submitImport = () => {
     if (!form.file) {
-        toast.error('No File Selected', { description: 'Choose an Excel (.xlsx) file first.' });
+        toast.error('No File Selected', {
+            description: 'Choose an Excel (.xlsx) file first.',
+        });
         return;
     }
 
@@ -88,14 +90,18 @@ const submitImport = () => {
             });
         },
         onError: (errors) => {
-            const errorMsg = Object.values(errors).flat().join(' ') || 'Could not process the file.';
+            const errorMsg =
+                Object.values(errors).flat().join(' ') ||
+                'Could not process the file.';
             toast.error('Import Failed', { description: errorMsg });
         },
     });
 };
 
 watch(
-    () => (page.props.flash as { importResult?: ImportResult } | undefined)?.importResult,
+    () =>
+        (page.props.flash as { importResult?: ImportResult } | undefined)
+            ?.importResult,
     (value) => {
         if (value) {
             result.value = value;
@@ -111,58 +117,92 @@ const closeDialog = () => {
 </script>
 
 <template>
-    <Dialog :open="isOpen" @update:open="(value: boolean) => !value && closeDialog()">
-        <DialogContent class="max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+    <Dialog
+        :open="isOpen"
+        @update:open="(value: boolean) => !value && closeDialog()"
+    >
+        <DialogContent
+            class="max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
+        >
             <DialogHeader>
-                <DialogTitle class="text-lg font-black text-slate-900">{{ title }}</DialogTitle>
-                <DialogDescription class="text-xs text-slate-500">{{ description }}</DialogDescription>
+                <DialogTitle class="text-lg font-black text-slate-900">{{
+                    title
+                }}</DialogTitle>
+                <DialogDescription class="text-xs text-slate-500">{{
+                    description
+                }}</DialogDescription>
             </DialogHeader>
 
             <!-- Result Screen -->
             <div v-if="result" class="space-y-3 py-2">
                 <div
-                    class="rounded-xl border p-3 flex items-center gap-3"
-                    :class="(result.errors?.length || 0) > 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50'"
+                    class="flex items-center gap-3 rounded-xl border p-3"
+                    :class="
+                        (result.errors?.length || 0) > 0
+                            ? 'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-950/40'
+                            : 'border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-950/40'
+                    "
                 >
                     <FileSpreadsheet
                         class="h-6 w-6 shrink-0"
-                        :class="(result.errors?.length || 0) > 0 ? 'text-amber-600' : 'text-emerald-600'"
+                        :class="
+                            (result.errors?.length || 0) > 0
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-emerald-600 dark:text-emerald-400'
+                        "
                     />
                     <div class="text-xs font-bold text-slate-800">
                         <span v-if="(result.errors?.length || 0) > 0">
-                            {{ result.label || entityLabel }} imported with some skipped rows.
+                            {{ result.label || entityLabel }} imported with some
+                            skipped rows.
                         </span>
                         <span v-else>
-                            {{ result.label || entityLabel }} imported successfully.
+                            {{ result.label || entityLabel }} imported
+                            successfully.
                         </span>
                         <div class="mt-0.5 font-semibold text-slate-600">
-                            {{ result.created ?? 0 }} created • {{ result.skipped ?? 0 }} skipped
+                            {{ result.created ?? 0 }} created •
+                            {{ result.skipped ?? 0 }} skipped
                         </div>
                     </div>
                 </div>
 
-                <div v-if="result.errors?.length" class="space-y-1 max-h-40 overflow-y-auto rounded-xl bg-slate-50 border border-slate-200 p-3">
-                    <div class="text-[10px] font-extrabold uppercase tracking-wide text-slate-500 mb-1">
+                <div
+                    v-if="result.errors?.length"
+                    class="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3"
+                >
+                    <div
+                        class="mb-1 text-[10px] font-extrabold tracking-wide text-slate-500 uppercase"
+                    >
                         Skipped rows ({{
                             (result.skipped ?? 0) > (result.errors?.length || 0)
                                 ? result.errors?.length
-                                : result.skipped ?? 0
-                        }} shown)
+                                : (result.skipped ?? 0)
+                        }}
+                        shown)
                     </div>
                     <div
                         v-for="(error, index) in result.errors"
                         :key="index"
-                        class="text-[11px] font-semibold text-rose-600"
+                        class="text-[11px] font-semibold text-rose-600 dark:text-rose-400"
                     >
                         • {{ error }}
                     </div>
                 </div>
 
                 <DialogFooter class="pt-2">
-                    <Button type="button" variant="outline" @click="closeDialog">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="closeDialog"
+                    >
                         Close
                     </Button>
-                    <Button type="button" variant="outline" @click="clearSelection">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="clearSelection"
+                    >
                         Import Another File
                     </Button>
                 </DialogFooter>
@@ -172,14 +212,16 @@ const closeDialog = () => {
             <form v-else @submit.prevent="submitImport" class="space-y-4 py-2">
                 <a
                     :href="templateUrl"
-                    class="flex items-center justify-between rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 hover:bg-indigo-100 transition px-3 py-2"
+                    class="flex items-center justify-between rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 px-3 py-2 transition hover:bg-indigo-100 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/60"
                 >
-                    <span class="text-xs font-bold text-indigo-700">Download Import Template</span>
-                    <Download class="h-4 w-4 text-indigo-600" />
+                    <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300"
+                        >Download Import Template</span
+                    >
+                    <Download class="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 </a>
 
                 <label
-                    class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/40 transition cursor-pointer px-4 py-8 text-center"
+                    class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 px-4 py-8 text-center transition hover:border-indigo-400 hover:bg-indigo-50/40"
                 >
                     <input
                         ref="fileInputRef"
@@ -190,13 +232,24 @@ const closeDialog = () => {
                     />
                     <UploadCloud class="h-8 w-8 text-slate-400" />
                     <span class="text-xs font-extrabold text-slate-700">
-                        {{ form.file ? form.file.name : 'Click to select an .xlsx file' }}
+                        {{
+                            form.file
+                                ? form.file.name
+                                : 'Click to select an .xlsx file'
+                        }}
                     </span>
-                    <span v-if="!form.file" class="text-[10px] font-semibold text-slate-400">
-                        Fill the template below the header row. Rows starting with
+                    <span
+                        v-if="!form.file"
+                        class="text-[10px] font-semibold text-slate-400"
+                    >
+                        Fill the template below the header row. Rows starting
+                        with
                         <span class="font-black">#</span> are ignored.
                     </span>
-                    <span v-else class="text-[10px] font-semibold text-emerald-600">
+                    <span
+                        v-else
+                        class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+                    >
                         Ready to import — click "Import Now".
                     </span>
                 </label>
@@ -204,28 +257,33 @@ const closeDialog = () => {
                 <div
                     v-for="(error, index) in Object.values(form.errors).flat()"
                     :key="index"
-                    class="text-[11px] font-bold text-rose-600"
+                    class="text-[11px] font-bold text-rose-600 dark:text-rose-400"
                 >
                     {{ error }}
                 </div>
 
                 <DialogFooter class="pt-1">
-                    <Button type="button" variant="outline" @click="closeDialog">Cancel</Button>
+                    <Button type="button" variant="outline" @click="closeDialog"
+                        >Cancel</Button
+                    >
                     <Button
                         type="button"
                         variant="outline"
                         v-if="form.file"
                         @click="clearSelection"
                     >
-                        <RefreshCw class="h-3.5 w-3.5 mr-1" />
+                        <RefreshCw class="mr-1 h-3.5 w-3.5" />
                         Clear
                     </Button>
                     <Button
                         type="submit"
                         :disabled="form.processing || !form.file"
-                        class="bg-[#003B7D] text-white hover:bg-[#002b5c] dark:bg-sky-600 dark:hover:bg-sky-500 font-bold"
+                        class="bg-[#003B7D] font-bold text-white hover:bg-[#002b5c] dark:bg-sky-600 dark:hover:bg-sky-500"
                     >
-                        <span v-if="form.processing" class="inline-block h-3.5 w-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1.5"></span>
+                        <span
+                            v-if="form.processing"
+                            class="mr-1.5 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                        ></span>
                         Import Now
                     </Button>
                 </DialogFooter>

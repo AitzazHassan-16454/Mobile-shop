@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { Moon, ShoppingCart, Sun } from '@lucide/vue';
+import { ChevronDown, Check } from '@lucide/vue';
 import { computed } from 'vue';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useAppearance } from '@/composables/useAppearance';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import UserMenuContent from '@/components/UserMenuContent.vue';
+import { useInitials } from '@/composables/useInitials';
+import { useTranslation } from '@/composables/useTranslation';
 import pos from '@/routes/pos';
-import type { BreadcrumbItem, Team } from '@/types';
+import type { BreadcrumbItem, Team, User } from '@/types';
 
 withDefaults(
     defineProps<{
@@ -17,62 +24,87 @@ withDefaults(
 );
 
 const page = usePage();
-const { resolvedAppearance, updateAppearance } = useAppearance();
-
-const toggleTheme = () => {
-    updateAppearance(resolvedAppearance.value === 'dark' ? 'light' : 'dark');
-};
-
+const user = computed(() => page.props.auth?.user as User | undefined);
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
 );
 
 const posUrl = computed(() => pos.index(currentTeamSlug.value).url);
+const { getInitials } = useInitials();
+const { currentLanguage, setLanguage, t } = useTranslation();
 </script>
 
 <template>
     <header
-        class="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-white/15 bg-gradient-to-r from-[#002654] via-[#003B7D] to-[#004e9c] dark:from-[#090d16] dark:via-[#090d16] dark:to-[#090d16] dark:border-white/10 px-4 shadow-[0_4px_16px_rgba(0,35,80,0.15)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12"
+        class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-end border-b border-white/15 bg-gradient-to-r from-[#00366b] via-[#003B7D] to-[#002f61] px-4 sm:px-6 shadow-[0_4px_16px_rgba(0,35,80,0.15)] backdrop-blur-xl transition-[height] ease-linear"
     >
-        <!-- Left Side: Sidebar Toggle & Shop Heading -->
-        <div class="flex min-w-0 items-center gap-3">
-            <SidebarTrigger
-                class="-ml-1 text-white/80 transition-colors hover:text-white"
-            />
-            <div class="h-4 w-px bg-white/20"></div>
-
-            <h1
-                class="truncate text-sm font-black tracking-tight text-white sm:text-base"
-            >
-                Horizon Studio
-            </h1>
-        </div>
-
-        <!-- Right Side: Theme Toggle & POS Link -->
-        <div class="flex items-center gap-2">
-            <button
-                type="button"
-                @click="toggleTheme"
-                class="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl border border-white/25 bg-white/15 text-white shadow-2xs backdrop-blur-md transition hover:border-white/40 hover:bg-white/25 active:scale-95"
-                :title="
-                    resolvedAppearance === 'dark'
-                        ? 'Switch to Light Mode'
-                        : 'Switch to Dark Mode'
-                "
-            >
-                <Sun
-                    v-if="resolvedAppearance === 'dark'"
-                    class="h-4 w-4 text-amber-300"
-                />
-                <Moon v-else class="h-4 w-4 text-blue-200" />
-            </button>
+        <!-- Right Side: POS | EN | (A) Admin (matching reference layout) -->
+        <div class="flex items-center gap-5 sm:gap-7">
+            <!-- POS Text Link (Larger & Bolder) -->
             <Link
                 :href="posUrl"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-white/25 bg-white/15 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs backdrop-blur-md transition hover:border-white/40 hover:bg-white/25 active:scale-95"
+                class="text-base sm:text-lg font-black uppercase tracking-widest text-white transition hover:text-blue-200 active:scale-95"
             >
-                <ShoppingCart class="h-3.5 w-3.5 text-blue-200" />
-                <span>POS</span>
+                {{ t('POS') }}
             </Link>
+
+            <!-- Language Switcher Dropdown (EN / UR) -->
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    class="flex items-center gap-1 text-sm font-extrabold uppercase tracking-wider text-white transition hover:text-blue-200 focus:outline-none"
+                >
+                    <span>{{ currentLanguage.toUpperCase() }}</span>
+                    <ChevronDown class="size-3.5 text-white/80" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-36 rounded-xl p-1 shadow-xl">
+                    <DropdownMenuItem
+                        @click="setLanguage('en')"
+                        class="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs font-bold transition"
+                        :class="
+                            currentLanguage === 'en'
+                                ? 'bg-[#003B7D] text-white font-black'
+                                : 'text-slate-700 hover:bg-slate-100'
+                        "
+                    >
+                        <span>EN (English)</span>
+                        <Check v-if="currentLanguage === 'en'" class="size-3.5" />
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        @click="setLanguage('ur')"
+                        class="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs font-bold transition"
+                        :class="
+                            currentLanguage === 'ur'
+                                ? 'bg-[#003B7D] text-white font-black'
+                                : 'text-slate-700 hover:bg-slate-100'
+                        "
+                    >
+                        <span>UR (اردو)</span>
+                        <Check v-if="currentLanguage === 'ur'" class="size-3.5" />
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <!-- User Admin Profile Dropdown ((A) Admin) -->
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    class="flex items-center gap-2 rounded-full p-0.5 transition hover:opacity-90 focus:outline-none"
+                >
+                    <div
+                        class="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#1d8cd8] text-xs font-extrabold text-white shadow-xs ring-2 ring-white/20"
+                    >
+                        {{ getInitials(user?.name || 'Admin') }}
+                    </div>
+                    <span
+                        class="hidden text-sm font-extrabold text-white transition hover:text-blue-100 sm:inline-block"
+                    >
+                        {{ user?.name ? user.name.split(' ')[0] : 'Admin' }}
+                    </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-60 p-1.5 shadow-2xl">
+                    <UserMenuContent v-if="user" :user="user" />
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     </header>
 </template>
+

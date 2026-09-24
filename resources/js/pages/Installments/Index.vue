@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { AlertTriangle, CalendarClock, CircleDollarSign, Plus, SlidersHorizontal, Wallet } from '@lucide/vue';
+import {
+    AlertTriangle,
+    CalendarClock,
+    CircleDollarSign,
+    Plus,
+    SlidersHorizontal,
+    Wallet,
+} from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +33,10 @@ const defaultVisibleColumns = {
 
 const visibleColumns = ref({ ...defaultVisibleColumns });
 
-const installmentColumnLabels: Record<keyof typeof defaultVisibleColumns, string> = {
+const installmentColumnLabels: Record<
+    keyof typeof defaultVisibleColumns,
+    string
+> = {
     customer: 'Customer',
     plan: 'Plan Details',
     next_due: 'Next Due Date',
@@ -41,7 +51,10 @@ onMounted(() => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            visibleColumns.value = { ...defaultVisibleColumns, ...JSON.parse(saved) };
+            visibleColumns.value = {
+                ...defaultVisibleColumns,
+                ...JSON.parse(saved),
+            };
         }
         const savedPerPage = localStorage.getItem(PER_PAGE_STORAGE_KEY);
         if (savedPerPage && Number(savedPerPage) !== perPage.value) {
@@ -90,7 +103,13 @@ const props = defineProps<{
     plans: { data: Plan[] };
     customers: Array<{ id: number; name: string; phone: string }>;
     filters?: { per_page?: number };
-    summary: { active_plans: number; outstanding: number; collected: number; overdue_count: number; due_soon_count: number };
+    summary: {
+        active_plans: number;
+        outstanding: number;
+        collected: number;
+        overdue_count: number;
+        due_soon_count: number;
+    };
 }>();
 const page = usePage();
 const team = computed(
@@ -107,7 +126,7 @@ watch(perPage, (newPerPage) => {
     router.get(
         installments.index(team.value).url,
         { per_page: newPerPage },
-        { preserveState: true, replace: true }
+        { preserveState: true, replace: true },
     );
 });
 
@@ -271,7 +290,11 @@ defineOptions({
         </section>
         <div
             v-if="summary.overdue_count > 0 || summary.due_soon_count > 0"
-            :class="summary.overdue_count > 0 ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-amber-300 bg-amber-50 text-amber-700'"
+            :class="
+                summary.overdue_count > 0
+                    ? 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-500/40 dark:bg-rose-950/40 dark:text-rose-300'
+                    : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300'
+            "
             class="flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-3 text-xs font-bold backdrop-blur-xl"
         >
             <AlertTriangle class="h-4 w-4" />
@@ -282,7 +305,12 @@ defineOptions({
             <span v-if="summary.due_soon_count > 0">
                 {{ summary.due_soon_count }} due within the next 30 days
             </span>
-            <button type="button" class="ml-auto underline underline-offset-2 hover:opacity-80">Review plans below</button>
+            <button
+                type="button"
+                class="ml-auto underline underline-offset-2 hover:opacity-80"
+            >
+                Review plans below
+            </button>
         </div>
         <section class="grid gap-4 sm:grid-cols-3">
             <div
@@ -301,7 +329,7 @@ defineOptions({
                 <p class="text-xs tracking-wider text-slate-500 uppercase">
                     Outstanding
                 </p>
-                <p class="tnum mt-2 text-2xl font-bold text-amber-600">
+                <p class="tnum mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
                     {{ money(summary.outstanding) }}
                 </p>
             </div>
@@ -319,8 +347,12 @@ defineOptions({
         <section
             class="bg-card/60 overflow-hidden rounded-2xl border border-gray-200 backdrop-blur-xl"
         >
-            <div class="flex items-center justify-between p-4 border-b border-gray-200">
-                <h3 class="text-base font-bold text-gray-900">Installment Contracts</h3>
+            <div
+                class="flex items-center justify-between border-b border-gray-200 p-4"
+            >
+                <h3 class="text-base font-bold text-gray-900">
+                    Installment Contracts
+                </h3>
                 <!-- Table Columns Dropdown -->
                 <DropdownMenu>
                     <DropdownMenuTrigger as-child>
@@ -329,20 +361,26 @@ defineOptions({
                             size="sm"
                             class="h-8 gap-1.5 text-xs font-semibold"
                         >
-                            <SlidersHorizontal class="h-3.5 w-3.5 text-[#003B7D]" />
+                            <SlidersHorizontal
+                                class="h-3.5 w-3.5 text-[#003B7D]"
+                            />
                             <span>Columns</span>
-                            <span class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]">
+                            <span
+                                class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
+                            >
                                 {{ activeColumnCount }}/5
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-56 p-2 space-y-1">
-                        <DropdownMenuLabel class="flex items-center justify-between text-xs font-bold px-1 py-1">
+                    <DropdownMenuContent align="end" class="w-56 space-y-1 p-2">
+                        <DropdownMenuLabel
+                            class="flex items-center justify-between px-1 py-1 text-xs font-bold"
+                        >
                             <span>Table Columns</span>
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[11px] font-semibold text-[#003B7D] hover:underline cursor-pointer"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -352,15 +390,19 @@ defineOptions({
                             v-for="(label, key) in installmentColumnLabels"
                             :key="key"
                             @click.stop="toggleInstallmentColumn(key)"
-                            class="flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-slate-100 cursor-pointer select-none transition-colors"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none hover:bg-slate-100"
                         >
                             <span>{{ label }}</span>
                             <input
                                 type="checkbox"
-                                :checked="visibleColumns[key as keyof typeof visibleColumns]"
+                                :checked="
+                                    visibleColumns[
+                                        key as keyof typeof visibleColumns
+                                    ]
+                                "
                                 @change="toggleInstallmentColumn(key)"
                                 @click.stop
-                                class="h-4 w-4 rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D] cursor-pointer"
+                                class="h-4 w-4 cursor-pointer rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -368,7 +410,9 @@ defineOptions({
 
                 <!-- Per-Page Selection -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-slate-500">Show:</span>
+                    <span class="text-xs font-medium text-slate-500"
+                        >Show:</span
+                    >
                     <select
                         v-model="perPage"
                         class="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-2xs focus:border-[#003B7D] focus:outline-none"
@@ -390,11 +434,30 @@ defineOptions({
                         class="border-b border-gray-200 text-xs tracking-wider text-slate-500 uppercase"
                     >
                         <tr>
-                            <th v-if="visibleColumns.customer" class="px-5 py-4">Customer</th>
-                            <th v-if="visibleColumns.plan" class="px-5 py-4">Plan</th>
-                            <th v-if="visibleColumns.next_due" class="px-5 py-4">Next due</th>
-                            <th v-if="visibleColumns.status" class="px-5 py-4">Status</th>
-                            <th v-if="visibleColumns.collection" class="px-5 py-4 text-right">Collection</th>
+                            <th
+                                v-if="visibleColumns.customer"
+                                class="px-5 py-4"
+                            >
+                                Customer
+                            </th>
+                            <th v-if="visibleColumns.plan" class="px-5 py-4">
+                                Plan
+                            </th>
+                            <th
+                                v-if="visibleColumns.next_due"
+                                class="px-5 py-4"
+                            >
+                                Next due
+                            </th>
+                            <th v-if="visibleColumns.status" class="px-5 py-4">
+                                Status
+                            </th>
+                            <th
+                                v-if="visibleColumns.collection"
+                                class="px-5 py-4 text-right"
+                            >
+                                Collection
+                            </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -403,7 +466,10 @@ defineOptions({
                             :key="plan.id"
                             class="text-slate-600 hover:bg-gray-50"
                         >
-                            <td v-if="visibleColumns.customer" class="px-5 py-4">
+                            <td
+                                v-if="visibleColumns.customer"
+                                class="px-5 py-4"
+                            >
                                 <div class="font-semibold text-gray-900">
                                     {{ plan.customer.name }}
                                 </div>
@@ -420,20 +486,26 @@ defineOptions({
                                     {{ plan.duration_months }} paid
                                 </div>
                             </td>
-                            <td v-if="visibleColumns.next_due" class="tnum px-5 py-4 text-slate-500">
+                            <td
+                                v-if="visibleColumns.next_due"
+                                class="tnum px-5 py-4 text-slate-500"
+                            >
                                 {{ plan.next_due_date }}
                             </td>
                             <td v-if="visibleColumns.status" class="px-5 py-4">
                                 <span
                                     :class="
                                         plan.status === 'active'
-                                            ? 'text-amber-600'
-                                            : 'text-[#003B7D]'
+                                            ? 'text-amber-600 dark:text-amber-400'
+                                            : 'text-[#003B7D] dark:text-sky-300'
                                     "
                                     >{{ plan.status }}</span
                                 >
                             </td>
-                            <td v-if="visibleColumns.collection" class="px-5 py-4 text-right">
+                            <td
+                                v-if="visibleColumns.collection"
+                                class="px-5 py-4 text-right"
+                            >
                                 <Button
                                     size="sm"
                                     class="border-[#003B7D]/20 bg-[#003B7D]/5 text-[#003B7D] hover:bg-[#003B7D]/10"
