@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    ArrowLeftRight,
     BadgePercent,
     Boxes,
     Building2,
+    CalendarClock,
     LayoutGrid,
     Package,
     Receipt,
@@ -15,6 +17,7 @@ import {
     Store,
     Tags,
     Users,
+    Wallet,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -55,6 +58,7 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         icon: LayoutGrid,
         items: [
             { title: 'Customers', href: teamUrl('/customers'), icon: Users },
+            { title: 'Yearly Dues', href: teamUrl('/yearly-dues'), icon: CalendarClock },
         ],
     },
     {
@@ -63,6 +67,7 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         items: [
             { title: 'Sales History & Direct Sale', href: teamUrl('/sales'), icon: ShoppingBag },
             { title: 'Sale Returns', href: teamUrl('/sales-returns'), icon: RotateCcw },
+            { title: 'All Payments', href: teamUrl('/all-payments'), icon: Wallet },
             { title: 'Expenses', href: teamUrl('/expenses'), icon: Receipt },
         ],
     },
@@ -81,6 +86,11 @@ const mainNavGroups = computed<NavGroup[]>(() => [
                 title: 'Stock Adjustments',
                 href: teamUrl('/stock-adjustments'),
                 icon: SlidersHorizontal,
+            },
+            {
+                title: 'Stock Transfers',
+                href: teamUrl('/stock-transfers'),
+                icon: ArrowLeftRight,
             },
             {
                 title: 'Discounts',

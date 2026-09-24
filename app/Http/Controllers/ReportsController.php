@@ -8,13 +8,104 @@ use App\Models\ProductImei;
 use App\Models\RepairTicket;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Services\CsvService;
+use App\Services\XlsxService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
 
 class ReportsController extends Controller
 {
-    public function index(Request $request, string $currentTeam): Response
+    public function index(Request $request, string $currentTeam): InertiaResponse
+    {
+        return Inertia::render('Reports/Index', $this->reportData($request));
+    }
+
+    public function export(Request $request, string $currentTeam): Response
+    {
+        $format = $request->query('format', 'xlsx') === 'csv' ? 'csv' : 'xlsx';
+        $data = $this->reportData($request);
+
+        if ($format === 'csv') {
+            $content = CsvService::build(
+                ['Invoice', 'Customer', 'Device', 'IMEI', 'Condition', 'Purchase Cost', 'Sale Price', 'Profit', 'Margin %', 'Sold At'],
+                $data['deviceProfits']->map(fn (array $row) => [
+                    'Invoice' => $row['invoice_no'],
+                    'Customer' => $row['customer_name'],
+                    'Device' => $row['device_name'],
+                    'IMEI' => $row['imei'],
+                    'Condition' => $row['condition'],
+                    'Purchase Cost' => $row['purchase_cost'],
+                    'Sale Price' => $row['sale_price'],
+                    'Profit' => $row['profit'],
+                    'Margin %' => $row['margin_pct'],
+                    'Sold At' => $row['sold_at'],
+                ])->all()
+            );
+
+            return $this->downloadExport($content, 'reports', $format);
+        }
+
+        $summaryRows = [];
+        foreach ($data['summary'] as $label => $value) {
+            $summaryRows[] = ['Metric' => $label, 'Value' => $value];
+        }
+
+        $valuationRows = [];
+        foreach ($data['valuation'] as $label => $value) {
+            $valuationRows[] = ['Category' => $label, 'Value' => $value];
+        }
+
+        $content = XlsxService::buildSheets([
+            [
+                'name' => 'Summary',
+                'headers' => ['Metric', 'Value'],
+                'rows' => $summaryRows,
+            ],
+            [
+                'name' => 'Valuation',
+                'headers' => ['Category', 'Value'],
+                'rows' => $valuationRows,
+            ],
+            [
+                'name' => 'Device Profits',
+                'headers' => ['Invoice', 'Customer', 'Device', 'IMEI', 'Condition', 'Purchase Cost', 'Sale Price', 'Profit', 'Margin %', 'Sold At'],
+                'rows' => $data['deviceProfits']->map(fn (array $row) => [
+                    'Invoice' => $row['invoice_no'],
+                    'Customer' => $row['customer_name'],
+                    'Device' => $row['device_name'],
+                    'IMEI' => $row['imei'],
+                    'Condition' => $row['condition'],
+                    'Purchase Cost' => $row['purchase_cost'],
+                    'Sale Price' => $row['sale_price'],
+                    'Profit' => $row['profit'],
+                    'Margin %' => $row['margin_pct'],
+                    'Sold At' => $row['sold_at'],
+                ])->all(),
+            ],
+            [
+                'name' => 'Slow Moving',
+                'headers' => ['Type', 'Name', 'Detail', 'Cost', 'Days In Stock', 'Created'],
+                'rows' => $data['slowMovingStock']->map(fn (array $row) => [
+                    'Type' => $row['type'],
+                    'Name' => $row['name'],
+                    'Detail' => $row['detail'],
+                    'Cost' => $row['cost'],
+                    'Days In Stock' => $row['days_in_stock'],
+                    'Created' => $row['created_at'],
+                ])->all(),
+            ],
+        ]);
+
+        return $this->downloadExport($content, 'reports', $format);
+    }
+
+    /**
+     * @return Collection<string, mixed>
+     */
+    private function reportData(Request $request): Collection
     {
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
@@ -163,7 +254,7 @@ class ReportsController extends Controller
 
         $slowMovingStock = $slowMovingPhones->concat($slowMovingAccessories)->sortByDesc('days_in_stock')->values();
 
-        return Inertia::render('Reports/Index', [
+        return collect([
             'filters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,

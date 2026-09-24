@@ -26,6 +26,7 @@ import {
     Plus,
     Printer,
     Receipt,
+    Repeat,
     RotateCcw,
     Search,
     Settings,
@@ -61,6 +62,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { useConfirm } from '@/composables/useConfirm';
 import { dashboard } from '@/routes';
 import pos from '@/routes/pos';
+import usedPhones from '@/routes/used-phones';
 import type { Team } from '@/types';
 
 const { confirm, alert } = useConfirm();
@@ -108,6 +110,16 @@ interface ShopInfo {
     return_policy: string;
 }
 
+interface TradeInItem {
+    id: number;
+    voucher_no: string;
+    seller_name: string;
+    device_model: string;
+    imei_1: string;
+    purchase_amount: number | string;
+    created_at: string;
+}
+
 interface CartItem {
     key: string;
     product_id: number;
@@ -144,6 +156,7 @@ interface CompletedSale {
     customer_id?: number | null;
     total_amount: number | string;
     discount_amount: number | string;
+    trade_in_amount?: number | string;
     net_amount: number | string;
     paid_amount: number | string;
     change_amount: number | string;
@@ -168,6 +181,7 @@ interface HeldSale {
 const props = defineProps<{
     products: ProductItem[];
     customers: CustomerItem[];
+    usedPhonePurchases: TradeInItem[];
     shopInfo: ShopInfo;
     latestSale?: CompletedSale | null;
 }>();
@@ -293,6 +307,92 @@ const discountInput = ref<number | string>(0);
 const notesInput = ref<string>('');
 const paymentMethod = ref<string>('cash');
 const paidInput = ref<number | string>(0);
+const splitAmounts = ref<Record<string, number>>({
+    cash: 0,
+    jazzcash: 0,
+    easypaisa: 0,
+    bank: 0,
+    card: 0,
+    udhaar: 0,
+});
+const splitMethods = [
+    { key: 'cash', label: '💵 Cash' },
+    { key: 'jazzcash', label: '📱 JazzCash' },
+    { key: 'easypaisa', label: '📲 Easypaisa' },
+    { key: 'bank', label: '🏛️ Bank' },
+    { key: 'card', label: '💳 Card' },
+    { key: 'udhaar', label: '📖 Udhaar (Khata)' },
+];
+const splitTotal = computed(() =>
+    Object.values(splitAmounts.value).reduce(
+        (sum, amount) => sum + (Number(amount) || 0),
+        0,
+    ),
+);
+
+// Trade-In / Exchange
+const selectedTradeIn = ref<TradeInItem | null>(null);
+const isTradeInModalOpen = ref(false);
+const tradeInTab = ref<'apply' | 'new'>('apply');
+const tradeInForm = useForm({
+    seller_name: '',
+    seller_cnic: '',
+    seller_phone: '',
+    seller_address: '',
+    device_model: '',
+    brand: '',
+    color: '',
+    storage: '',
+    pta_status: 'approved',
+    imei_1: '',
+    imei_2: '',
+    purchase_amount: '',
+    payment_method: 'cash',
+    auto_add_stock: true,
+});
+
+const appliedTradeInAmount = computed(() => Number(selectedTradeIn.value?.purchase_amount) || 0);
+
+const selectTradeIn = (purchase: TradeInItem) => {
+    selectedTradeIn.value = purchase;
+    tradeInTab.value = 'apply';
+    isTradeInModalOpen.value = false;
+    playAudioBeep('scan');
+};
+
+const openNewTradeIn = () => {
+    tradeInForm.reset();
+    tradeInForm.clearErrors();
+    tradeInTab.value = 'new';
+};
+
+const submitTradeIn = () => {
+    tradeInForm.post(usedPhones.store(currentTeamSlug.value).url, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            const submittedImei = tradeInForm.imei_1;
+            tradeInForm.reset();
+            tradeInTab.value = 'apply';
+            playAudioBeep('success');
+            router.reload({
+                only: ['usedPhonePurchases'],
+                onSuccess: (page) => {
+                    const refreshed = (page.props.usedPhonePurchases as TradeInItem[]) || props.usedPhonePurchases;
+                    const created = refreshed.find((p) => p.imei_1 === submittedImei);
+                    if (created) {
+                        selectTradeIn(created);
+                        toast.success('Trade-In Added', { description: `Rs ${Number(created.purchase_amount).toLocaleString()} credit applied to this bill.` });
+                    }
+                },
+            });
+        },
+        onError: (errors) => {
+            const errorMsg = Object.values(errors).flat().join(' ') || 'Could not register the trade-in.';
+            toast.error('Trade-In Failed', { description: errorMsg });
+        },
+    });
+};
 
 // Live API Product Search
 const searchScanQuery = ref('');
@@ -554,10 +654,27 @@ const netPayable = computed(() => {
     return Math.max(0, subtotal.value - calculatedDiscountAmount.value);
 });
 
-const duePayment = computed(() => {
-    const paid = Number(paidInput.value) || 0;
-    return Math.max(0, netPayable.value - paid);
+const netPayableAfterTradeIn = computed(() => {
+    return Math.max(0, netPayable.value - appliedTradeInAmount.value);
 });
+
+const effectivePaid = computed(() => {
+    if (paymentMethod.value === 'split') {
+        return splitTotal.value;
+    }
+    return Number(paidInput.value) || 0;
+});
+
+const duePayment = computed(() => {
+    return Math.max(0, netPayableAfterTradeIn.value - effectivePaid.value);
+});
+
+const splitRemaining = computed(() => Math.max(0, netPayableAfterTradeIn.value - splitTotal.value));
+
+const fillSplitRemaining = () => {
+    splitAmounts.value.cash = (Number(splitAmounts.value.cash) || 0) + splitRemaining.value;
+    playAudioBeep('scan');
+};
 
 watch(
     () => props.latestSale,
@@ -570,7 +687,9 @@ watch(
             paidInput.value = 0;
             notesInput.value = '';
             paymentMethod.value = posSettings.value.defaultPayment || 'cash';
+            splitAmounts.value = { cash: 0, jazzcash: 0, easypaisa: 0, bank: 0, card: 0, udhaar: 0 };
             selectedCustomerId.value = 'walk_in';
+            selectedTradeIn.value = null;
         }
     },
     { immediate: true },
@@ -754,7 +873,9 @@ const clearCart = () => {
     paidInput.value = 0;
     notesInput.value = '';
     paymentMethod.value = posSettings.value.defaultPayment || 'cash';
+    splitAmounts.value = { cash: 0, jazzcash: 0, easypaisa: 0, bank: 0, card: 0, udhaar: 0 };
     selectedCustomerId.value = 'walk_in';
+    selectedTradeIn.value = null;
     playAudioBeep('delete');
     toast.info('Terminal Reset', { description: 'Cart and invoice inputs cleared.' });
 };
@@ -779,6 +900,18 @@ const saveSale = () => {
         return;
     }
 
+    if (
+        paymentMethod.value === 'split' &&
+        selectedCustomerId.value === 'walk_in' &&
+        ((Number(splitAmounts.value.udhaar) || 0) > 0 || splitTotal.value < netPayableAfterTradeIn.value)
+    ) {
+        toast.error('Customer Account Required', {
+            description: 'Select a customer when splitting with Udhaar or paying less than the total.',
+        });
+        isCustomerModalOpen.value = true;
+        return;
+    }
+
     const payload: any = {
         customer_id:
             selectedCustomerId.value === 'walk_in'
@@ -786,7 +919,7 @@ const saveSale = () => {
                 : Number(selectedCustomerId.value),
         payment_method: paymentMethod.value,
         discount_amount: calculatedDiscountAmount.value,
-        paid_amount: paymentMethod.value === 'udhaar' ? (Number(paidInput.value) || 0) : (Number(paidInput.value) || netPayable.value),
+        trade_in_purchase_id: selectedTradeIn.value?.id ?? null,
         items: cart.value.map((item) => ({
             product_id: item.product_id,
             product_imei_id: item.product_imei_id || null,
@@ -794,6 +927,19 @@ const saveSale = () => {
             unit_price: item.unit_price - (item.item_discount || 0),
         })),
     };
+
+    if (paymentMethod.value === 'udhaar') {
+        payload.paid_amount = Number(paidInput.value) || 0;
+    } else if (paymentMethod.value === 'split') {
+        payload.paid_amount = splitTotal.value;
+        payload.payment_details = Object.fromEntries(
+            Object.entries(splitAmounts.value)
+                .filter(([, value]) => (Number(value) || 0) > 0)
+                .map(([key, value]) => [key, Number(value) || 0]),
+        );
+    } else {
+        payload.paid_amount = Number(paidInput.value) || netPayableAfterTradeIn.value;
+    }
 
     router.post(pos.sales.store(currentTeamSlug.value).url, payload, {
         preserveScroll: true,
@@ -856,33 +1002,31 @@ const addNotePreset = (preset: string) => {
 };
 
 const handleGlobalKeydown = (e: KeyboardEvent) => {
-    if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+    if (e.key === 'F1') {
+        e.preventDefault();
+        clearCart();
+    } else if (e.key === 'F2') {
+        e.preventDefault();
+        searchInputRef.value?.focus();
+        showSearchDropdown.value = true;
+    } else if (e.key === 'F3') {
         e.preventDefault();
         document.getElementById('customer-select-trigger')?.focus();
-    } else if (e.altKey && (e.key === 'u' || e.key === 'U')) {
-        e.preventDefault();
-        document.getElementById('salesman-select-trigger')?.focus();
-    } else if (e.altKey && (e.key === 'd' || e.key === 'D' || e.key === '/')) {
+    } else if (e.key === 'F4') {
         e.preventDefault();
         document.getElementById('discount-input-field')?.focus();
-    } else if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+    } else if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
-        document.getElementById('payment-method-select')?.focus();
+        saveSale();
+    } else if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        searchInputRef.value?.focus();
     } else if (e.altKey && (e.key === 'p' || e.key === 'P')) {
         e.preventDefault();
         document.getElementById('total-payment-input')?.focus();
     } else if (e.altKey && (e.key === 'h' || e.key === 'H')) {
         e.preventDefault();
         holdCurrentSale();
-    } else if (e.altKey && e.key === 'Enter') {
-        e.preventDefault();
-        saveSale();
-    } else if (e.altKey && (e.key === 'Delete' || e.key === 'Backspace')) {
-        e.preventDefault();
-        clearCart();
-    } else if (e.ctrlKey && (e.key === 'Enter' || e.key === 'f' || e.key === 'F')) {
-        e.preventDefault();
-        searchInputRef.value?.focus();
     }
 };
 
@@ -1052,7 +1196,7 @@ const printReceipt = () => {
                     <div class="flex items-center justify-between text-xs">
                         <label class="font-extrabold text-slate-900 flex items-center gap-1.5">
                             <User class="h-3.5 w-3.5 text-indigo-600" />
-                            <span>Customer (Alt+C)</span>
+                            <span>Customer (F3)</span>
                         </label>
                         <div class="flex items-center gap-2 text-[11px]">
                             <button
@@ -1087,7 +1231,7 @@ const printReceipt = () => {
                     <div class="flex items-center justify-between mb-1.5 text-xs">
                         <label class="font-extrabold text-slate-900 flex items-center gap-1.5">
                             <Barcode class="h-3.5 w-3.5 text-indigo-600" />
-                            <span>Product / Barcode / IMEI Scan (Ctrl+F)</span>
+                            <span>Product / Barcode / IMEI Scan (F2)</span>
                         </label>
                         <span class="text-[10px] font-bold text-slate-400">Scan Barcode or Type Product Name</span>
                     </div>
@@ -1325,12 +1469,16 @@ const printReceipt = () => {
                         <span>Total Discount</span>
                         <span class="font-bold">- Rs {{ calculatedDiscountAmount.toLocaleString() }}</span>
                     </div>
+                    <div v-if="appliedTradeInAmount > 0" class="flex justify-between text-amber-600 font-semibold">
+                        <span>Trade-In Credit</span>
+                        <span class="font-bold">- Rs {{ appliedTradeInAmount.toLocaleString() }}</span>
+                    </div>
                 </div>
 
                 <!-- Discount Input & Mode Selector -->
                 <div>
                     <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
-                        Bill Discount (Alt+D)
+                        Bill Discount (F4)
                     </label>
                     <div class="flex items-center rounded-xl border border-slate-300 bg-slate-50 overflow-hidden focus-within:border-indigo-600 focus-within:ring-2 focus-within:ring-indigo-600/20">
                         <span class="pl-3 text-xs font-bold text-slate-500">Rs</span>
@@ -1362,10 +1510,51 @@ const printReceipt = () => {
                     </div>
                 </div>
 
+                <!-- Trade-In / Exchange Panel -->
+                <div>
+                    <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
+                        Trade-In / Exchange
+                    </label>
+                    <div
+                        v-if="selectedTradeIn"
+                        class="rounded-xl border border-amber-300 bg-amber-50 p-2.5 space-y-1"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 text-xs font-black text-amber-900">
+                                <Repeat class="h-3.5 w-3.5" />
+                                <span class="truncate">{{ selectedTradeIn.device_model }}</span>
+                            </div>
+                            <button
+                                type="button"
+                                @click="selectedTradeIn = null"
+                                class="shrink-0 text-amber-500 hover:text-rose-600 font-black"
+                                title="Remove trade-in"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div class="text-[10px] font-semibold text-amber-700">
+                            IMEI: {{ selectedTradeIn.imei_1 }} • {{ selectedTradeIn.seller_name }} • {{ selectedTradeIn.voucher_no }}
+                        </div>
+                        <div class="text-sm font-black text-amber-900">
+                            - Rs {{ appliedTradeInAmount.toLocaleString() }}
+                        </div>
+                    </div>
+                    <button
+                        v-else
+                        type="button"
+                        @click="isTradeInModalOpen = true"
+                        class="w-full h-9 rounded-xl border border-dashed border-amber-400 bg-amber-50/50 hover:bg-amber-100 text-xs font-extrabold text-amber-700 transition active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                        <Repeat class="h-4 w-4" />
+                        <span>Add Trade-In / Exchange</span>
+                    </button>
+                </div>
+
                 <!-- Payment Method Selector Pills -->
                 <div>
                     <label class="block mb-1 text-[11px] font-extrabold text-slate-700 uppercase">
-                        Payment Method (Alt+M)
+                        Payment Method
                     </label>
                     <div class="grid grid-cols-3 gap-1.5">
                         <button
@@ -1402,12 +1591,70 @@ const printReceipt = () => {
                         </button>
                         <button
                             type="button"
+                            @click="paymentMethod = 'card'"
+                            :class="paymentMethod === 'card' ? 'bg-purple-600 text-white border-purple-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            💳 Card
+                        </button>
+                        <button
+                            type="button"
+                            @click="paymentMethod = 'split'"
+                            :class="paymentMethod === 'split' ? 'bg-indigo-600 text-white border-indigo-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
+                            class="py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                        >
+                            🔀 Split Tender
+                        </button>
+                        <button
+                            type="button"
                             @click="paymentMethod = 'udhaar'"
                             :class="paymentMethod === 'udhaar' ? 'bg-amber-600 text-white border-amber-600 font-extrabold shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 font-semibold'"
-                            class="col-span-2 py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
+                            class="col-span-3 py-1.5 px-2 rounded-xl text-xs border transition text-center active:scale-95"
                         >
                             📖 Udhaar (Khata Ledger)
                         </button>
+                    </div>
+
+                    <!-- Split Tender Allocation Inputs -->
+                    <div
+                        v-if="paymentMethod === 'split'"
+                        class="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/60 p-2.5 space-y-2"
+                    >
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="font-extrabold text-indigo-900 uppercase">Split Allocation</span>
+                            <span class="font-black text-indigo-700">Allocated: Rs {{ splitTotal.toLocaleString() }}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <div
+                                v-for="method in splitMethods"
+                                :key="method.key"
+                                class="space-y-0.5"
+                            >
+                                <label class="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wide">{{ method.label }}</label>
+                                <div :class="[paymentMethod === 'split' && method.key === 'udhaar' && (Number(splitAmounts[method.key]) || 0) > 0 ? 'border-amber-400 bg-amber-50' : 'border-slate-300 bg-white', 'flex items-center rounded-lg border px-1.5 py-1 focus-within:border-indigo-500']">
+                                    <span class="text-[10px] font-bold text-slate-400 mr-0.5">Rs</span>
+                                    <input
+                                        v-model.number="splitAmounts[method.key]"
+                                        type="number"
+                                        min="0"
+                                        placeholder="0"
+                                        class="w-full bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="font-semibold text-slate-500">
+                                Remaining: <span class="font-black text-slate-900">Rs {{ splitRemaining.toLocaleString() }}</span>
+                            </span>
+                            <button
+                                type="button"
+                                @click="fillSplitRemaining"
+                                class="text-[10px] font-extrabold text-indigo-600 hover:underline"
+                            >
+                                Fill Balance in Cash
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1443,7 +1690,7 @@ const printReceipt = () => {
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <span class="text-[10px] font-extrabold uppercase text-slate-400">Quick Cash Buttons</span>
-                        <button type="button" @click="paidInput = netPayable" class="text-[10px] font-extrabold text-indigo-600 hover:underline">
+                        <button type="button" @click="paidInput = netPayableAfterTradeIn" class="text-[10px] font-extrabold text-indigo-600 hover:underline">
                             Exact Amount
                         </button>
                     </div>
@@ -1483,9 +1730,15 @@ const printReceipt = () => {
                 <div class="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 p-4 text-center text-white shadow-xl border border-indigo-400/30">
                     <div class="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-0.5">
                         NET PAYABLE AMOUNT
+                        <span v-if="appliedTradeInAmount > 0" class="normal-case tracking-normal text-amber-300">
+                            (after trade-in)
+                        </span>
                     </div>
                     <div class="text-3xl lg:text-4xl font-black tracking-tight">
-                        Rs {{ netPayable.toLocaleString() }}
+                        Rs {{ netPayableAfterTradeIn.toLocaleString() }}
+                    </div>
+                    <div v-if="appliedTradeInAmount > 0" class="mt-1 text-[10px] line-through text-slate-400">
+                        Rs {{ netPayable.toLocaleString() }} - Rs {{ appliedTradeInAmount.toLocaleString() }} trade-in
                     </div>
                     <div v-if="notesInput" class="mt-1.5 text-[10px] text-sky-200 truncate bg-white/10 px-2 py-0.5 rounded-full">
                         📝 {{ notesInput }}
@@ -1500,7 +1753,7 @@ const printReceipt = () => {
                         class="w-full h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-sm font-black text-white shadow-lg active:scale-95 transition flex items-center justify-center gap-2"
                     >
                         <CheckCircle class="h-5 w-5" />
-                        <span>COMPLETE SALE (Alt+Enter)</span>
+                        <span>COMPLETE SALE (Ctrl+Enter)</span>
                     </button>
 
                     <div class="grid grid-cols-2 gap-2">
@@ -1554,6 +1807,163 @@ const printReceipt = () => {
                         <Button type="submit" class="bg-indigo-600 text-white hover:bg-indigo-700 font-bold">Save Customer</Button>
                     </DialogFooter>
                 </form>
+            </DialogContent>
+        </Dialog>
+
+        <!-- DIALOG: Trade-In / Exchange -->
+        <Dialog v-model:open="isTradeInModalOpen">
+            <DialogContent class="max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+                <DialogHeader>
+                    <DialogTitle class="text-lg font-black text-slate-900">Trade-In / Exchange</DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">
+                        Offset this bill using credit from a purchased used phone, or register a new trade-in now.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl mt-2">
+                    <button
+                        type="button"
+                        @click="tradeInTab = 'apply'"
+                        :class="tradeInTab === 'apply' ? 'bg-white shadow text-slate-900 font-black' : 'text-slate-500 hover:text-slate-700 font-bold'"
+                        class="h-9 rounded-lg text-xs transition"
+                    >
+                        Apply Credit
+                    </button>
+                    <button
+                        type="button"
+                        @click="openNewTradeIn"
+                        :class="tradeInTab === 'new' ? 'bg-white shadow text-slate-900 font-black' : 'text-slate-500 hover:text-slate-700 font-bold'"
+                        class="h-9 rounded-lg text-xs transition"
+                    >
+                        New Trade-In
+                    </button>
+                </div>
+
+                <div class="py-3 max-h-[55vh] overflow-y-auto">
+                    <!-- APPLY CREDIT TAB -->
+                    <div v-if="tradeInTab === 'apply'" class="space-y-2">
+                        <div v-if="props.usedPhonePurchases.length === 0" class="text-center py-8">
+                            <Repeat class="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                            <p class="text-xs font-bold text-slate-500">No unused trade-in credits available.</p>
+                            <button type="button" @click="openNewTradeIn" class="mt-2 text-xs font-extrabold text-amber-600 hover:underline">
+                                Register a new trade-in →
+                            </button>
+                        </div>
+                        <button
+                            v-for="purchase in props.usedPhonePurchases"
+                            :key="purchase.id"
+                            type="button"
+                            @click="selectTradeIn(purchase)"
+                            class="w-full text-left rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition p-3 flex items-center justify-between gap-3"
+                        >
+                            <div class="min-w-0">
+                                <div class="text-xs font-black text-slate-900 truncate">{{ purchase.device_model }}</div>
+                                <div class="text-[10px] font-semibold text-slate-500 truncate">
+                                    {{ purchase.voucher_no }} • IMEI {{ purchase.imei_1 }} • <span class="text-slate-700">{{ purchase.seller_name }}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400">{{ new Date(purchase.created_at).toLocaleDateString() }}</div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="text-sm font-black text-emerald-600">Rs {{ Number(purchase.purchase_amount).toLocaleString() }}</div>
+                                <div class="text-[10px] font-bold text-amber-600">APPLY</div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- NEW TRADE-IN TAB -->
+                    <form v-else @submit.prevent="submitTradeIn" class="space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Seller Name *</label>
+                                <input v-model="tradeInForm.seller_name" placeholder="Full name of seller" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" required />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Seller CNIC *</label>
+                                <input v-model="tradeInForm.seller_cnic" placeholder="e.g. 35202-1234567-8" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" required />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Seller Phone</label>
+                                <input v-model="tradeInForm.seller_phone" placeholder="03001234567" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Seller Address</label>
+                                <input v-model="tradeInForm.seller_address" placeholder="City / address" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Device Model *</label>
+                                <input v-model="tradeInForm.device_model" placeholder="e.g. iPhone 11" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" required />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Brand *</label>
+                                <input v-model="tradeInForm.brand" placeholder="e.g. Apple" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" required />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Color</label>
+                                <input v-model="tradeInForm.color" placeholder="Black" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Storage</label>
+                                <input v-model="tradeInForm.storage" placeholder="128GB" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Purchase Amount *</label>
+                                <input v-model="tradeInForm.purchase_amount" type="number" min="0" placeholder="45000" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" required />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">IMEI 1 *</label>
+                                <input v-model="tradeInForm.imei_1" placeholder="15-digit IMEI" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" required />
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">IMEI 2</label>
+                                <input v-model="tradeInForm.imei_2" placeholder="Optional" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold focus:border-amber-600 focus:outline-none" />
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">PTA Status</label>
+                                <select v-model="tradeInForm.pta_status" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold bg-white focus:border-amber-600 focus:outline-none">
+                                    <option value="approved">Approved</option>
+                                    <option value="non_pta">Non-PTA</option>
+                                    <option value="jv">JV</option>
+                                    <option value="cpid">CPID</option>
+                                    <option value="software">Software Unlock</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block mb-1 text-[11px] font-bold text-slate-700 uppercase">Payment Method</label>
+                                <select v-model="tradeInForm.payment_method" class="w-full h-10 rounded-xl border border-slate-300 px-3 text-xs font-semibold bg-white focus:border-amber-600 focus:outline-none">
+                                    <option value="cash">Cash</option>
+                                    <option value="bank">Bank Transfer</option>
+                                    <option value="jazzcash">JazzCash</option>
+                                    <option value="easypaisa">Easypaisa</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="flex items-center gap-2 pt-1 cursor-pointer">
+                            <input v-model="tradeInForm.auto_add_stock" type="checkbox" class="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500" />
+                            <span class="text-xs font-bold text-slate-700">Keep this phone in resale stock (auto created IMEI entry)</span>
+                        </label>
+                        <p class="text-[10px] font-semibold text-slate-500 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                            ⚖️ Purchasing a used phone is recorded with the seller's name, CNIC and agreement for legal protection.
+                        </p>
+
+                        <DialogFooter class="pt-3">
+                            <Button type="button" variant="outline" @click="isTradeInModalOpen = false">Cancel</Button>
+                            <Button type="submit" :disabled="tradeInForm.processing" class="bg-amber-600 text-white hover:bg-amber-700 font-bold">
+                                <span v-if="tradeInForm.processing" class="inline-block h-3 w-3 border-2 border-white/40 border-t-white rounded-full animate-spin mr-1.5"></span>
+                                Register & Apply Credit
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </div>
             </DialogContent>
         </Dialog>
 
@@ -1751,15 +2161,14 @@ const printReceipt = () => {
                     <DialogTitle class="text-base font-black text-slate-900">POS Keyboard Shortcuts</DialogTitle>
                 </DialogHeader>
                 <div class="space-y-2 py-2 text-xs font-mono">
-                    <div class="flex justify-between border-b pb-1.5"><span>Search Product / Barcode</span><span class="font-extrabold text-indigo-600">Ctrl + F / Ctrl + Enter</span></div>
-                    <div class="flex justify-between border-b pb-1.5"><span>Customer Select</span><span class="font-extrabold text-indigo-600">Alt + C</span></div>
-                    <div class="flex justify-between border-b pb-1.5"><span>Salesman Select</span><span class="font-extrabold text-indigo-600">Alt + U</span></div>
-                    <div class="flex justify-between border-b pb-1.5"><span>Bill Discount Input</span><span class="font-extrabold text-indigo-600">Alt + D</span></div>
-                    <div class="flex justify-between border-b pb-1.5"><span>Payment Method Switch</span><span class="font-extrabold text-indigo-600">Alt + M</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>New Sale / Clear Cart</span><span class="font-extrabold text-indigo-600">F1</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Focus Search / Scan IMEI</span><span class="font-extrabold text-indigo-600">F2</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Customer Select</span><span class="font-extrabold text-indigo-600">F3</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Bill Discount Input</span><span class="font-extrabold text-indigo-600">F4</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Complete Sale & Print Receipt</span><span class="font-extrabold text-indigo-600">Ctrl + Enter</span></div>
+                    <div class="flex justify-between border-b pb-1.5"><span>Focus Search Bar</span><span class="font-extrabold text-indigo-600">Ctrl + F</span></div>
                     <div class="flex justify-between border-b pb-1.5"><span>Cash Received Input</span><span class="font-extrabold text-indigo-600">Alt + P</span></div>
                     <div class="flex justify-between border-b pb-1.5"><span>Hold Current Sale</span><span class="font-extrabold text-indigo-600">Alt + H</span></div>
-                    <div class="flex justify-between border-b pb-1.5"><span>Complete & Save Sale</span><span class="font-extrabold text-indigo-600">Alt + Enter</span></div>
-                    <div class="flex justify-between border-b pb-1.5"><span>Clear Cart Terminal</span><span class="font-extrabold text-indigo-600">Alt + Delete</span></div>
                 </div>
                 <DialogFooter>
                     <Button type="button" variant="outline" @click="isShortcutsModalOpen = false">Close</Button>

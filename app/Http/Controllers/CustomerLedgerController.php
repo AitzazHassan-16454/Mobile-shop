@@ -2,10 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\Customer;
 use App\Models\CustomerLedger;
+use App\Services\CsvService;
+use App\Services\XlsxService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -52,6 +58,11 @@ class CustomerLedgerController extends Controller
 
         return Inertia::render('Customers/Index', [
             'customers' => $customers,
+            'shopInfo' => [
+                'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
+                'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
+                'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
+            ],
             'filters' => [
                 'search' => $search,
                 'balance_filter' => $balanceFilter,
@@ -137,6 +148,65 @@ class CustomerLedgerController extends Controller
         });
 
         return redirect()->back()->with('success', 'Payment recorded successfully.');
+    }
+
+    public function statement(Request $request, string $currentTeam, Customer $customer): JsonResponse
+    {
+        return response()->json([
+            'entity' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'address' => $customer->address,
+                'current_balance' => (float) $customer->current_balance,
+            ],
+            'entries' => $this->statementEntries($customer)->values()->all(),
+        ]);
+    }
+
+    public function statementExport(Request $request, string $currentTeam, Customer $customer): HttpResponse
+    {
+        $format = $request->query('format', 'csv') === 'xlsx' ? 'xlsx' : 'csv';
+        $headers = ['Date', 'Type', 'Reference', 'Notes', 'Debit', 'Credit', 'Balance'];
+        $rows = $this->statementEntries($customer)
+            ->map(fn (array $entry) => collect($entry)->only($headers)->all())
+            ->values()
+            ->all();
+
+        $content = $format === 'xlsx'
+            ? XlsxService::build($headers, $rows)
+            : CsvService::build($headers, $rows);
+
+        return $this->downloadExport($content, "khata-statement-customer-{$customer->id}", $format);
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function statementEntries(Customer $customer): Collection
+    {
+        $previous = 0.00;
+
+        return $customer->ledgers()
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(function (CustomerLedger $entry) use (&$previous): array {
+                $balanceAfter = (float) $entry->balance_after;
+                $delta = round($balanceAfter - $previous, 2);
+                $amount = (float) $entry->amount;
+                $previous = $balanceAfter;
+
+                return [
+                    'Date' => $entry->created_at->format('Y-m-d H:i'),
+                    'Type' => $entry->type->value,
+                    'Reference' => $entry->reference_id ?? '',
+                    'Notes' => $entry->notes ?? '',
+                    'Debit' => $delta > 0 ? $amount : 0.0,
+                    'Credit' => $delta < 0 ? $amount : 0.0,
+                    'Balance' => $balanceAfter,
+                ];
+            });
     }
 
     public function destroy(Request $request, string $currentTeam, Customer $customer): RedirectResponse

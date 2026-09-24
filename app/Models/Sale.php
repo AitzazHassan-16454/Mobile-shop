@@ -17,6 +17,8 @@ class Sale extends Model
         'customer_id',
         'total_amount',
         'discount_amount',
+        'trade_in_amount',
+        'used_phone_purchase_id',
         'net_amount',
         'paid_amount',
         'change_amount',
@@ -32,6 +34,7 @@ class Sale extends Model
             'payment_details' => 'array',
             'total_amount' => 'decimal:2',
             'discount_amount' => 'decimal:2',
+            'trade_in_amount' => 'decimal:2',
             'net_amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
             'change_amount' => 'decimal:2',
@@ -46,6 +49,11 @@ class Sale extends Model
     public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');
+    }
+
+    public function usedPhonePurchase(): BelongsTo
+    {
+        return $this->belongsTo(UsedPhonePurchase::class);
     }
 
     public function items(): HasMany

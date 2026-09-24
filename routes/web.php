@@ -6,7 +6,9 @@ use App\Http\Controllers\CustomerLedgerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiscountController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InstallmentController;
+use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductImeiController;
@@ -16,10 +18,12 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleReturnController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\UsedPhonePurchaseController;
+use App\Http\Controllers\YearlyDuesController;
 use App\Http\Middleware\EnsureTeamMembership;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +57,8 @@ Route::prefix('{current_team}')
         Route::post('customers', [CustomerLedgerController::class, 'store'])->name('customers.store');
         Route::put('customers/{customer}', [CustomerLedgerController::class, 'update'])->name('customers.update');
         Route::post('customers/{customer}/payments', [CustomerLedgerController::class, 'recordPayment'])->name('customers.payments.store');
+        Route::get('customers/{customer}/statement', [CustomerLedgerController::class, 'statement'])->name('customers.statement');
+        Route::get('customers/{customer}/statement/export', [CustomerLedgerController::class, 'statementExport'])->name('customers.statement.export');
         Route::delete('customers/{customer}', [CustomerLedgerController::class, 'destroy'])->name('customers.destroy');
 
         // Supplier Payables Routes
@@ -61,6 +67,8 @@ Route::prefix('{current_team}')
         Route::put('suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
         Route::post('suppliers/{supplier}/purchases', [SupplierController::class, 'recordPurchase'])->name('suppliers.purchases.store');
         Route::post('suppliers/{supplier}/payments', [SupplierController::class, 'recordPayment'])->name('suppliers.payments.store');
+        Route::get('suppliers/{supplier}/statement', [SupplierController::class, 'statement'])->name('suppliers.statement');
+        Route::get('suppliers/{supplier}/statement/export', [SupplierController::class, 'statementExport'])->name('suppliers.statement.export');
         Route::delete('suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
 
         // Customer Installment Routes
@@ -81,6 +89,14 @@ Route::prefix('{current_team}')
         Route::put('imeis/{imei}', [ProductImeiController::class, 'update'])->name('imeis.update');
         Route::delete('imeis/{imei}', [ProductImeiController::class, 'destroy'])->name('imeis.destroy');
 
+        // Import Templates & Bulk Upload Routes
+        Route::get('products/import/template', [ImportController::class, 'productTemplate'])->name('products.imports.template');
+        Route::post('products/import', [ImportController::class, 'importProducts'])->name('products.imports.store');
+        Route::get('customers/import/template', [ImportController::class, 'customerTemplate'])->name('customers.imports.template');
+        Route::post('customers/import', [ImportController::class, 'importCustomers'])->name('customers.imports.store');
+        Route::get('suppliers/import/template', [ImportController::class, 'supplierTemplate'])->name('suppliers.imports.template');
+        Route::post('suppliers/import', [ImportController::class, 'importSuppliers'])->name('suppliers.imports.store');
+
         // Shifts & Cash Drawer Management
         Route::get('shifts', [ShiftController::class, 'index'])->name('shifts.index');
         Route::post('shifts/open', [ShiftController::class, 'open'])->name('shifts.open');
@@ -89,6 +105,7 @@ Route::prefix('{current_team}')
 
         // Analytics & Reports
         Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('reports/export', [ReportsController::class, 'export'])->name('reports.export');
 
         // Module Pages (placeholders)
         // Expenses Routes
@@ -113,6 +130,19 @@ Route::prefix('{current_team}')
         Route::get('stock-adjustments', [StockAdjustmentController::class, 'index'])->name('stock-adjustments.index');
         Route::post('stock-adjustments', [StockAdjustmentController::class, 'store'])->name('stock-adjustments.store');
         Route::delete('stock-adjustments/{stock_adjustment}', [StockAdjustmentController::class, 'destroy'])->name('stock-adjustments.destroy');
+
+        // Stock Transfer (Between Branches) Routes
+        Route::get('stock-transfers', [StockTransferController::class, 'index'])->name('stock-transfers.index');
+        Route::post('stock-transfers', [StockTransferController::class, 'store'])->name('stock-transfers.store');
+        Route::post('stock-transfers/{transfer}/receive', [StockTransferController::class, 'receive'])->name('stock-transfers.receive');
+        Route::delete('stock-transfers/{transfer}', [StockTransferController::class, 'destroy'])->name('stock-transfers.destroy');
+
+        // All Payments Desk Routes
+        Route::get('all-payments', [PaymentsController::class, 'index'])->name('payments.index');
+
+        // Yearly Dues Routes
+        Route::get('yearly-dues', [YearlyDuesController::class, 'index'])->name('yearly-dues.index');
+        Route::patch('yearly-dues/target', [YearlyDuesController::class, 'updateTarget'])->name('yearly-dues.target.update');
 
         // Units Routes
         Route::get('units', [UnitController::class, 'index'])->name('units.index');

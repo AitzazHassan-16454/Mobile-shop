@@ -6,6 +6,7 @@ import {
     Check,
     CheckCircle,
     Edit3,
+    FileSpreadsheet,
     Layers,
     ListFilter,
     MoreVertical,
@@ -48,6 +49,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useConfirm } from '@/composables/useConfirm';
+import ImportDialog from '@/components/ImportDialog.vue';
 import imeis from '@/routes/imeis';
 import inventory from '@/routes/inventory';
 import products from '@/routes/products';
@@ -121,6 +123,14 @@ const props = defineProps<{
 const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
+);
+
+const isImportDialogOpen = ref(false);
+const importTemplateUrl = computed(
+    () => `/${currentTeamSlug.value}/products/import/template`,
+);
+const importActionUrl = computed(
+    () => `/${currentTeamSlug.value}/products/import`,
 );
 
 const productList = computed<ProductItem[]>(
@@ -715,6 +725,13 @@ const serializedProductsList = computed(() =>
                     class="gap-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                     <Layers class="h-4 w-4 text-[#003B7D]" /> Bulk Add IMEIs
+                </Button>
+                <Button
+                    @click="isImportDialogOpen = true"
+                    variant="outline"
+                    class="gap-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import / Export
                 </Button>
             </div>
         </div>
@@ -1795,5 +1812,14 @@ const serializedProductsList = computed(() =>
                 </form>
             </DialogContent>
         </Dialog>
+
+        <ImportDialog
+            v-model:open="isImportDialogOpen"
+            :template-url="importTemplateUrl"
+            :action-url="importActionUrl"
+            title="Import Products"
+            description="Bulk upload handset / accessory products from an Excel template."
+            entity-label="products"
+        />
     </div>
 </template>

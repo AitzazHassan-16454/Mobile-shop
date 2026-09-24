@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import ProductsIndex from '@/pages/Products/Index.vue';
+import { defineAsyncComponent } from 'vue';
+
+const ProductsIndex = defineAsyncComponent(() => import('@/pages/Products/Index.vue'));
 </script>
 
 <template>

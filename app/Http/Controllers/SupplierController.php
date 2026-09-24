@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\Supplier;
 use App\Models\SupplierLedger;
+use App\Services\CsvService;
+use App\Services\XlsxService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,6 +46,11 @@ class SupplierController extends Controller
 
         return Inertia::render('Suppliers/Index', [
             'suppliers' => $query->latest()->paginate($perPage)->withQueryString(),
+            'shopInfo' => [
+                'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
+                'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
+                'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
+            ],
             'filters' => [
                 'search' => $search,
                 'balance_filter' => $balanceFilter,
@@ -162,6 +172,67 @@ class SupplierController extends Controller
         });
 
         return redirect()->back()->with('success', 'Supplier payment recorded.');
+    }
+
+    public function statement(Request $request, string $currentTeam, Supplier $supplier): JsonResponse
+    {
+        return response()->json([
+            'entity' => [
+                'id' => $supplier->id,
+                'name' => $supplier->name,
+                'company' => $supplier->company,
+                'phone' => $supplier->phone,
+                'address' => $supplier->address,
+                'current_balance' => (float) $supplier->current_balance,
+            ],
+            'entries' => $this->statementEntries($supplier),
+        ]);
+    }
+
+    public function statementExport(Request $request, string $currentTeam, Supplier $supplier): HttpResponse
+    {
+        $format = $request->query('format', 'csv') === 'xlsx' ? 'xlsx' : 'csv';
+        $headers = ['Date', 'Type', 'Reference', 'Notes', 'Debit', 'Credit', 'Balance'];
+        $rows = array_values(array_map(
+            fn (array $entry) => array_intersect_key($entry, array_flip($headers)),
+            $this->statementEntries($supplier)
+        ));
+
+        $content = $format === 'xlsx'
+            ? XlsxService::build($headers, $rows)
+            : CsvService::build($headers, $rows);
+
+        return $this->downloadExport($content, "khata-statement-supplier-{$supplier->id}", $format);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function statementEntries(Supplier $supplier): array
+    {
+        $previous = 0.00;
+
+        return $supplier->ledgers()
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(function (SupplierLedger $entry) use (&$previous): array {
+                $balanceAfter = (float) $entry->balance_after;
+                $delta = round($balanceAfter - $previous, 2);
+                $amount = (float) $entry->amount;
+                $previous = $balanceAfter;
+
+                return [
+                    'Date' => $entry->created_at->format('Y-m-d H:i'),
+                    'Type' => $entry->type,
+                    'Reference' => $entry->reference_id ?? '',
+                    'Notes' => $entry->notes ?? '',
+                    'Debit' => $delta > 0 ? $amount : 0.0,
+                    'Credit' => $delta < 0 ? $amount : 0.0,
+                    'Balance' => $balanceAfter,
+                ];
+            })
+            ->all();
     }
 
     public function destroy(Request $request, string $currentTeam, Supplier $supplier): RedirectResponse

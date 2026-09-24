@@ -24,6 +24,7 @@ class UsedPhonePurchase extends Model
         'purchase_amount',
         'payment_method',
         'agreement_signed',
+        'applied_at',
     ];
 
     protected function casts(): array
@@ -31,6 +32,7 @@ class UsedPhonePurchase extends Model
         return [
             'purchase_amount' => 'decimal:2',
             'agreement_signed' => 'boolean',
+            'applied_at' => 'datetime',
         ];
     }
 }

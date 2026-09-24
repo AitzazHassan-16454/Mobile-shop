@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { CalendarClock, CircleDollarSign, Plus, SlidersHorizontal, Wallet } from '@lucide/vue';
+import { AlertTriangle, CalendarClock, CircleDollarSign, Plus, SlidersHorizontal, Wallet } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -90,7 +90,7 @@ const props = defineProps<{
     plans: { data: Plan[] };
     customers: Array<{ id: number; name: string; phone: string }>;
     filters?: { per_page?: number };
-    summary: { active_plans: number; outstanding: number; collected: number };
+    summary: { active_plans: number; outstanding: number; collected: number; overdue_count: number; due_soon_count: number };
 }>();
 const page = usePage();
 const team = computed(
@@ -269,6 +269,21 @@ defineOptions({
                 </div>
             </form>
         </section>
+        <div
+            v-if="summary.overdue_count > 0 || summary.due_soon_count > 0"
+            :class="summary.overdue_count > 0 ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-amber-300 bg-amber-50 text-amber-700'"
+            class="flex flex-wrap items-center gap-2 rounded-2xl border px-4 py-3 text-xs font-bold backdrop-blur-xl"
+        >
+            <AlertTriangle class="h-4 w-4" />
+            <span v-if="summary.overdue_count > 0">
+                {{ summary.overdue_count }} installment(s) overdue
+                <span class="mx-1 text-slate-400">•</span>
+            </span>
+            <span v-if="summary.due_soon_count > 0">
+                {{ summary.due_soon_count }} due within the next 30 days
+            </span>
+            <button type="button" class="ml-auto underline underline-offset-2 hover:opacity-80">Review plans below</button>
+        </div>
         <section class="grid gap-4 sm:grid-cols-3">
             <div
                 class="bg-card/60 rounded-2xl border border-gray-200 p-4 backdrop-blur-xl"

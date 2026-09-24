@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle,
     ArrowDownRight,
@@ -17,6 +17,15 @@ import {
     Wrench,
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
+import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import reports from '@/routes/reports';
 import type { Team } from '@/types';
 
 interface SummaryData {
@@ -136,6 +145,20 @@ const filteredDeviceProfits = computed(() => {
             d.customer_name.toLowerCase().includes(q),
     );
 });
+
+const page = usePage();
+const currentTeamSlug = computed(
+    () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
+);
+
+const reportExportUrl = (format: 'csv' | 'xlsx') =>
+    reports.export(currentTeamSlug.value, {
+        query: {
+            start_date: startDateInput.value || undefined,
+            end_date: endDateInput.value || undefined,
+            format,
+        },
+    }).url;
 </script>
 
 <template>
@@ -217,6 +240,40 @@ const filteredDeviceProfits = computed(() => {
                     All Time
                 </button>
             </div>
+
+            <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                    <Button
+                        variant="outline"
+                        class="gap-1.5 border-[#003B7D]/30 text-xs font-semibold text-[#003B7D] hover:bg-[#003B7D]/5"
+                    >
+                        <Download class="h-4 w-4" /> Export Report
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-60 rounded-xl p-1.5">
+                    <DropdownMenuLabel class="px-2.5 py-1.5 text-xs text-slate-500">
+                        Download with current date filter
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem :as-child="true">
+                        <a
+                            class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700"
+                            :href="reportExportUrl('csv')"
+                        >
+                            <Download class="h-4 w-4 text-emerald-600 shrink-0" />
+                            CSV (Device Profits)
+                        </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem :as-child="true">
+                        <a
+                            class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-700"
+                            :href="reportExportUrl('xlsx')"
+                        >
+                            <Download class="h-4 w-4 text-blue-600 shrink-0" />
+                            Excel Workbook (All Sections)
+                        </a>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
 
         <!-- KPI Summary Cards -->

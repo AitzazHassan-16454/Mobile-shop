@@ -32,6 +32,12 @@ class InstallmentController extends Controller
                     ->selectRaw('COALESCE(SUM(total_amount - down_payment - (paid_installments * monthly_amount)), 0) as total')
                     ->value('total'),
                 'collected' => (float) InstallmentPayment::sum('amount'),
+                'overdue_count' => (int) InstallmentPlan::where('status', 'active')
+                    ->where('next_due_date', '<', now()->startOfDay())
+                    ->count(),
+                'due_soon_count' => (int) InstallmentPlan::where('status', 'active')
+                    ->whereBetween('next_due_date', [now()->startOfDay(), now()->addDays(30)->endOfDay()])
+                    ->count(),
             ],
         ]);
     }

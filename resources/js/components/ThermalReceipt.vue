@@ -34,6 +34,7 @@ export interface ReceiptData {
     total_amount: number | string;
     discount_amount?: number | string;
     discount_code?: string | null;
+    trade_in_amount?: number | string;
     net_amount: number | string;
     paid_amount?: number | string;
     change_amount?: number | string;
@@ -238,6 +239,11 @@ const getLineTotal = (item: any) => {
             <div v-if="Number(receipt.discount_amount) > 0" class="flex justify-between font-semibold">
                 <span>DISCOUNT {{ receipt.discount_code ? `(${receipt.discount_code})` : '' }}:</span>
                 <span>-{{ formatCurrency(receipt.discount_amount) }}</span>
+            </div>
+
+            <div v-if="Number(receipt.trade_in_amount) > 0" class="flex justify-between font-bold text-[10px]">
+                <span>TRADE-IN CREDIT:</span>
+                <span class="text-black">-{{ formatCurrency(receipt.trade_in_amount) }}</span>
             </div>
 
             <!-- Net Total Highlight Box -->

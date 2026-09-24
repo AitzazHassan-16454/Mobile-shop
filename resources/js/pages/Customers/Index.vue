@@ -4,10 +4,13 @@ import {
     ArrowDownLeft,
     ArrowUpRight,
     Check,
+    Download,
     Edit3,
+    FileSpreadsheet,
     History,
     MoreVertical,
     Plus,
+    Printer,
     Search,
     SlidersHorizontal,
     Trash2,
@@ -15,7 +18,7 @@ import {
     Wallet,
     X,
 } from '@lucide/vue';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -44,10 +47,32 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useConfirm } from '@/composables/useConfirm';
+import ImportDialog from '@/components/ImportDialog.vue';
+import StatementPrint from '@/components/StatementPrint.vue';
 import customerRoutes from '@/routes/customers';
+import customerStatementRoutes from '@/routes/customers/statement';
 import type { Team } from '@/types';
 
 const { confirm } = useConfirm();
+
+interface StatementEntry {
+    Date: string;
+    Type: string;
+    Reference: string;
+    Notes: string;
+    Debit: number | string;
+    Credit: number | string;
+    Balance: number | string;
+}
+
+interface PrintStatement {
+    id: number;
+    name: string;
+    phone?: string | null;
+    address?: string | null;
+    current_balance: number | string;
+    entries: StatementEntry[];
+}
 
 interface LedgerItem {
     id: number;
@@ -88,11 +113,24 @@ const props = defineProps<{
         total_receivables: number;
         total_advances: number;
     };
+    shopInfo?: {
+        name: string;
+        phone: string;
+        address: string;
+    };
 }>();
 
 const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
+);
+
+const isImportDialogOpen = ref(false);
+const importTemplateUrl = computed(
+    () => `/${currentTeamSlug.value}/customers/import/template`,
+);
+const importActionUrl = computed(
+    () => `/${currentTeamSlug.value}/customers/import`,
 );
 
 defineOptions({
@@ -376,6 +414,39 @@ const money = (val: number | string) => {
         Math.round(num).toLocaleString('en-PK', { maximumFractionDigits: 0 })
     );
 };
+
+// Khata statement print + export
+const printStatementData = ref<PrintStatement | null>(null);
+const printStatementLoading = ref(false);
+
+const printStatement = async (customer: CustomerItem) => {
+    printStatementLoading.value = true;
+    try {
+        const response = await fetch(
+            customerRoutes.statement([currentTeamSlug.value, customer.id]).url,
+        );
+        const data = await response.json();
+        printStatementData.value = {
+            id: data.entity.id,
+            name: data.entity.name,
+            phone: data.entity.phone,
+            address: data.entity.address,
+            current_balance: data.entity.current_balance,
+            entries: data.entries,
+        };
+        await nextTick();
+        window.print();
+    } finally {
+        printStatementLoading.value = false;
+    }
+};
+
+const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
+    return customerStatementRoutes.export(
+        [currentTeamSlug.value, customer.id],
+        { query: { format } },
+    ).url;
+};
 </script>
 
 <template>
@@ -403,6 +474,13 @@ const money = (val: number | string) => {
                     class="gap-1.5 bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
                 >
                     <Plus class="h-4 w-4" /> Add Customer
+                </Button>
+                <Button
+                    @click="isImportDialogOpen = true"
+                    variant="outline"
+                    class="gap-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import / Export
                 </Button>
             </div>
         </div>
@@ -1062,7 +1140,52 @@ const money = (val: number | string) => {
                     </table>
                 </div>
 
-                <DialogFooter class="pt-2">
+                <DialogFooter class="flex items-center gap-2 pt-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="gap-1.5 text-xs"
+                        :disabled="printStatementLoading"
+                        @click="historyCustomer && printStatement(historyCustomer)"
+                    >
+                        <Printer class="h-3.5 w-3.5" />
+                        {{ printStatementLoading ? 'Preparing...' : 'Print Statement' }}
+                    </Button>
+                    <DropdownMenu v-if="historyCustomer">
+                        <DropdownMenuTrigger as-child>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="gap-1.5 text-xs"
+                            >
+                                <Download class="h-3.5 w-3.5" /> Export
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="w-56 rounded-xl p-1.5">
+                            <DropdownMenuLabel class="px-2 py-1 text-xs">
+                                Download Statement
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem :as-child="true">
+                                <a
+                                    class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
+                                    :href="statementExportUrl(historyCustomer, 'csv')"
+                                >
+                                    <FileSpreadsheet class="h-4 w-4 text-emerald-600 shrink-0" />
+                                    Export as CSV
+                                </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem :as-child="true">
+                                <a
+                                    class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
+                                    :href="statementExportUrl(historyCustomer, 'xlsx')"
+                                >
+                                    <FileSpreadsheet class="h-4 w-4 text-blue-600 shrink-0" />
+                                    Export as Excel (XLSX)
+                                </a>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                         type="button"
                         variant="outline"
@@ -1075,5 +1198,23 @@ const money = (val: number | string) => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <div v-if="printStatementData" class="print-area">
+            <StatementPrint
+                title="Customer Khata Statement"
+                :party="printStatementData"
+                :entries="printStatementData.entries"
+                :shop-info="props.shopInfo || { name: '', phone: '', address: '' }"
+            />
+        </div>
+
+        <ImportDialog
+            v-model:open="isImportDialogOpen"
+            :template-url="importTemplateUrl"
+            :action-url="importActionUrl"
+            title="Import Customers"
+            description="Bulk upload customer Khata accounts from an Excel template."
+            entity-label="customers"
+        />
     </div>
 </template>

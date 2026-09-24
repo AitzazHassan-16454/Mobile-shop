@@ -5,12 +5,15 @@ import {
     ArrowUpRight,
     Building2,
     CreditCard,
+    Download,
+    FileSpreadsheet,
     FileText,
     History,
     MapPin,
     Pencil,
     Phone,
     Plus,
+    Printer,
     Search,
     SlidersHorizontal,
     Store,
@@ -18,7 +21,7 @@ import {
     Wallet,
     X,
 } from '@lucide/vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -29,8 +32,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ImportDialog from '@/components/ImportDialog.vue';
+import StatementPrint from '@/components/StatementPrint.vue';
 import suppliers from '@/routes/suppliers';
+import supplierStatementRoutes from '@/routes/suppliers/statement';
 import type { Team } from '@/types';
+
+interface StatementEntry {
+    Date: string;
+    Type: string;
+    Reference: string;
+    Notes: string;
+    Debit: number | string;
+    Credit: number | string;
+    Balance: number | string;
+}
+
+interface PrintStatement {
+    id: number;
+    name: string;
+    phone?: string | null;
+    address?: string | null;
+    current_balance: number | string;
+    entries: StatementEntry[];
+}
 
 // Table Column Customizer State
 const defaultVisibleColumns = {
@@ -123,11 +148,24 @@ const props = defineProps<{
         total_payables?: number;
         total_credits?: number;
     };
+    shopInfo?: {
+        name: string;
+        phone: string;
+        address: string;
+    };
 }>();
 
 const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
+);
+
+const isImportDialogOpen = ref(false);
+const importTemplateUrl = computed(
+    () => `/${currentTeamSlug.value}/suppliers/import/template`,
+);
+const importActionUrl = computed(
+    () => `/${currentTeamSlug.value}/suppliers/import`,
 );
 
 const supplierList = computed<SupplierItem[]>(
@@ -183,6 +221,39 @@ const formatDate = (dateString: string) => {
         hour: '2-digit',
         minute: '2-digit',
     });
+};
+
+// Khata statement print + export
+const printStatementData = ref<PrintStatement | null>(null);
+const printStatementLoading = ref(false);
+
+const printStatement = async (supplier: SupplierItem) => {
+    printStatementLoading.value = true;
+    try {
+        const response = await fetch(
+            suppliers.statement([currentTeamSlug.value, supplier.id]).url,
+        );
+        const data = await response.json();
+        printStatementData.value = {
+            id: data.entity.id,
+            name: data.entity.name,
+            phone: data.entity.phone,
+            address: data.entity.address,
+            current_balance: data.entity.current_balance,
+            entries: data.entries,
+        };
+        await nextTick();
+        window.print();
+    } finally {
+        printStatementLoading.value = false;
+    }
+};
+
+const statementExportUrl = (supplier: SupplierItem, format: 'csv' | 'xlsx') => {
+    return supplierStatementRoutes.export(
+        [currentTeamSlug.value, supplier.id],
+        { query: { format } },
+    ).url;
 };
 
 const applyFilters = () => {
@@ -352,6 +423,14 @@ defineOptions({
                 @click="showCreate = true"
             >
                 <Plus class="h-4 w-4" /> Add New Supplier
+            </Button>
+            <Button
+                variant="outline"
+                class="gap-2 font-bold text-slate-600 hover:bg-slate-100"
+                @click="isImportDialogOpen = true"
+            >
+                <FileSpreadsheet class="h-4 w-4 text-primary" /> Import /
+                Export
             </Button>
         </section>
 
@@ -1009,15 +1088,56 @@ defineOptions({
                 <div class="flex-1 overflow-y-auto p-6">
                     <!-- TAB 1: Ledger Statement -->
                     <div v-if="activeSupplierTab === 'ledger'" class="space-y-4">
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between gap-2">
                             <h3 class="text-xs font-black tracking-wider text-slate-400 uppercase">Khata Statement Transactions</h3>
-                            <Button
-                                size="sm"
-                                class="h-7 bg-amber-500 text-xs font-bold text-white hover:bg-amber-600"
-                                @click="openManageBalanceModal(viewingSupplierModal)"
-                            >
-                                + Manage Balance
-                            </Button>
+                            <div class="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    class="h-7 gap-1.5 bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
+                                    :disabled="printStatementLoading"
+                                    @click="viewingSupplierModal && printStatement(viewingSupplierModal)"
+                                >
+                                    <Printer class="h-3.5 w-3.5" />
+                                    {{ printStatementLoading ? 'Preparing...' : 'Print Statement' }}
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger as-child>
+                                        <Button variant="outline" size="sm" class="h-7 gap-1.5 text-xs">
+                                            <Download class="h-3.5 w-3.5" /> Export
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" class="w-56 rounded-xl p-1.5">
+                                        <DropdownMenuLabel class="px-2 py-1 text-xs">
+                                            Download Statement
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuItem :as-child="true">
+                                            <a
+                                                class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
+                                                :href="statementExportUrl(viewingSupplierModal, 'csv')"
+                                            >
+                                                <FileSpreadsheet class="h-4 w-4 text-emerald-600 shrink-0" />
+                                                Export as CSV
+                                            </a>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem :as-child="true">
+                                            <a
+                                                class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
+                                                :href="statementExportUrl(viewingSupplierModal, 'xlsx')"
+                                            >
+                                                <FileSpreadsheet class="h-4 w-4 text-blue-600 shrink-0" />
+                                                Export as Excel (XLSX)
+                                            </a>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button
+                                    size="sm"
+                                    class="h-7 bg-amber-500 text-xs font-bold text-white hover:bg-amber-600"
+                                    @click="openManageBalanceModal(viewingSupplierModal)"
+                                >
+                                    + Manage Balance
+                                </Button>
+                            </div>
                         </div>
 
                         <div class="rounded-xl border border-slate-200 overflow-hidden">
@@ -1180,6 +1300,24 @@ defineOptions({
                     </Button>
                 </div>
             </div>
+        </div>
+
+        <ImportDialog
+            v-model:open="isImportDialogOpen"
+            :template-url="importTemplateUrl"
+            :action-url="importActionUrl"
+            title="Import Suppliers"
+            description="Bulk upload supplier / distributor profiles from an Excel template."
+            entity-label="suppliers"
+        />
+
+        <div v-if="printStatementData" class="print-area">
+            <StatementPrint
+                title="Supplier Khata Statement"
+                :party="printStatementData"
+                :entries="printStatementData.entries"
+                :shop-info="props.shopInfo || { name: '', phone: '', address: '' }"
+            />
         </div>
     </div>
 </template>

@@ -9,6 +9,7 @@ use App\Models\CustomerLedger;
 use App\Models\Product;
 use App\Models\ProductImei;
 use App\Models\Sale;
+use App\Models\UsedPhonePurchase;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,11 @@ class PosController extends Controller
             ->orderBy('name', 'asc')
             ->get();
 
+        $usedPhonePurchases = UsedPhonePurchase::query()
+            ->whereNull('applied_at')
+            ->latest()
+            ->get(['id', 'voucher_no', 'seller_name', 'device_model', 'imei_1', 'purchase_amount', 'created_at']);
+
         $shopInfo = [
             'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
             'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
@@ -40,6 +46,7 @@ class PosController extends Controller
         return Inertia::render('Pos/Terminal', [
             'products' => $products,
             'customers' => $customers,
+            'usedPhonePurchases' => $usedPhonePurchases,
             'shopInfo' => $shopInfo,
             'latestSale' => session('latest_sale'),
         ]);
@@ -94,6 +101,7 @@ class PosController extends Controller
             'customer_id' => ['nullable', 'exists:customers,id'],
             'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card,split,udhaar'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'trade_in_purchase_id' => ['nullable', 'exists:used_phone_purchases,id'],
             'paid_amount' => ['required', 'numeric', 'min:0'],
             'payment_details' => ['nullable', 'array'],
             'items' => ['required', 'array', 'min:1'],
@@ -157,6 +165,12 @@ class PosController extends Controller
                         ]);
                     }
 
+                    if ($imei->status !== ImeiStatus::InStock) {
+                        throw ValidationException::withMessages([
+                            'items' => ["IMEI unit for {$product->name} is no longer available."],
+                        ]);
+                    }
+
                     $imei->update([
                         'status' => ImeiStatus::Sold,
                         'sold_at' => now(),
@@ -192,7 +206,24 @@ class PosController extends Controller
                 ];
             }
 
-            $netAmount = max(0.00, round($totalAmount - $discountAmount, 2));
+            $tradeInAmount = 0.00;
+            $usedPhonePurchaseId = null;
+
+            if (! empty($validated['trade_in_purchase_id'])) {
+                $purchase = UsedPhonePurchase::lockForUpdate()->findOrFail($validated['trade_in_purchase_id']);
+
+                if ($purchase->applied_at !== null) {
+                    throw ValidationException::withMessages([
+                        'trade_in_purchase_id' => ['This trade-in credit has already been applied to another sale.'],
+                    ]);
+                }
+
+                $tradeInAmount = round((float) $purchase->purchase_amount, 2);
+                $purchase->update(['applied_at' => now()]);
+                $usedPhonePurchaseId = $purchase->id;
+            }
+
+            $netAmount = max(0.00, round($totalAmount - $discountAmount - $tradeInAmount, 2));
 
             if ($paymentMethod === 'udhaar') {
                 $changeAmount = 0.00;
@@ -207,6 +238,8 @@ class PosController extends Controller
                 'customer_id' => $validated['customer_id'] ?? null,
                 'total_amount' => $totalAmount,
                 'discount_amount' => $discountAmount,
+                'trade_in_amount' => $tradeInAmount,
+                'used_phone_purchase_id' => $usedPhonePurchaseId,
                 'net_amount' => $netAmount,
                 'paid_amount' => $paidAmount,
                 'change_amount' => $changeAmount,
@@ -236,7 +269,7 @@ class PosController extends Controller
                 }
             }
 
-            return $sale->load(['customer', 'cashier', 'items.product', 'items.productImei']);
+            return $sale->load(['customer', 'cashier', 'items.product', 'items.productImei', 'usedPhonePurchase']);
         });
 
         return redirect()->back()->with('latest_sale', $completedSale);
