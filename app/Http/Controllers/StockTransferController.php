@@ -86,7 +86,7 @@ class StockTransferController extends Controller
             'imei_ids.*' => ['integer', 'exists:product_imeis,id'],
             'accessories' => ['nullable', 'array'],
             'accessories.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'accessories.*.quantity' => ['required', 'integer', 'min:1'],
+            'accessories.*.quantity' => ['required', 'integer', 'min:1', 'max:999999'],
         ]);
 
         $imeiIds = $validated['imei_ids'] ?? [];

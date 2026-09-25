@@ -145,7 +145,18 @@ class ReportsController extends Controller
             }
         }
 
-        $netProfit = round($totalRevenue - $totalCost, 2);
+        $returnQuery = \App\Models\SaleReturn::query();
+        if ($startDate) {
+            $returnQuery->whereDate('created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $returnQuery->whereDate('created_at', '<=', $endDate);
+        }
+        $totalReturns = (float) $returnQuery->sum('total_return_amount');
+        $totalRefunds = (float) $returnQuery->sum('refund_amount');
+
+        $netRevenue = round($totalRevenue - $totalReturns, 2);
+        $netProfit = round($netRevenue - $totalCost, 2);
 
         // Repairing revenue
         $repairQuery = RepairTicket::query()->where('status', 'delivered');
@@ -157,7 +168,7 @@ class ReportsController extends Controller
         }
         $repairRevenue = (float) $repairQuery->sum('estimated_cost');
 
-        // Udhaar vs Wasooli
+        // Udhaar, Wasooli, Advance
         $ledgerQuery = CustomerLedger::query();
         if ($startDate) {
             $ledgerQuery->whereDate('created_at', '>=', $startDate);
@@ -167,6 +178,8 @@ class ReportsController extends Controller
         }
         $udhaarCreated = (float) (clone $ledgerQuery)->where('type', 'sale')->sum('amount');
         $wasooliCollected = (float) (clone $ledgerQuery)->where('type', 'payment')->sum('amount');
+        $advancesReceived = (float) (clone $ledgerQuery)->where('type', 'advance')->sum('amount');
+        $advancesRefunded = (float) (clone $ledgerQuery)->where('type', 'advance_return')->sum('amount');
 
         // Device-Wise Profit Table (exact IMEI cost vs sale price)
         $deviceProfitQuery = SaleItem::query()
@@ -246,7 +259,7 @@ class ReportsController extends Controller
             ->map(fn (Product $p) => [
                 'type' => 'Accessory',
                 'name' => $p->name,
-                'detail' => "Qty: {$p->stock_quantity}, Barcode: {$p->barcode}",
+                'detail' => $p->barcode ? "Qty: {$p->stock_quantity}, Barcode: {$p->barcode}" : "Qty: {$p->stock_quantity}",
                 'cost' => (float) ($p->cost_price * $p->stock_quantity),
                 'days_in_stock' => (int) round(now()->diffInDays($p->created_at)),
                 'created_at' => $p->created_at->format('Y-m-d'),
@@ -262,6 +275,9 @@ class ReportsController extends Controller
             'summary' => [
                 'total_sales_count' => $sales->count(),
                 'total_revenue' => round($totalRevenue, 2),
+                'total_returns' => round($totalReturns, 2),
+                'total_refunds' => round($totalRefunds, 2),
+                'net_revenue' => round($netRevenue, 2),
                 'net_profit' => $netProfit,
                 'new_phone_count' => $newPhoneCount,
                 'used_phone_count' => $usedPhoneCount,
@@ -270,6 +286,8 @@ class ReportsController extends Controller
                 'repair_revenue' => round($repairRevenue, 2),
                 'udhaar_created' => round($udhaarCreated, 2),
                 'wasooli_collected' => round($wasooliCollected, 2),
+                'advances_received' => round($advancesReceived, 2),
+                'advances_refunded' => round($advancesRefunded, 2),
             ],
             'valuation' => [
                 'new_phones' => round($newPhoneValuation, 2),

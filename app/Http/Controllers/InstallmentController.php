@@ -8,6 +8,7 @@ use App\Models\InstallmentPlan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -46,8 +47,8 @@ class InstallmentController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
-            'total_amount' => ['required', 'numeric', 'gt:0'],
-            'down_payment' => ['required', 'numeric', 'min:0', 'lte:total_amount'],
+            'total_amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'down_payment' => ['required', 'numeric', 'min:0', 'max:99999999.99', 'lte:total_amount'],
             'duration_months' => ['required', 'integer', 'min:1', 'max:60'],
             'next_due_date' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:500'],
@@ -68,7 +69,7 @@ class InstallmentController extends Controller
     public function recordPayment(Request $request, string $currentTeam, InstallmentPlan $plan): RedirectResponse
     {
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card'],
             'reference_id' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],
@@ -76,9 +77,11 @@ class InstallmentController extends Controller
 
         DB::transaction(function () use ($plan, $validated): void {
             $plan->refresh();
-            $remaining = (float) $plan->total_amount - (float) $plan->down_payment - ((int) $plan->paid_installments * (float) $plan->monthly_amount);
+            $remaining = max(0.00, round((float) $plan->total_amount - (float) $plan->down_payment - ((int) $plan->paid_installments * (float) $plan->monthly_amount), 2));
             if ((float) $validated['amount'] > $remaining + 0.01) {
-                abort(422, 'Payment cannot exceed the remaining installment balance.');
+                throw ValidationException::withMessages([
+                    'amount' => ['Payment amount (Rs. '.number_format((float) $validated['amount'], 2).') cannot exceed the remaining installment balance of Rs. '.number_format($remaining, 2)],
+                ]);
             }
 
             $paidInstallments = $plan->paid_installments + 1;

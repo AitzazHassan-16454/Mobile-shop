@@ -55,6 +55,23 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::createUsersUsing(CreateNewUser::class);
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $login = trim((string) ($request->input('name') ?? $request->input('email') ?? ''));
+            if ($login === '') {
+                return null;
+            }
+
+            $user = \App\Models\User::where('name', $login)
+                ->orWhere('email', $login)
+                ->first();
+
+            if ($user && \Illuminate\Support\Facades\Hash::check((string) $request->input('password'), $user->password)) {
+                return $user;
+            }
+
+            return null;
+        });
     }
 
     /**

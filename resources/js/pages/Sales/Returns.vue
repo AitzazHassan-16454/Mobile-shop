@@ -21,6 +21,7 @@ import {
     X,
 } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -264,10 +265,15 @@ const returnForm = useForm({
 });
 
 interface CartReturnItem {
+    sale_item_id?: number | null;
     product_id: number;
     product_name: string;
     is_serialized: boolean;
     product_imei_id?: number | null;
+    imei_1?: string | null;
+    purchased_quantity?: number;
+    returned_quantity?: number;
+    remaining_quantity?: number;
     quantity: number;
     unit_price: number;
     line_total: number;
@@ -284,6 +290,43 @@ const openProcessModal = () => {
     isProcessModalOpen.value = true;
 };
 
+const selectedSaleForReturn = computed(() => {
+    if (!returnForm.sale_id) return null;
+    return props.recentSales.find((s) => s.id === Number(returnForm.sale_id)) || null;
+});
+
+watch(() => returnForm.sale_id, (saleId) => {
+    if (!saleId) {
+        returnCart.value = [];
+        returnForm.customer_id = '';
+        return;
+    }
+    const sale = props.recentSales.find((s) => s.id === Number(saleId));
+    if (sale) {
+        returnForm.customer_id = sale.customer?.id || '';
+        returnCart.value = (sale.items || [])
+            .filter((item: any) => Number(item.remaining_quantity) > 0)
+            .map((item: any) => {
+                const maxQty = Number(item.remaining_quantity) || 1;
+                const unitPrice = Number(item.unit_price) || 0;
+                return {
+                    sale_item_id: item.id,
+                    product_id: item.product_id,
+                    product_name: item.product_name || item.product?.name || 'Item',
+                    is_serialized: Boolean(item.is_serialized || item.product?.is_serialized),
+                    product_imei_id: item.product_imei_id || null,
+                    imei_1: item.imei_1 || null,
+                    purchased_quantity: Number(item.quantity) || 1,
+                    returned_quantity: Number(item.returned_quantity) || 0,
+                    remaining_quantity: maxQty,
+                    quantity: maxQty,
+                    unit_price: unitPrice,
+                    line_total: maxQty * unitPrice,
+                };
+            });
+    }
+});
+
 const handleSelectProductToReturn = () => {
     if (!selectedProductToAdd.value) return;
     const prodId = Number(selectedProductToAdd.value);
@@ -292,6 +335,7 @@ const handleSelectProductToReturn = () => {
 
     const price = Number(prod.sale_price) || 0;
     returnCart.value.push({
+        sale_item_id: null,
         product_id: prod.id,
         product_name: prod.name,
         is_serialized: prod.is_serialized,
@@ -311,17 +355,47 @@ const totalCalculatedReturn = computed(() => {
     return returnCart.value.reduce((sum, item) => sum + item.line_total, 0);
 });
 
-watch(totalCalculatedReturn, (newVal) => {
+const calculatedDueOffset = computed(() => {
+    if (!selectedSaleForReturn.value) return 0;
+    const saleDue = Number(selectedSaleForReturn.value.due_amount) || 0;
+    const custDebt = selectedSaleForReturn.value.customer
+        ? Math.max(0, Number(selectedSaleForReturn.value.customer.current_balance) || 0)
+        : 0;
+    return Math.min(totalCalculatedReturn.value, saleDue, custDebt);
+});
+
+const calculatedNetRefund = computed(() => {
+    return Math.max(0, totalCalculatedReturn.value - calculatedDueOffset.value);
+});
+
+watch(calculatedNetRefund, (newVal) => {
     returnForm.refund_amount = newVal;
 });
 
 const submitReturn = () => {
     if (returnCart.value.length === 0) {
-        alert('Please add at least one product to return.');
+        toast.error('No Products Selected', { description: 'Please add at least one product to return.' });
+        return;
+    }
+
+    for (const item of returnCart.value) {
+        if (item.remaining_quantity !== undefined && item.quantity > item.remaining_quantity) {
+            toast.error('Invalid Return Quantity', {
+                description: `Return quantity for ${item.product_name} exceeds remaining returnable quantity (${item.remaining_quantity}).`,
+            });
+            return;
+        }
+    }
+
+    if (returnForm.refund_amount > calculatedNetRefund.value + 0.01) {
+        toast.error('Invalid Refund Amount', {
+            description: `Refund amount (Rs. ${returnForm.refund_amount.toLocaleString()}) exceeds the maximum payable refund of Rs. ${calculatedNetRefund.value.toLocaleString()}.`,
+        });
         return;
     }
 
     returnForm.items = returnCart.value.map((c) => ({
+        sale_item_id: c.sale_item_id || null,
         product_id: c.product_id,
         product_imei_id: c.product_imei_id || null,
         quantity: c.quantity,
@@ -334,6 +408,13 @@ const submitReturn = () => {
             isProcessModalOpen.value = false;
             returnCart.value = [];
             returnForm.reset();
+            toast.success('Sale Return Processed Successfully', {
+                description: 'Inventory restored and financial transaction recorded.',
+            });
+        },
+        onError: (errors) => {
+            const msg = Object.values(errors).flat().join(' ') || 'Could not process sale return.';
+            toast.error('Return Failed', { description: msg });
         },
     });
 };
@@ -825,150 +906,172 @@ const formatDate = (dateStr: string) => {
         </div>
     </div>
 
-    <!-- Process Return Modal (Streamlined & Compact) -->
+    <!-- Process Return Modal (Spacious & Refined) -->
     <Dialog v-model:open="isProcessModalOpen">
-        <DialogContent class="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle
-                    class="flex items-center gap-2 text-base font-bold text-rose-600 dark:text-rose-400"
-                >
-                    <RotateCcw class="h-5 w-5" />
-                    <span>Process Product Sale Return</span>
+        <DialogContent class="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-6 rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+            <DialogHeader class="border-b border-slate-100 pb-3 shrink-0 dark:border-slate-800">
+                <DialogTitle class="flex items-center gap-2.5 text-base font-black text-slate-900 dark:text-white">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                        <RotateCcw class="h-5 w-5" />
+                    </div>
+                    <span>Process Product Sale Return & Stock Reversal</span>
                 </DialogTitle>
-                <DialogDescription class="text-xs text-gray-500">
-                    Quickly record product returns, restore stock, and issue
-                    refund.
+                <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                    Select a completed sale invoice or return manual items. Returned items are restored to stock and customer ledger is updated.
                 </DialogDescription>
             </DialogHeader>
 
-            <form @submit.prevent="submitReturn" class="space-y-3 py-1">
-                <!-- Sale & Refund Method -->
-                <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    <div>
-                        <label
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
-                        >
-                            Invoice (Optional)
+            <form @submit.prevent="submitReturn" class="flex-1 flex flex-col min-h-0 space-y-3.5 py-1 text-xs">
+                <!-- Sale & Refund Method Selectors -->
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 shrink-0">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            Select Sale Invoice (Recommended)
                         </label>
                         <select
                             v-model="returnForm.sale_id"
-                            class="mt-1 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            class="h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                         >
-                            <option value="">General Return</option>
+                            <option value="">General Return (No Invoice)</option>
                             <option
                                 v-for="s in props.recentSales"
                                 :key="s.id"
                                 :value="s.id"
                             >
-                                Inv #{{ s.invoice_no }} ({{
-                                    s.customer?.name || 'Walk-in'
-                                }})
+                                Inv #{{ s.invoice_no }} &bull; {{ s.customer?.name || 'Walk-in' }} (Rs {{ Number(s.net_amount).toLocaleString() }})
                             </option>
                         </select>
                     </div>
 
-                    <div>
-                        <label
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
-                        >
-                            Refund Method
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            Refund Payout Mode
                         </label>
                         <select
                             v-model="returnForm.refund_payment_method"
-                            class="mt-1 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                            class="h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                         >
                             <option value="cash">Cash Refund</option>
-                            <option value="jazzcash">JazzCash</option>
-                            <option value="easypaisa">EasyPaisa</option>
+                            <option value="jazzcash">JazzCash Payout</option>
+                            <option value="easypaisa">EasyPaisa Payout</option>
                             <option value="bank">Bank Payout</option>
-                            <option value="khata_deduction">
-                                Khata Balance Deduction
-                            </option>
+                            <option value="card">Card Refund</option>
+                            <option value="khata_credit">Khata Credit (Keep as Advance)</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Product Dropdown Picker -->
-                <div>
-                    <label
-                        class="text-xs font-semibold text-gray-700 dark:text-gray-300"
-                    >
-                        Select Product to Return
+                <!-- Invoice Details Overview Banner (If Invoice Selected) -->
+                <div v-if="selectedSaleForReturn" class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40 grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0 shadow-2xs">
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Invoice #</span>
+                        <span class="font-mono font-black text-[#003B7D] dark:text-blue-400 text-sm">{{ selectedSaleForReturn.invoice_no }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Customer</span>
+                        <span class="font-bold text-slate-900 dark:text-white block truncate">{{ selectedSaleForReturn.customer?.name || 'Walk-In Customer' }}</span>
+                        <span v-if="selectedSaleForReturn.customer?.phone" class="font-mono text-[10px] text-slate-400">{{ selectedSaleForReturn.customer.phone }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Invoice Bill</span>
+                        <span class="font-black text-slate-900 dark:text-white">Rs {{ Number(selectedSaleForReturn.net_amount).toLocaleString() }}</span>
+                        <span class="text-[10px] text-emerald-600 block font-semibold">(Paid: Rs {{ Number(selectedSaleForReturn.paid_amount).toLocaleString() }})</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Unpaid Due</span>
+                        <span class="font-black text-sm" :class="Number(selectedSaleForReturn.due_amount) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'">
+                            {{ Number(selectedSaleForReturn.due_amount) > 0 ? `Rs ${Number(selectedSaleForReturn.due_amount).toLocaleString()}` : 'Rs 0 (Paid)' }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Manual Product Picker if no invoice -->
+                <div v-if="!returnForm.sale_id" class="space-y-1 shrink-0">
+                    <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Add Product to Return
                     </label>
                     <select
                         v-model="selectedProductToAdd"
                         @change="handleSelectProductToReturn"
-                        class="mt-1 w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        class="h-9 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                     >
-                        <option value="">
-                            + Choose product from inventory...
-                        </option>
+                        <option value="">+ Choose product from inventory...</option>
                         <option
                             v-for="p in props.products"
                             :key="p.id"
                             :value="p.id"
                         >
-                            {{ p.name }} - {{ formatMoney(p.sale_price) }}
+                            {{ p.name }} &bull; Rs {{ Number(p.sale_price).toLocaleString() }}
                         </option>
                     </select>
                 </div>
 
-                <!-- Compact Returned Items List -->
-                <div
-                    v-if="returnCart.length > 0"
-                    class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800"
-                >
-                    <table class="w-full text-left text-xs">
-                        <thead
-                            class="bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-                        >
+                <!-- Return Items Table -->
+                <div class="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs [scrollbar-width:thin]">
+                    <div v-if="returnCart.length === 0" class="py-12 text-center text-xs text-slate-400">
+                        <Package class="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                        <div class="font-bold text-slate-600 dark:text-slate-300">No Products Selected</div>
+                        <div class="text-[11px] mt-0.5">Select a completed invoice or pick items to process return.</div>
+                    </div>
+                    <table v-else class="w-full text-left text-xs">
+                        <thead class="sticky top-0 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300 z-10 shadow-xs">
                             <tr>
-                                <th class="px-2.5 py-1.5 font-semibold">
-                                    Item
-                                </th>
-                                <th
-                                    class="w-16 px-2.5 py-1.5 text-center font-semibold"
-                                >
-                                    Qty
-                                </th>
-                                <th class="px-2.5 py-1.5 font-semibold">
-                                    Refund
-                                </th>
-                                <th class="px-2.5 py-1.5 text-right">Action</th>
+                                <th class="px-3.5 py-2.5">Product & Details</th>
+                                <th class="px-3.5 py-2.5 text-center">Purchased</th>
+                                <th class="px-3.5 py-2.5 text-center">Already Ret.</th>
+                                <th class="px-3.5 py-2.5 text-center">Available Ret.</th>
+                                <th class="px-3.5 py-2.5 text-center w-28">Return Qty</th>
+                                <th class="px-3.5 py-2.5 text-right">Unit Price</th>
+                                <th class="px-3.5 py-2.5 text-right">Refund Total</th>
+                                <th class="px-3.5 py-2.5 text-center w-12">Action</th>
                             </tr>
                         </thead>
-                        <tbody
-                            class="divide-y divide-gray-200 dark:divide-gray-800"
-                        >
-                            <tr v-for="(item, idx) in returnCart" :key="idx">
-                                <td
-                                    class="max-w-[140px] truncate px-2.5 py-1.5 font-medium text-gray-900 dark:text-white"
-                                >
-                                    {{ item.product_name }}
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                            <tr v-for="(item, idx) in returnCart" :key="idx" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                                <td class="px-3.5 py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                                    <div>{{ item.product_name }}</div>
+                                    <div v-if="item.is_serialized && item.imei_1" class="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800 inline-block mt-0.5">
+                                        IMEI: {{ item.imei_1 }}
+                                    </div>
                                 </td>
-                                <td class="px-2.5 py-1.5 text-center">
+                                <td class="px-3.5 py-2.5 text-center font-bold text-slate-700 dark:text-slate-300">
+                                    {{ item.purchased_quantity || '-' }}
+                                </td>
+                                <td class="px-3.5 py-2.5 text-center font-semibold text-slate-500">
+                                    {{ item.returned_quantity || 0 }}
+                                </td>
+                                <td class="px-3.5 py-2.5 text-center font-black" :class="(item.remaining_quantity || 0) > 0 ? 'text-emerald-600' : 'text-slate-400'">
+                                    {{ item.remaining_quantity ?? item.quantity }}
+                                </td>
+                                <td class="px-3.5 py-2.5 text-center">
                                     <Input
                                         v-model.number="item.quantity"
                                         type="number"
                                         min="1"
-                                        class="h-6 w-14 p-1 text-center text-xs"
+                                        :max="item.remaining_quantity || undefined"
+                                        class="h-8 w-20 text-center text-xs font-black rounded-xl border-slate-300 focus:border-[#003B7D] mx-auto"
                                         @input="
-                                            item.line_total =
-                                                item.quantity * item.unit_price
+                                            if (item.remaining_quantity !== undefined && item.quantity > item.remaining_quantity) {
+                                                item.quantity = item.remaining_quantity;
+                                            }
+                                            if (item.quantity < 1) item.quantity = 1;
+                                            item.line_total = item.quantity * item.unit_price;
                                         "
                                     />
                                 </td>
-                                <td
-                                    class="px-2.5 py-1.5 font-mono font-bold text-rose-600 dark:text-rose-400"
-                                >
-                                    {{ formatMoney(item.line_total) }}
+                                <td class="px-3.5 py-2.5 text-right font-medium text-slate-700 dark:text-slate-300">
+                                    Rs {{ Number(item.unit_price).toLocaleString() }}
                                 </td>
-                                <td class="px-2.5 py-1.5 text-right">
+                                <td class="px-3.5 py-2.5 text-right font-black text-rose-600 dark:text-rose-400">
+                                    Rs {{ Number(item.line_total).toLocaleString() }}
+                                </td>
+                                <td class="px-3.5 py-2.5 text-center">
                                     <button
+                                        type="button"
                                         @click="removeReturnItem(idx)"
-                                        class="text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+                                        class="text-rose-500 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition"
                                     >
-                                        <Trash2 class="h-3.5 w-3.5" />
+                                        <Trash2 class="h-4 w-4" />
                                     </button>
                                 </td>
                             </tr>
@@ -976,169 +1079,165 @@ const formatDate = (dateStr: string) => {
                     </table>
                 </div>
 
-                <!-- Total Refund & Notes -->
-                <div
-                    class="space-y-2 border-t border-gray-200 pt-1 dark:border-gray-800"
-                >
-                    <div class="flex items-center justify-between text-xs">
-                        <label class="font-bold text-gray-900 dark:text-white"
-                            >Total Refund Amount (Rs.):</label
-                        >
-                        <Input
-                            v-model.number="returnForm.refund_amount"
-                            type="number"
-                            min="0"
-                            class="h-7 w-28 text-right font-mono text-xs font-bold text-rose-600 dark:text-rose-400"
-                        />
-                    </div>
+                <!-- Financial Settlement Card: 3 Unified Columns -->
+                <div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900 shrink-0">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        <!-- Col 1: Financial breakdown -->
+                        <div class="space-y-1.5 text-xs rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                            <div class="flex justify-between text-slate-600 dark:text-slate-400">
+                                <span class="font-medium">Total Return Value:</span>
+                                <span class="font-black text-slate-900 dark:text-white">Rs {{ totalCalculatedReturn.toLocaleString() }}</span>
+                            </div>
+                            <div v-if="calculatedDueOffset > 0" class="flex justify-between text-amber-600 dark:text-amber-400 font-bold">
+                                <span>Offset Unpaid Due:</span>
+                                <span>-Rs {{ calculatedDueOffset.toLocaleString() }}</span>
+                            </div>
+                            <div class="flex justify-between text-emerald-600 dark:text-emerald-400 font-black text-sm border-t pt-1.5 border-slate-200 dark:border-slate-700">
+                                <span>Net Refund Payable:</span>
+                                <span>Rs {{ calculatedNetRefund.toLocaleString() }}</span>
+                            </div>
+                        </div>
 
-                    <div>
-                        <label
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300"
-                            >Return Reason / Notes</label
-                        >
-                        <Input
-                            v-model="returnForm.notes"
-                            type="text"
-                            placeholder="E.g. Defective handset, customer returned"
-                            class="mt-0.5 h-7 text-xs"
-                        />
+                        <!-- Col 2: Custom Refund Override -->
+                        <div class="space-y-1.5 text-xs rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Actual Refund Paid (PKR):</label>
+                            <Input
+                                v-model.number="returnForm.refund_amount"
+                                type="number"
+                                min="0"
+                                :max="calculatedNetRefund"
+                                step="0.01"
+                                class="h-9 w-full rounded-xl border-slate-300 font-black text-sm text-slate-900 focus:border-[#003B7D]"
+                            />
+                            <span v-if="returnForm.errors.refund_amount" class="text-[10px] font-bold text-rose-500 block">
+                                {{ returnForm.errors.refund_amount }}
+                            </span>
+                            <span v-else class="text-[10px] text-slate-500 block">Defaults to net payable after due debt deduction.</span>
+                        </div>
+
+                        <!-- Col 3: Notes & Safety -->
+                        <div class="space-y-1.5 text-xs rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                            <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">Return Reason / Notes:</label>
+                            <Input
+                                v-model="returnForm.notes"
+                                type="text"
+                                placeholder="e.g. Defective unit, model replacement"
+                                class="h-9 text-xs rounded-xl"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <DialogFooter class="pt-2">
+                <DialogFooter class="pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 gap-2">
                     <Button
                         type="button"
                         variant="outline"
                         @click="isProcessModalOpen = false"
-                        class="text-xs"
+                        class="rounded-xl font-bold text-xs"
                     >
                         Cancel
                     </Button>
                     <Button
                         type="submit"
-                        :disabled="
-                            returnForm.processing || returnCart.length === 0
-                        "
-                        class="cursor-pointer bg-rose-600 text-xs font-medium text-white hover:bg-rose-700"
+                        :disabled="returnForm.processing || returnCart.length === 0"
+                        class="rounded-xl bg-rose-600 text-xs font-bold text-white shadow-sm hover:bg-rose-700 transition active:scale-95 disabled:opacity-40"
                     >
-                        <span v-if="returnForm.processing">Processing...</span>
-                        <span v-else>Confirm Return</span>
+                        <span v-if="returnForm.processing" class="flex items-center gap-1.5">
+                            <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                            <span>Processing Return...</span>
+                        </span>
+                        <span v-else>Confirm & Process Return (Rs {{ Number(returnForm.refund_amount).toLocaleString() }})</span>
                     </Button>
                 </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>
 
-    <!-- Return Details Modal -->
+    <!-- Return Details Modal (Polished Voucher Layout) -->
     <Dialog v-model:open="isDetailModalOpen">
-        <DialogContent class="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle
-                    class="flex items-center justify-between text-base font-bold text-rose-600 dark:text-rose-400"
-                >
-                    <span>Sale Return Details</span>
-                    <span class="font-mono text-sm">{{
-                        selectedReturn?.return_no
-                    }}</span>
+        <DialogContent class="max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+            <DialogHeader class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                <DialogTitle class="flex items-center justify-between text-base font-black text-slate-900 dark:text-white">
+                    <div class="flex items-center gap-2">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                            <RotateCcw class="h-4 w-4" />
+                        </div>
+                        <span>Return Voucher</span>
+                    </div>
+                    <span class="font-mono text-sm font-black text-[#003B7D] dark:text-blue-400">{{ selectedReturn?.return_no }}</span>
                 </DialogTitle>
-                <DialogDescription class="text-xs text-gray-500">
-                    Date:
-                    {{
-                        selectedReturn
-                            ? formatDate(selectedReturn.created_at)
-                            : ''
-                    }}
+                <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                    Processed on {{ selectedReturn ? formatDate(selectedReturn.created_at) : '' }}
                 </DialogDescription>
             </DialogHeader>
 
-            <div v-if="selectedReturn" class="space-y-4 py-2 text-xs">
-                <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                    <p class="font-semibold text-gray-700 dark:text-gray-300">
-                        Customer Details:
-                    </p>
-                    <p class="mt-0.5 font-bold text-gray-900 dark:text-white">
-                        {{
-                            selectedReturn.customer?.name || 'Walk-in Customer'
-                        }}
-                    </p>
-                    <p
-                        v-if="selectedReturn.sale?.invoice_no"
-                        class="font-mono text-gray-500"
-                    >
-                        Original Invoice: {{ selectedReturn.sale.invoice_no }}
-                    </p>
+            <div v-if="selectedReturn" class="space-y-3.5 py-2 text-xs">
+                <!-- Customer info card -->
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Customer Details</span>
+                    <div class="font-black text-slate-900 dark:text-white text-sm mt-0.5">
+                        {{ selectedReturn.customer?.name || 'Walk-in Customer' }}
+                    </div>
+                    <div v-if="selectedReturn.sale?.invoice_no" class="font-mono text-slate-500 text-[11px] mt-0.5">
+                        Original Invoice: #{{ selectedReturn.sale.invoice_no }}
+                    </div>
                 </div>
 
-                <div class="space-y-1">
-                    <p class="font-semibold text-gray-700 dark:text-gray-300">
-                        Returned Items:
-                    </p>
-                    <div
-                        class="divide-y divide-gray-200 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800"
-                    >
+                <!-- Returned Items List -->
+                <div class="space-y-1.5">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Restored Items:</span>
+                    <div class="divide-y divide-slate-100 rounded-2xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800 overflow-hidden">
                         <div
                             v-for="item in selectedReturn.items"
                             :key="item.id"
-                            class="flex items-center justify-between p-2.5"
+                            class="flex items-center justify-between p-3"
                         >
                             <div>
-                                <p
-                                    class="font-bold text-gray-900 dark:text-white"
-                                >
+                                <div class="font-bold text-slate-900 dark:text-white">
                                     {{ item.product?.name }}
-                                </p>
-                                <p
+                                </div>
+                                <div
                                     v-if="item.product_imei"
-                                    class="font-mono text-[10px] text-blue-600 dark:text-blue-400"
+                                    class="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800 inline-block mt-0.5"
                                 >
-                                    IMEI Restored:
-                                    {{ item.product_imei.imei_1 }}
-                                </p>
-                                <p class="text-[10px] text-gray-500">
-                                    Qty: {{ item.quantity }} x
-                                    {{ formatMoney(item.unit_price) }}
-                                </p>
+                                    IMEI Restored: {{ item.product_imei.imei_1 }}
+                                </div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">
+                                    Qty: {{ item.quantity }} &times; {{ formatMoney(item.unit_price) }}
+                                </div>
                             </div>
-                            <span class="font-mono font-bold text-rose-600">{{
-                                formatMoney(item.line_total)
-                            }}</span>
+                            <span class="font-mono font-black text-rose-600 text-sm">
+                                {{ formatMoney(item.line_total) }}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div class="space-y-1 border-t border-gray-200 pt-2 font-mono">
-                    <div
-                        class="flex justify-between text-sm font-bold text-rose-600"
-                    >
+                <!-- Financial totals -->
+                <div class="space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 font-mono text-xs dark:border-slate-800 dark:bg-slate-800/40">
+                    <div class="flex justify-between text-slate-600 dark:text-slate-400">
+                        <span>Total Return Value:</span>
+                        <span class="font-bold text-slate-900 dark:text-white">{{ formatMoney(selectedReturn.total_return_amount) }}</span>
+                    </div>
+                    <div class="flex justify-between font-black text-sm text-rose-600 border-t border-slate-200 dark:border-slate-700 pt-1.5">
                         <span>Refund Paid:</span>
-                        <span>{{
-                            formatMoney(selectedReturn.refund_amount)
-                        }}</span>
+                        <span>{{ formatMoney(selectedReturn.refund_amount) }}</span>
                     </div>
-                    <div class="flex justify-between text-gray-500">
+                    <div class="flex justify-between text-slate-500 font-sans text-[11px]">
                         <span>Payment Method:</span>
-                        <span class="capitalize">{{
-                            selectedReturn.refund_payment_method.replace(
-                                '_',
-                                ' ',
-                            )
-                        }}</span>
+                        <span class="capitalize font-bold">{{ selectedReturn.refund_payment_method.replace('_', ' ') }}</span>
                     </div>
-                    <p
-                        v-if="selectedReturn.notes"
-                        class="mt-2 border-t border-gray-100 pt-1 font-sans text-gray-500"
-                    >
-                        Notes: {{ selectedReturn.notes }}
-                    </p>
+                    <div v-if="selectedReturn.notes" class="text-slate-500 font-sans text-[11px] border-t border-slate-200 dark:border-slate-700 pt-1">
+                        Reason: {{ selectedReturn.notes }}
+                    </div>
                 </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter class="gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <Button
                     variant="outline"
                     @click="isDetailModalOpen = false"
-                    class="text-xs"
+                    class="rounded-xl font-bold text-xs"
                 >
                     Close
                 </Button>

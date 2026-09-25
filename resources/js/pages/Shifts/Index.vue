@@ -131,8 +131,31 @@ interface PastShiftData {
 
 const props = defineProps<{
     activeShift: ActiveShiftData | null;
-    pastShifts: PastShiftData[];
+    pastShifts:
+        | {
+              data: PastShiftData[];
+              links?: Array<{ url: string | null; label: string; active: boolean }>;
+              total?: number;
+              current_page?: number;
+              last_page?: number;
+          }
+        | PastShiftData[];
 }>();
+
+const pastShiftList = computed<PastShiftData[]>(() => {
+    if (Array.isArray(props.pastShifts)) return props.pastShifts;
+    return props.pastShifts?.data || [];
+});
+
+const pastShiftTotal = computed<number>(() => {
+    if (Array.isArray(props.pastShifts)) return props.pastShifts.length;
+    return props.pastShifts?.total || 0;
+});
+
+const pastShiftLinks = computed(() => {
+    if (Array.isArray(props.pastShifts)) return [];
+    return props.pastShifts?.links || [];
+});
 
 const page = usePage();
 const currentTeamSlug = computed(
@@ -614,7 +637,7 @@ const printShiftSlip = () => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        <tr v-if="pastShifts.length === 0">
+                        <tr v-if="pastShiftList.length === 0">
                             <td
                                 colspan="9"
                                 class="py-6 text-center text-slate-500 italic"
@@ -623,7 +646,7 @@ const printShiftSlip = () => {
                             </td>
                         </tr>
                         <tr
-                            v-for="shift in pastShifts"
+                            v-for="shift in pastShiftList"
                             :key="shift.id"
                             class="hover:bg-gray-50"
                         >
@@ -713,6 +736,43 @@ const printShiftSlip = () => {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div
+                v-if="pastShiftTotal > 0"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 bg-slate-50/50 px-6 py-3.5 sm:flex-row dark:border-slate-800 dark:bg-slate-800/20"
+            >
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ pastShiftList.length }}</span>
+                    of
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ pastShiftTotal }}</span>
+                    shifts
+                </div>
+
+                <div v-if="pastShiftLinks && pastShiftLinks.length > 3" class="flex items-center gap-1.5">
+                    <template v-for="(link, idx) in pastShiftLinks" :key="idx">
+                        <Button
+                            v-if="link.url"
+                            variant="outline"
+                            size="sm"
+                            :class="[
+                                'h-8 px-3 text-xs',
+                                link.active
+                                    ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
+                                    : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
+                            ]"
+                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            v-html="link.label"
+                        />
+                        <span
+                            v-else
+                            class="px-2 text-xs text-slate-400 dark:text-slate-600"
+                            v-html="link.label"
+                        />
+                    </template>
+                </div>
             </div>
         </div>
     </div>

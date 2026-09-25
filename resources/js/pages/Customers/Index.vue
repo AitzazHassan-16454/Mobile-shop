@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
+    AlertCircle,
     ArrowDownLeft,
     ArrowUpRight,
     Check,
+    CheckCircle,
     Download,
     Edit3,
     FileSpreadsheet,
@@ -11,6 +13,7 @@ import {
     MoreVertical,
     Plus,
     Printer,
+    RotateCcw,
     Search,
     SlidersHorizontal,
     Trash2,
@@ -77,8 +80,11 @@ interface PrintStatement {
 interface LedgerItem {
     id: number;
     customer_id: number;
+    user_id?: number | null;
+    user?: { id: number; name: string } | null;
     type: string;
     amount: number | string;
+    payment_method?: string | null;
     balance_after: number | string;
     reference_id?: string | null;
     notes?: string | null;
@@ -354,6 +360,20 @@ const paymentForm = useForm({
     notes: '',
 });
 
+const paymentCustomerDebt = computed(() => {
+    return Math.max(0, Number(paymentCustomer.value?.current_balance || 0));
+});
+
+const paymentEnteredAmount = computed(() => Number(paymentForm.amount) || 0);
+
+const paymentRemainingDue = computed(() => {
+    return Math.max(0, paymentCustomerDebt.value - paymentEnteredAmount.value);
+});
+
+const paymentOverpaymentAdvance = computed(() => {
+    return Math.max(0, paymentEnteredAmount.value - paymentCustomerDebt.value);
+});
+
 const openPaymentModal = (customer: CustomerItem) => {
     paymentCustomer.value = customer;
     paymentForm.reset();
@@ -363,6 +383,10 @@ const openPaymentModal = (customer: CustomerItem) => {
     paymentForm.payment_method = 'cash';
     paymentForm.notes = '';
     isPaymentModalOpen.value = true;
+};
+
+const setQuickPaymentAmount = (amt: number) => {
+    paymentForm.amount = String(amt);
 };
 
 const submitPayment = () => {
@@ -376,6 +400,135 @@ const submitPayment = () => {
         {
             onSuccess: () => {
                 isPaymentModalOpen.value = false;
+                toast.success('Due payment recorded successfully.');
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors).flat().join(' ') || 'Could not record payment.';
+                toast.error('Payment Failed', { description: msg });
+            },
+        },
+    );
+};
+
+// Advance Deposit Modal
+const isAdvanceModalOpen = ref(false);
+const advanceCustomer = ref<CustomerItem | null>(null);
+
+const advanceForm = useForm({
+    amount: '',
+    payment_method: 'cash',
+    notes: '',
+});
+
+const advanceCustomerCurrentAdvance = computed(() => {
+    if (!advanceCustomer.value) return 0;
+    const b = Number(advanceCustomer.value.current_balance) || 0;
+    return b < 0 ? Math.abs(b) : 0;
+});
+
+const advanceEnteredAmount = computed(() => Number(advanceForm.amount) || 0);
+
+const newProjectedAdvance = computed(() => {
+    return advanceCustomerCurrentAdvance.value + advanceEnteredAmount.value;
+});
+
+const openAdvanceModal = (customer: CustomerItem) => {
+    advanceCustomer.value = customer;
+    advanceForm.reset();
+    advanceForm.clearErrors();
+    advanceForm.amount = '';
+    advanceForm.payment_method = 'cash';
+    advanceForm.notes = '';
+    isAdvanceModalOpen.value = true;
+};
+
+const submitAdvance = () => {
+    if (!advanceCustomer.value) return;
+
+    advanceForm.post(
+        customerRoutes.advance.store([
+            currentTeamSlug.value,
+            advanceCustomer.value.id,
+        ]).url,
+        {
+            onSuccess: () => {
+                isAdvanceModalOpen.value = false;
+                toast.success('Customer advance recorded successfully.');
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors).flat().join(' ') || 'Could not record advance.';
+                toast.error('Advance Failed', { description: msg });
+            },
+        },
+    );
+};
+
+// Return Advance / Refund Advance Modal
+const isRefundAdvanceModalOpen = ref(false);
+const refundAdvanceCustomer = ref<CustomerItem | null>(null);
+
+const refundAdvanceForm = useForm({
+    amount: '',
+    payment_method: 'cash',
+    notes: '',
+});
+
+const customerAvailableAdvance = computed(() => {
+    if (!refundAdvanceCustomer.value) return 0;
+    const bal = Number(refundAdvanceCustomer.value.current_balance) || 0;
+    return bal < 0 ? Math.abs(bal) : 0;
+});
+
+const refundAdvanceEnteredAmount = computed(() => Number(refundAdvanceForm.amount) || 0);
+
+const refundRemainingAdvance = computed(() => {
+    return Math.max(0, customerAvailableAdvance.value - refundAdvanceEnteredAmount.value);
+});
+
+const openRefundAdvanceModal = (customer: CustomerItem) => {
+    refundAdvanceCustomer.value = customer;
+    refundAdvanceForm.reset();
+    refundAdvanceForm.clearErrors();
+    const avail = customer.current_balance < 0 ? Math.abs(Number(customer.current_balance)) : 0;
+    refundAdvanceForm.amount = avail > 0 ? String(avail) : '';
+    refundAdvanceForm.payment_method = 'cash';
+    refundAdvanceForm.notes = '';
+    isRefundAdvanceModalOpen.value = true;
+};
+
+const setFullAdvanceRefund = () => {
+    refundAdvanceForm.amount = String(customerAvailableAdvance.value);
+};
+
+const submitRefundAdvance = () => {
+    if (!refundAdvanceCustomer.value) return;
+
+    const reqAmt = Number(refundAdvanceForm.amount) || 0;
+    if (reqAmt <= 0) {
+        refundAdvanceForm.setError('amount', 'Refund amount must be greater than 0.');
+        return;
+    }
+    if (reqAmt > customerAvailableAdvance.value) {
+        refundAdvanceForm.setError(
+            'amount',
+            `Refund amount cannot exceed available advance of Rs. ${customerAvailableAdvance.value.toLocaleString()}`,
+        );
+        return;
+    }
+
+    refundAdvanceForm.post(
+        customerRoutes.advance.refund([
+            currentTeamSlug.value,
+            refundAdvanceCustomer.value.id,
+        ]).url,
+        {
+            onSuccess: () => {
+                isRefundAdvanceModalOpen.value = false;
+                toast.success('Advance refund processed successfully.');
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors).flat().join(' ') || 'Could not process advance refund.';
+                toast.error('Refund Failed', { description: msg });
             },
         },
     );
@@ -384,11 +537,68 @@ const submitPayment = () => {
 // Ledger History Modal
 const isHistoryModalOpen = ref(false);
 const historyCustomer = ref<CustomerItem | null>(null);
+const ledgerSearchQuery = ref('');
+const ledgerTypeFilter = ref('all');
 
 const openHistoryModal = (customer: CustomerItem) => {
     historyCustomer.value = customer;
+    ledgerSearchQuery.value = '';
+    ledgerTypeFilter.value = 'all';
     isHistoryModalOpen.value = true;
 };
+
+const historyTotalDebits = computed(() => {
+    if (!historyCustomer.value?.ledgers) return 0;
+    return historyCustomer.value.ledgers.reduce((sum, item) => {
+        if (item.type === 'sale' || item.type === 'advance_return') {
+            return sum + (Number(item.amount) || 0);
+        }
+        return sum;
+    }, 0);
+});
+
+const historyTotalCredits = computed(() => {
+    if (!historyCustomer.value?.ledgers) return 0;
+    return historyCustomer.value.ledgers.reduce((sum, item) => {
+        if (item.type === 'payment' || item.type === 'advance' || item.type === 'return') {
+            return sum + (Number(item.amount) || 0);
+        }
+        return sum;
+    }, 0);
+});
+
+const filteredLedgers = computed(() => {
+    if (!historyCustomer.value?.ledgers) return [];
+    return historyCustomer.value.ledgers.filter((item) => {
+        if (ledgerTypeFilter.value !== 'all' && item.type !== ledgerTypeFilter.value) {
+            return false;
+        }
+        if (ledgerSearchQuery.value.trim() !== '') {
+            const q = ledgerSearchQuery.value.toLowerCase();
+            const refMatch = item.reference_id?.toLowerCase().includes(q);
+            const notesMatch = item.notes?.toLowerCase().includes(q);
+            const methodMatch = item.payment_method?.toLowerCase().includes(q);
+            const userMatch = item.user?.name.toLowerCase().includes(q);
+            if (!refMatch && !notesMatch && !methodMatch && !userMatch) {
+                return false;
+            }
+        }
+        return true;
+    });
+});
+
+const ledgerPage = ref(1);
+const ledgerPerPage = ref(15);
+const totalLedgerPages = computed(() => {
+    return Math.ceil(filteredLedgers.value.length / ledgerPerPage.value) || 1;
+});
+const paginatedLedgers = computed(() => {
+    const start = (ledgerPage.value - 1) * ledgerPerPage.value;
+    return filteredLedgers.value.slice(start, start + ledgerPerPage.value);
+});
+watch([ledgerTypeFilter, ledgerSearchQuery, historyCustomer], () => {
+    ledgerPage.value = 1;
+});
 
 // Delete Customer
 const deleteCustomer = async (customer: CustomerItem) => {
@@ -836,6 +1046,28 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                 class="px-4 py-3 text-right"
                             >
                                 <div class="flex items-center justify-end">
+                                    <!-- Quick Action Button -->
+                                    <button
+                                        v-if="Number(customer.current_balance) > 0"
+                                        type="button"
+                                        @click="openPaymentModal(customer)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mr-1.5"
+                                        title="Receive Due Payment (Wasooli)"
+                                    >
+                                        <Wallet class="h-3.5 w-3.5" />
+                                        <span>Wasooli</span>
+                                    </button>
+                                    <button
+                                        v-else-if="Number(customer.current_balance) < 0"
+                                        type="button"
+                                        @click="openRefundAdvanceModal(customer)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 mr-1.5"
+                                        title="Refund Customer Advance"
+                                    >
+                                        <RotateCcw class="h-3.5 w-3.5" />
+                                        <span>Refund Adv</span>
+                                    </button>
+
                                     <DropdownMenu>
                                         <DropdownMenuTrigger as-child>
                                             <button
@@ -851,7 +1083,7 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent
                                             align="end"
-                                            class="w-52 rounded-xl border border-gray-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/95"
+                                            class="w-56 rounded-xl border border-gray-200/80 bg-white/95 p-1.5 shadow-xl backdrop-blur-md dark:border-gray-800 dark:bg-gray-900/95"
                                         >
                                             <DropdownMenuItem
                                                 @click="
@@ -862,8 +1094,33 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                                 <Wallet
                                                     class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
                                                 />
-                                                <span>Wasooli (Payment)</span>
+                                                <span>Receive Payment (Wasooli)</span>
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="
+                                                    openAdvanceModal(customer)
+                                                "
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
+                                            >
+                                                <Plus
+                                                    class="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400"
+                                                />
+                                                <span>Deposit Advance (Peshgi)</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="
+                                                    openRefundAdvanceModal(customer)
+                                                "
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:text-amber-300 dark:hover:bg-amber-950/40"
+                                            >
+                                                <RotateCcw
+                                                    class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+                                                />
+                                                <span>Return / Refund Advance</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator
+                                                class="my-1 bg-gray-100 dark:bg-gray-800"
+                                            />
                                             <DropdownMenuItem
                                                 @click="
                                                     openHistoryModal(customer)
@@ -874,6 +1131,15 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                                                     class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
                                                 />
                                                 <span>Ledger History</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                @click="printStatement(customer)"
+                                                class="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:hover:text-white"
+                                            >
+                                                <Printer
+                                                    class="h-4 w-4 shrink-0 text-slate-600 dark:text-slate-400"
+                                                />
+                                                <span>Print Statement</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 @click="openEditModal(customer)"
@@ -1073,178 +1339,591 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
 
         <!-- Modal 2: Receive Payment (Wasooli) -->
         <Dialog v-model:open="isPaymentModalOpen">
-            <DialogContent class="max-w-md">
-                <DialogHeader>
-                    <DialogTitle class="text-base font-bold">
-                        Receive Payment (Wasooli)
+            <DialogContent class="max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+                <DialogHeader class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <DialogTitle class="flex items-center gap-2.5 text-base font-black text-slate-900 dark:text-white">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                            <Wallet class="h-5 w-5" />
+                        </div>
+                        <span>Receive Due Payment (Wasooli)</span>
                     </DialogTitle>
-                    <DialogDescription class="text-xs">
-                        Customer:
-                        <span class="font-bold text-gray-900 dark:text-white">{{
-                            paymentCustomer?.name
-                        }}</span>
-                        &bull; Balance:
-                        <span class="font-bold text-amber-600 dark:text-amber-400">{{
-                            money(paymentCustomer?.current_balance || 0)
-                        }}</span>
+                    <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                        Record cash or digital receipt against customer's outstanding khata balance.
                     </DialogDescription>
                 </DialogHeader>
 
-                <form
-                    @submit.prevent="submitPayment"
-                    class="space-y-3 py-2 text-xs"
-                >
-                    <!-- Amount -->
-                    <div class="space-y-1">
-                        <Label for="amount" class="font-medium"
-                            >Amount Received (PKR) *</Label
-                        >
+                <!-- Customer Details & Current Balance Card -->
+                <div class="rounded-2xl border p-3.5 text-xs shadow-2xs" :class="paymentCustomerDebt > 0 ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/30' : 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/50 dark:bg-emerald-950/30'">
+                    <div class="flex justify-between items-center mb-1">
+                        <div>
+                            <span class="font-black text-slate-900 dark:text-white text-sm">{{ paymentCustomer?.name }}</span>
+                            <span v-if="paymentCustomer?.phone" class="font-mono text-slate-500 text-[11px] block">{{ paymentCustomer.phone }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Current Outstanding Due</span>
+                            <span class="text-base font-black" :class="paymentCustomerDebt > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'">
+                                {{ paymentCustomerDebt > 0 ? money(paymentCustomerDebt) : 'Rs. 0 (Settled)' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <form @submit.prevent="submitPayment" class="space-y-3.5 py-1 text-xs">
+                    <!-- Quick Amount Presets -->
+                    <div v-if="paymentCustomerDebt > 0" class="space-y-1.5">
+                        <Label class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Quick Settle Presets</Label>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                @click="setQuickPaymentAmount(paymentCustomerDebt)"
+                                class="flex items-center gap-1 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 transition active:scale-95 shadow-2xs"
+                            >
+                                <Check class="h-3 w-3" />
+                                <span>Pay Full Due ({{ money(paymentCustomerDebt) }})</span>
+                            </button>
+                            <button
+                                v-for="preset in [500, 1000, 2000, 5000, 10000].filter(p => p < paymentCustomerDebt)"
+                                :key="preset"
+                                type="button"
+                                @click="setQuickPaymentAmount(preset)"
+                                class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 transition active:scale-95 shadow-2xs"
+                            >
+                                Rs. {{ preset.toLocaleString() }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Payment Amount Input -->
+                    <div class="space-y-1.5">
+                        <Label for="amount" class="font-bold text-slate-700 dark:text-slate-300">Amount Received (PKR) *</Label>
                         <Input
                             id="amount"
                             type="number"
+                            min="0.01"
+                            max="99999999.99"
                             step="0.01"
                             v-model="paymentForm.amount"
                             placeholder="0.00"
-                            class="h-9 text-sm font-bold"
+                            class="h-10 text-base font-black rounded-xl border-slate-300 focus:border-[#003B7D]"
                             required
                         />
-                        <span
-                            v-if="paymentForm.errors.amount"
-                            class="text-xs text-rose-600"
-                            >{{ paymentForm.errors.amount }}</span
-                        >
+                        <span v-if="paymentForm.errors.amount" class="text-xs text-rose-600 font-bold block">
+                            {{ paymentForm.errors.amount }}
+                        </span>
+                    </div>
+
+                    <!-- Live Accounting Settlement Card -->
+                    <div v-if="paymentCustomerDebt > 0 || paymentEnteredAmount > 0" class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40 space-y-1.5 shadow-2xs">
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                            <span class="font-medium">Total Current Due:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ money(paymentCustomerDebt) }}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                            <span class="font-medium">Amount Received Now:</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400">-{{ money(paymentEnteredAmount) }}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-1.5 font-black text-sm">
+                            <span :class="paymentRemainingDue === 0 ? 'text-emerald-600' : 'text-slate-800 dark:text-slate-200'">
+                                Remaining Due Balance:
+                            </span>
+                            <span :class="paymentRemainingDue === 0 ? 'text-emerald-600 font-black' : 'text-amber-700 dark:text-amber-400'">
+                                {{ paymentRemainingDue === 0 ? 'Rs. 0 (Fully Settled)' : money(paymentRemainingDue) }}
+                            </span>
+                        </div>
+                        <div v-if="paymentOverpaymentAdvance > 0" class="mt-1 text-[11px] font-bold text-blue-700 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-300 p-2 rounded-xl border border-blue-200 dark:border-blue-900/50 flex items-center gap-1.5">
+                            <CheckCircle class="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                            <span>Payment exceeds due by {{ money(paymentOverpaymentAdvance) }}. Extra amount will automatically be recorded as customer advance.</span>
+                        </div>
                     </div>
 
                     <!-- Payment Method -->
-                    <div class="space-y-1">
-                        <Label class="font-medium">Payment Mode</Label>
+                    <div class="space-y-1.5">
+                        <Label class="font-bold text-slate-700 dark:text-slate-300">Payment Mode</Label>
                         <Select v-model="paymentForm.payment_method">
-                            <SelectTrigger class="h-9 text-xs">
+                            <SelectTrigger class="h-9 text-xs rounded-xl font-bold">
                                 <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent class="rounded-xl">
                                 <SelectItem value="cash">Cash</SelectItem>
-                                <SelectItem value="jazzcash"
-                                    >JazzCash</SelectItem
-                                >
-                                <SelectItem value="easypaisa"
-                                    >EasyPaisa</SelectItem
-                                >
-                                <SelectItem value="bank"
-                                    >Bank Transfer</SelectItem
-                                >
+                                <SelectItem value="bank">Bank Transfer</SelectItem>
+                                <SelectItem value="jazzcash">JazzCash</SelectItem>
+                                <SelectItem value="easypaisa">EasyPaisa</SelectItem>
+                                <SelectItem value="card">Debit/Credit Card</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
 
                     <!-- Notes -->
-                    <div class="space-y-1">
-                        <Label for="notes" class="font-medium"
-                            >Notes (Optional)</Label
-                        >
+                    <div class="space-y-1.5">
+                        <Label for="notes" class="font-bold text-slate-700 dark:text-slate-300">Notes / Reference (Optional)</Label>
                         <Input
                             id="notes"
                             v-model="paymentForm.notes"
-                            placeholder="e.g. Cash received"
-                            class="h-9 text-xs"
+                            placeholder="e.g. Cash handed to counter cashier"
+                            class="h-9 text-xs rounded-xl"
                         />
                     </div>
 
-                    <DialogFooter class="pt-3">
+                    <DialogFooter class="pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             @click="isPaymentModalOpen = false"
-                            class="text-xs"
+                            class="rounded-xl font-bold text-xs"
                         >
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             size="sm"
-                            :disabled="paymentForm.processing"
-                            class="bg-emerald-600 text-xs font-semibold text-white hover:bg-emerald-700"
+                            :disabled="paymentForm.processing || paymentEnteredAmount <= 0"
+                            class="rounded-xl bg-emerald-600 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition active:scale-95 disabled:opacity-40"
                         >
-                            Save Payment
+                            <span v-if="paymentForm.processing" class="flex items-center gap-1.5">
+                                <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                <span>Saving Payment...</span>
+                            </span>
+                            <span v-else>Confirm & Save ({{ money(paymentEnteredAmount) }})</span>
                         </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
 
-        <!-- Modal 3: Ledger History -->
-        <Dialog v-model:open="isHistoryModalOpen">
-            <DialogContent class="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle class="text-base font-bold">
-                        Khata History &bull; {{ historyCustomer?.name }}
+        <!-- Modal 2.5: Deposit Advance (Peshgi Jama) -->
+        <Dialog v-model:open="isAdvanceModalOpen">
+            <DialogContent class="max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+                <DialogHeader class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <DialogTitle class="flex items-center gap-2.5 text-base font-black text-slate-900 dark:text-white">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400">
+                            <Plus class="h-5 w-5" />
+                        </div>
+                        <span>Deposit Customer Advance (Peshgi)</span>
                     </DialogTitle>
-                    <DialogDescription class="text-xs">
-                        Current Balance:
-                        <span class="font-bold text-gray-900 dark:text-white">{{
-                            money(historyCustomer?.current_balance || 0)
-                        }}</span>
+                    <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                        Accept advance booking deposit from customer to keep as store credit.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div class="max-h-96 overflow-y-auto rounded-lg border">
-                    <table class="w-full text-left text-xs">
-                        <thead
-                            class="border-b bg-gray-50 text-gray-600 uppercase dark:bg-gray-800"
+                <!-- Customer Details Card -->
+                <div class="rounded-2xl border border-sky-200 bg-sky-50/70 p-3.5 text-xs dark:border-sky-900/50 dark:bg-sky-950/30 shadow-2xs">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-black text-slate-900 dark:text-white text-sm">{{ advanceCustomer?.name }}</span>
+                            <span v-if="advanceCustomer?.phone" class="font-mono text-slate-500 text-[11px] block">{{ advanceCustomer.phone }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Existing Advance Credit</span>
+                            <span class="text-base font-black text-sky-700 dark:text-sky-400">
+                                {{ money(advanceCustomerCurrentAdvance) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <form @submit.prevent="submitAdvance" class="space-y-3.5 py-1 text-xs">
+                    <div class="space-y-1.5">
+                        <Label for="adv-amount" class="font-bold text-slate-700 dark:text-slate-300">Advance Amount Received (PKR) *</Label>
+                        <Input
+                            id="adv-amount"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max="99999999.99"
+                            v-model="advanceForm.amount"
+                            placeholder="0.00"
+                            class="h-10 text-base font-black rounded-xl border-slate-300 focus:border-[#003B7D]"
+                            required
+                        />
+                        <span v-if="advanceForm.errors.amount" class="text-xs text-rose-600 font-bold block">
+                            {{ advanceForm.errors.amount }}
+                        </span>
+                    </div>
+
+                    <!-- Live Advance Total Preview -->
+                    <div v-if="advanceEnteredAmount > 0" class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40 space-y-1.5 shadow-2xs">
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                            <span>Current Advance Credit:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ money(advanceCustomerCurrentAdvance) }}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                            <span>New Advance Deposit:</span>
+                            <span class="font-bold text-sky-600 dark:text-sky-400">+{{ money(advanceEnteredAmount) }}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-1.5 font-black text-sm text-sky-700 dark:text-sky-400">
+                            <span>New Total Advance Balance:</span>
+                            <span>{{ money(newProjectedAdvance) }}</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <Label class="font-bold text-slate-700 dark:text-slate-300">Payment Mode</Label>
+                        <Select v-model="advanceForm.payment_method">
+                            <SelectTrigger class="h-9 text-xs rounded-xl font-bold">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent class="rounded-xl">
+                                <SelectItem value="cash">Cash</SelectItem>
+                                <SelectItem value="bank">Bank Transfer</SelectItem>
+                                <SelectItem value="jazzcash">JazzCash</SelectItem>
+                                <SelectItem value="easypaisa">EasyPaisa</SelectItem>
+                                <SelectItem value="card">Debit/Credit Card</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <Label for="adv-notes" class="font-bold text-slate-700 dark:text-slate-300">Notes / Purpose (Optional)</Label>
+                        <Input
+                            id="adv-notes"
+                            v-model="advanceForm.notes"
+                            placeholder="e.g. Booking deposit for iPhone model arrival"
+                            class="h-9 text-xs rounded-xl"
+                        />
+                    </div>
+
+                    <DialogFooter class="pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isAdvanceModalOpen = false"
+                            class="rounded-xl font-bold text-xs"
                         >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            size="sm"
+                            :disabled="advanceForm.processing || advanceEnteredAmount <= 0"
+                            class="rounded-xl bg-sky-600 text-xs font-bold text-white shadow-sm hover:bg-sky-700 transition active:scale-95 disabled:opacity-40"
+                        >
+                            <span v-if="advanceForm.processing" class="flex items-center gap-1.5">
+                                <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                <span>Saving Advance...</span>
+                            </span>
+                            <span v-else>Record Advance ({{ money(advanceEnteredAmount) }})</span>
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Modal 2.6: Return Advance / Refund Advance -->
+        <Dialog v-model:open="isRefundAdvanceModalOpen">
+            <DialogContent class="max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+                <DialogHeader class="border-b border-slate-100 pb-3 dark:border-slate-800">
+                    <DialogTitle class="flex items-center gap-2.5 text-base font-black text-slate-900 dark:text-white">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+                            <RotateCcw class="h-5 w-5" />
+                        </div>
+                        <span>Return Advance / Refund Advance</span>
+                    </DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                        Refund customer's previously deposited advance money without purchase.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <!-- Customer Details & Available Advance Card -->
+                <div class="rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs dark:border-amber-900/50 dark:bg-amber-950/30 shadow-2xs">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-black text-slate-900 dark:text-white text-sm">{{ refundAdvanceCustomer?.name }}</span>
+                            <span v-if="refundAdvanceCustomer?.phone" class="font-mono text-slate-500 text-[11px] block">{{ refundAdvanceCustomer.phone }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">Available Advance Balance</span>
+                            <span class="text-base font-black text-amber-800 dark:text-amber-300">
+                                {{ money(customerAvailableAdvance) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <form @submit.prevent="submitRefundAdvance" class="space-y-3.5 py-1 text-xs">
+                    <!-- Amount Input with Full Refund Shortcut -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <Label for="refund-amount" class="font-bold text-slate-700 dark:text-slate-300">Refund Amount (PKR) *</Label>
+                            <button
+                                type="button"
+                                @click="setFullAdvanceRefund"
+                                class="flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:underline dark:text-amber-400"
+                            >
+                                <Check class="h-3 w-3" />
+                                <span>Full Refund ({{ money(customerAvailableAdvance) }})</span>
+                            </button>
+                        </div>
+                        <Input
+                            id="refund-amount"
+                            type="number"
+                            step="0.01"
+                            min="1"
+                            :max="customerAvailableAdvance"
+                            v-model="refundAdvanceForm.amount"
+                            placeholder="0.00"
+                            class="h-10 text-base font-black rounded-xl border-slate-300 focus:border-[#003B7D]"
+                            required
+                        />
+                        <span v-if="refundAdvanceForm.errors.amount" class="text-xs text-rose-600 font-bold block">
+                            {{ refundAdvanceForm.errors.amount }}
+                        </span>
+                    </div>
+
+                    <!-- Live Remaining Advance Card -->
+                    <div v-if="customerAvailableAdvance > 0" class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs dark:border-slate-800 dark:bg-slate-800/40 space-y-1.5 shadow-2xs">
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                            <span>Available Advance:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ money(customerAvailableAdvance) }}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400">
+                            <span>Refund Paid Back:</span>
+                            <span class="font-bold text-rose-600 dark:text-rose-400">-{{ money(refundAdvanceEnteredAmount) }}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-slate-200 dark:border-slate-700 pt-1.5 font-black text-sm">
+                            <span :class="refundRemainingAdvance === 0 ? 'text-slate-600 dark:text-slate-400' : 'text-emerald-700 dark:text-emerald-400'">
+                                Remaining Advance Balance:
+                            </span>
+                            <span :class="refundRemainingAdvance === 0 ? 'text-slate-500 font-bold' : 'text-emerald-700 dark:text-emerald-400'">
+                                {{ refundRemainingAdvance === 0 ? 'Rs. 0 (Fully Refunded)' : money(refundRemainingAdvance) }}
+                            </span>
+                        </div>
+                        <div v-if="refundAdvanceEnteredAmount > customerAvailableAdvance" class="mt-1 text-[11px] font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-300 p-2 rounded-xl border border-rose-200 dark:border-rose-900/50 flex items-center gap-1.5">
+                            <AlertCircle class="h-3.5 w-3.5 shrink-0 text-rose-600" />
+                            <span>Refund amount cannot exceed customer's available advance of {{ money(customerAvailableAdvance) }}.</span>
+                        </div>
+                    </div>
+
+                    <!-- Payout Mode -->
+                    <div class="space-y-1.5">
+                        <Label class="font-bold text-slate-700 dark:text-slate-300">Payout Mode</Label>
+                        <Select v-model="refundAdvanceForm.payment_method">
+                            <SelectTrigger class="h-9 text-xs rounded-xl font-bold">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent class="rounded-xl">
+                                <SelectItem value="cash">Cash Payout</SelectItem>
+                                <SelectItem value="bank">Bank Transfer</SelectItem>
+                                <SelectItem value="jazzcash">JazzCash</SelectItem>
+                                <SelectItem value="easypaisa">EasyPaisa</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="space-y-1.5">
+                        <Label for="refund-notes" class="font-bold text-slate-700 dark:text-slate-300">Notes / Reason (Optional)</Label>
+                        <Input
+                            id="refund-notes"
+                            v-model="refundAdvanceForm.notes"
+                            placeholder="e.g. Customer cancelled order and requested advance refund"
+                            class="h-9 text-xs rounded-xl"
+                        />
+                    </div>
+
+                    <DialogFooter class="pt-3 border-t border-slate-100 dark:border-slate-800 gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isRefundAdvanceModalOpen = false"
+                            class="rounded-xl font-bold text-xs"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            size="sm"
+                            :disabled="refundAdvanceForm.processing || customerAvailableAdvance <= 0 || refundAdvanceEnteredAmount <= 0 || refundAdvanceEnteredAmount > customerAvailableAdvance"
+                            class="rounded-xl bg-amber-600 text-xs font-bold text-white shadow-sm hover:bg-amber-700 transition active:scale-95 disabled:opacity-40"
+                        >
+                            <span v-if="refundAdvanceForm.processing" class="flex items-center gap-1.5">
+                                <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                <span>Processing Refund...</span>
+                            </span>
+                            <span v-else>Process Advance Refund ({{ money(refundAdvanceEnteredAmount) }})</span>
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Modal 3: Enhanced Customer Ledger History -->
+        <Dialog v-model:open="isHistoryModalOpen">
+            <DialogContent class="max-w-5xl w-[95vw] h-[88vh] max-h-[90vh] flex flex-col p-5 rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 overflow-hidden">
+                <!-- Header with Customer Avatar & Metric Summary Cards -->
+                <DialogHeader class="border-b border-slate-100 pb-3 shrink-0 dark:border-slate-800">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002654] to-[#003B7D] font-black text-white shadow-sm">
+                                {{ historyCustomer?.name.charAt(0).toUpperCase() || 'C' }}
+                            </div>
+                            <div>
+                                <DialogTitle class="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span>{{ historyCustomer?.name }}</span>
+                                    <span v-if="historyCustomer?.phone" class="font-mono text-xs font-normal text-slate-400">({{ historyCustomer.phone }})</span>
+                                </DialogTitle>
+                                <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                                    Verified audit log of all sales, payments, advances, and returns.
+                                </DialogDescription>
+                            </div>
+                        </div>
+
+                        <!-- 3 Stat Pills -->
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-right dark:border-slate-800 dark:bg-slate-800">
+                                <span class="block text-[9px] uppercase font-bold text-slate-400">Total Invoiced</span>
+                                <span class="font-mono text-xs font-black text-amber-700 dark:text-amber-400">{{ money(historyTotalDebits) }}</span>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-right dark:border-slate-800 dark:bg-slate-800">
+                                <span class="block text-[9px] uppercase font-bold text-slate-400">Total Received</span>
+                                <span class="font-mono text-xs font-black text-emerald-700 dark:text-emerald-400">{{ money(historyTotalCredits) }}</span>
+                            </div>
+                            <div class="rounded-xl border px-3 py-1 text-right shadow-2xs" :class="Number(historyCustomer?.current_balance || 0) > 0 ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/40' : (Number(historyCustomer?.current_balance || 0) < 0 ? 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/50 dark:bg-emerald-950/40' : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800')">
+                                <span class="block text-[9px] uppercase font-bold" :class="Number(historyCustomer?.current_balance || 0) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'">
+                                    Khata Balance
+                                </span>
+                                <span class="font-mono text-xs font-black" :class="Number(historyCustomer?.current_balance || 0) > 0 ? 'text-amber-800 dark:text-amber-300' : (Number(historyCustomer?.current_balance || 0) < 0 ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-300')">
+                                    {{ Number(historyCustomer?.current_balance || 0) > 0 ? `Owes ${money(historyCustomer?.current_balance || 0)}` : (Number(historyCustomer?.current_balance || 0) < 0 ? `Advance ${money(Math.abs(Number(historyCustomer?.current_balance || 0)))}` : 'Rs. 0 (Settled)') }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search and Type Filter Bar inside Modal -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-3">
+                        <div class="relative flex-1 min-w-[220px]">
+                            <Search class="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                            <input
+                                v-model="ledgerSearchQuery"
+                                type="text"
+                                placeholder="Search by Ref #, Notes, Staff, Payment Method..."
+                                class="h-9 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-xs font-semibold text-slate-900 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            />
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <select
+                                v-model="ledgerTypeFilter"
+                                class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                            >
+                                <option value="all">All Transactions</option>
+                                <option value="sale">Sale Invoices</option>
+                                <option value="payment">Due Payments</option>
+                                <option value="advance">Advances Received</option>
+                                <option value="advance_return">Advances Returned</option>
+                                <option value="return">Sale Returns</option>
+                                <option value="adjustment">Adjustments</option>
+                            </select>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <!-- Ledger Records Table -->
+                <div class="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs my-2.5 [scrollbar-width:thin]">
+                    <table class="w-full text-left text-xs">
+                        <thead class="sticky top-0 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300 z-10 shadow-xs">
                             <tr>
-                                <th class="p-2.5">Date</th>
-                                <th class="p-2.5">Type</th>
-                                <th class="p-2.5">Notes</th>
-                                <th class="p-2.5 text-right">Amount</th>
-                                <th class="p-2.5 text-right">Balance</th>
+                                <th class="px-3.5 py-2.5">Date & Time</th>
+                                <th class="px-3.5 py-2.5">Ref / Tx ID</th>
+                                <th class="px-3.5 py-2.5 text-center">Type</th>
+                                <th class="px-3.5 py-2.5 text-center">Mode</th>
+                                <th class="px-3.5 py-2.5">Staff</th>
+                                <th class="px-3.5 py-2.5">Notes</th>
+                                <th class="px-3.5 py-2.5 text-right">Debit (+)</th>
+                                <th class="px-3.5 py-2.5 text-right">Credit (-)</th>
+                                <th class="px-3.5 py-2.5 text-right">Running Balance</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y">
-                            <tr
-                                v-if="
-                                    !historyCustomer?.ledgers ||
-                                    historyCustomer.ledgers.length === 0
-                                "
-                            >
-                                <td
-                                    colspan="5"
-                                    class="p-4 text-center text-gray-500"
-                                >
-                                    No history records found.
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                            <tr v-if="filteredLedgers.length === 0">
+                                <td colspan="9" class="py-16 text-center text-xs text-slate-400">
+                                    <History class="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                                    <div class="font-bold text-slate-600 dark:text-slate-300">No Ledger Transactions</div>
+                                    <div class="text-[11px] mt-0.5">No financial entries match your search criteria.</div>
                                 </td>
                             </tr>
                             <tr
-                                v-for="item in historyCustomer?.ledgers"
+                                v-for="item in paginatedLedgers"
                                 :key="item.id"
-                                class="hover:bg-gray-50"
+                                class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                             >
-                                <td class="p-2.5 text-[11px] text-gray-600">
+                                <td class="px-3.5 py-2.5 text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
                                     {{
-                                        new Date(
-                                            item.created_at,
-                                        ).toLocaleDateString('en-PK')
+                                        new Date(item.created_at).toLocaleString('en-PK', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })
                                     }}
                                 </td>
-                                <td class="p-2.5 font-semibold capitalize">
-                                    {{ item.type }}
+                                <td class="px-3.5 py-2.5 font-mono font-bold text-slate-900 dark:text-slate-200">
+                                    {{ item.reference_id || `#TX-${item.id}` }}
                                 </td>
-                                <td class="p-2.5 text-gray-500">
+                                <td class="px-3.5 py-2.5 text-center">
+                                    <span
+                                        v-if="item.type === 'sale'"
+                                        class="inline-block rounded-lg border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300"
+                                    >
+                                        Sale Invoice
+                                    </span>
+                                    <span
+                                        v-else-if="item.type === 'payment'"
+                                        class="inline-block rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300"
+                                    >
+                                        Due Payment
+                                    </span>
+                                    <span
+                                        v-else-if="item.type === 'advance'"
+                                        class="inline-block rounded-lg border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-black text-sky-700 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300"
+                                    >
+                                        Advance Deposit
+                                    </span>
+                                    <span
+                                        v-else-if="item.type === 'advance_return'"
+                                        class="inline-block rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                                    >
+                                        Advance Refund
+                                    </span>
+                                    <span
+                                        v-else-if="item.type === 'return'"
+                                        class="inline-block rounded-lg border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300"
+                                    >
+                                        Sale Return
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="inline-block rounded-lg border border-purple-200 bg-purple-50 px-2 py-0.5 text-[10px] font-black text-purple-700 dark:border-purple-900 dark:bg-purple-950 dark:text-purple-300 capitalize"
+                                    >
+                                        {{ item.type }}
+                                    </span>
+                                </td>
+                                <td class="px-3.5 py-2.5 text-center uppercase text-[10px] font-black text-slate-600 dark:text-slate-400">
+                                    {{ item.payment_method || '-' }}
+                                </td>
+                                <td class="px-3.5 py-2.5 text-slate-700 dark:text-slate-300 font-bold">
+                                    {{ item.user?.name || 'Staff' }}
+                                </td>
+                                <td class="px-3.5 py-2.5 text-slate-500 max-w-xs truncate" :title="item.notes || ''">
                                     {{ item.notes || '-' }}
                                 </td>
-                                <td
-                                    :class="[
-                                        'p-2.5 text-right font-bold',
-                                        item.type === 'payment'
-                                            ? 'text-emerald-600 dark:text-emerald-400'
-                                            : 'text-amber-600 dark:text-amber-400',
-                                    ]"
-                                >
-                                    {{ item.type === 'payment' ? '-' : '+'
-                                    }}{{ money(item.amount) }}
+                                <!-- Debit (Increases debt): Sale, Advance Refund -->
+                                <td class="px-3.5 py-2.5 text-right font-black text-amber-700 dark:text-amber-400">
+                                    <span v-if="item.type === 'sale' || item.type === 'advance_return'">
+                                        {{ money(item.amount) }}
+                                    </span>
+                                    <span v-else class="text-slate-300 dark:text-slate-700">-</span>
                                 </td>
-                                <td class="p-2.5 text-right font-bold">
+                                <!-- Credit (Decreases debt): Payment, Advance Received, Return -->
+                                <td class="px-3.5 py-2.5 text-right font-black text-emerald-700 dark:text-emerald-400">
+                                    <span v-if="item.type === 'payment' || item.type === 'advance' || item.type === 'return'">
+                                        {{ money(item.amount) }}
+                                    </span>
+                                    <span v-else class="text-slate-300 dark:text-slate-700">-</span>
+                                </td>
+                                <td class="px-3.5 py-2.5 text-right font-black" :class="Number(item.balance_after) > 0 ? 'text-amber-700 dark:text-amber-400' : (Number(item.balance_after) < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-600')">
                                     {{ money(item.balance_after) }}
                                 </td>
                             </tr>
@@ -1252,84 +1931,98 @@ const statementExportUrl = (customer: CustomerItem, format: 'csv' | 'xlsx') => {
                     </table>
                 </div>
 
-                <DialogFooter class="flex items-center gap-2 pt-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        class="gap-1.5 text-xs"
-                        :disabled="printStatementLoading"
-                        @click="
-                            historyCustomer && printStatement(historyCustomer)
-                        "
-                    >
-                        <Printer class="h-3.5 w-3.5" />
-                        {{
-                            printStatementLoading
-                                ? 'Preparing...'
-                                : 'Print Statement'
-                        }}
-                    </Button>
-                    <DropdownMenu v-if="historyCustomer">
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                class="gap-1.5 text-xs"
-                            >
-                                <Download class="h-3.5 w-3.5" /> Export
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            align="end"
-                            class="w-56 rounded-xl p-1.5"
+                <!-- Ledger Pagination Bar -->
+                <div v-if="filteredLedgers.length > ledgerPerPage" class="flex items-center justify-between border-t border-slate-100 px-1 pt-2 dark:border-slate-800 shrink-0 text-xs">
+                    <span class="text-slate-500 font-medium">
+                        Showing {{ (ledgerPage - 1) * ledgerPerPage + 1 }} to {{ Math.min(ledgerPage * ledgerPerPage, filteredLedgers.length) }} of {{ filteredLedgers.length }} records
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-7 text-xs font-bold rounded-lg"
+                            :disabled="ledgerPage <= 1"
+                            @click="ledgerPage--"
                         >
-                            <DropdownMenuLabel class="px-2 py-1 text-xs">
-                                Download Statement
-                            </DropdownMenuLabel>
-                            <DropdownMenuItem :as-child="true">
-                                <a
-                                    class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
-                                    :href="
-                                        statementExportUrl(
-                                            historyCustomer,
-                                            'csv',
-                                        )
-                                    "
+                            Previous
+                        </Button>
+                        <span class="px-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Page {{ ledgerPage }} of {{ totalLedgerPages }}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-7 text-xs font-bold rounded-lg"
+                            :disabled="ledgerPage >= totalLedgerPages"
+                            @click="ledgerPage++"
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+
+                <!-- Dialog Footer -->
+                <DialogFooter class="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                    <div class="text-xs text-slate-500 font-bold">
+                        Total {{ filteredLedgers.length }} of {{ historyCustomer?.ledgers?.length || 0 }} records
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="gap-1.5 text-xs rounded-xl font-bold"
+                            :disabled="printStatementLoading"
+                            @click="historyCustomer && printStatement(historyCustomer)"
+                        >
+                            <Printer class="h-3.5 w-3.5" />
+                            {{ printStatementLoading ? 'Preparing...' : 'Print Statement' }}
+                        </Button>
+                        <DropdownMenu v-if="historyCustomer">
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    class="gap-1.5 text-xs rounded-xl font-bold"
                                 >
-                                    <FileSpreadsheet
-                                        class="h-4 w-4 shrink-0 text-emerald-600"
-                                    />
-                                    Export as CSV
-                                </a>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem :as-child="true">
-                                <a
-                                    class="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium"
-                                    :href="
-                                        statementExportUrl(
-                                            historyCustomer,
-                                            'xlsx',
-                                        )
-                                    "
-                                >
-                                    <FileSpreadsheet
-                                        class="h-4 w-4 shrink-0 text-blue-600"
-                                    />
-                                    Export as Excel (XLSX)
-                                </a>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        @click="isHistoryModalOpen = false"
-                        class="text-xs"
-                    >
-                        Close
-                    </Button>
+                                    <Download class="h-3.5 w-3.5" />
+                                    <span>Export</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" class="w-56 rounded-2xl p-1.5 shadow-xl">
+                                <DropdownMenuLabel class="px-2.5 py-1 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Download Statement
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem :as-child="true">
+                                    <a
+                                        class="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                        :href="statementExportUrl(historyCustomer, 'csv')"
+                                    >
+                                        <FileSpreadsheet class="h-4 w-4 shrink-0 text-emerald-600" />
+                                        <span>Export as CSV</span>
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem :as-child="true">
+                                    <a
+                                        class="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                        :href="statementExportUrl(historyCustomer, 'xlsx')"
+                                    >
+                                        <FileSpreadsheet class="h-4 w-4 shrink-0 text-blue-600" />
+                                        <span>Export as Excel (XLSX)</span>
+                                    </a>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isHistoryModalOpen = false"
+                            class="rounded-xl font-bold text-xs"
+                        >
+                            Close
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

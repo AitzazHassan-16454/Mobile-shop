@@ -11,6 +11,10 @@ export interface ReceiptItem {
         brand: string;
         is_serialized?: boolean;
     };
+    product_imei?: {
+        imei_1?: string;
+        imei_2?: string;
+    } | null;
     quantity: number;
     unit_price: number | string;
     line_total: number | string;
@@ -18,27 +22,38 @@ export interface ReceiptItem {
 }
 
 export interface ReceiptCustomer {
+    id?: number;
     name: string;
     phone?: string | null;
     cnic?: string | null;
+    current_balance?: number | string;
 }
 
 export interface ReceiptData {
+    id?: number;
     invoice_no: string;
     created_at?: string;
     cashier_name?: string;
     cashier?: { name: string };
+    salesman?: { name: string } | null;
     customer?: ReceiptCustomer | null;
     payment_method?: string;
+    payment_details?: Record<string, number> | null;
     items: ReceiptItem[];
     total_amount: number | string;
     discount_amount?: number | string;
     discount_code?: string | null;
     trade_in_amount?: number | string;
+    used_phone_purchase?: {
+        device_model?: string;
+        purchase_amount?: number | string;
+    } | null;
     net_amount: number | string;
     paid_amount?: number | string;
     change_amount?: number | string;
     due_balance?: number | string;
+    previous_customer_balance?: number | string;
+    new_customer_balance?: number | string;
 }
 
 export interface ShopInfo {
@@ -60,11 +75,12 @@ const props = withDefaults(
     {
         shopInfo: () => ({
             name: 'FAIZAN MOBILE & POS',
-            tagline: 'Smartphones • Accessories • Mobile Repairing',
+            tagline: 'Smartphones • Accessories • Repairs • Trade-In',
             address: 'Main Mobile Market, Shop # 12, Lahore',
-            phone: '+92 300 1234567',
+            phone: '+92 300 1234567 / +92 321 9876543',
+            ntn: '7482910-3',
             return_policy:
-                '7 Days checking warranty. Accessories warranty valid with original box & receipt.',
+                '7 Days checking warranty. Claim valid with original box & receipt. No cash refund on opened items.',
         }),
         paperWidth: '80mm',
         showBarcode: true,
@@ -72,7 +88,8 @@ const props = withDefaults(
 );
 
 const formattedDate = computed(() => {
-    if (!props.receipt?.created_at) {
+    const raw = props.receipt?.created_at;
+    if (!raw) {
         return new Date().toLocaleString('en-PK', {
             day: '2-digit',
             month: 'short',
@@ -82,7 +99,7 @@ const formattedDate = computed(() => {
             hour12: true,
         });
     }
-    return new Date(props.receipt.created_at).toLocaleString('en-PK', {
+    return new Date(raw).toLocaleString('en-PK', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -94,9 +111,10 @@ const formattedDate = computed(() => {
 
 const cashierName = computed(() => {
     return (
+        props.receipt?.salesman?.name ||
         props.receipt?.cashier?.name ||
         props.receipt?.cashier_name ||
-        'Counter Cashier'
+        'Cashier Counter'
     );
 });
 
@@ -104,9 +122,16 @@ const formatCurrency = (val: number | string | undefined | null) => {
     return `Rs. ${Number(val || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`;
 };
 
+const formatBalanceLabel = (val: number | string | undefined | null) => {
+    const num = Number(val || 0);
+    if (num > 0) return `Rs. ${num.toLocaleString('en-PK')} (Due)`;
+    if (num < 0) return `Rs. ${Math.abs(num).toLocaleString('en-PK')} (Advance)`;
+    return 'Rs. 0 (Clear)';
+};
+
 const barcodeSvg = computed(() => {
     if (!props.receipt?.invoice_no) return '';
-    return generateBarcodeSvg(props.receipt.invoice_no, 36);
+    return generateBarcodeSvg(props.receipt.invoice_no, 38);
 });
 
 const getItemName = (item: any) => {
@@ -126,6 +151,14 @@ const getItemName = (item: any) => {
     return 'Item';
 };
 
+const getItemImeis = (item: any) => {
+    const list: string[] = [];
+    if (item.imei) list.push(item.imei);
+    if (item.product_imei?.imei_1) list.push(item.product_imei.imei_1);
+    if (item.product_imei?.imei_2) list.push(item.product_imei.imei_2);
+    return [...new Set(list)];
+};
+
 const getUnitPrice = (item: any) => {
     return Number(item.unit_price || item.price || 0);
 };
@@ -142,31 +175,41 @@ const getLineTotal = (item: any) => {
     const price = getUnitPrice(item);
     return qty * price;
 };
+
+const tradeInDeviceName = computed(() => {
+    if (props.receipt?.used_phone_purchase?.device_model) {
+        return props.receipt.used_phone_purchase.device_model;
+    }
+    return 'Used Handset';
+});
 </script>
 
 <template>
     <div
         id="thermal-invoice-printable"
-        class="thermal-receipt-container rounded-xl border border-slate-200 bg-white p-4 font-mono text-[11px] leading-snug text-black shadow-sm select-none"
+        class="thermal-receipt-container font-mono text-[11px] leading-snug text-black select-none bg-white p-3 border border-slate-300 rounded-xl shadow-sm"
         :class="
-            paperWidth === '58mm' ? 'max-w-[240px]' : 'mx-auto max-w-[320px]'
+            paperWidth === '58mm' ? 'max-w-[240px]' : 'mx-auto max-w-[340px]'
         "
     >
-        <!-- Header Branding -->
-        <div class="space-y-1 border-b-2 border-black pb-2 text-center">
-            <h2 class="text-base font-black tracking-tight uppercase">
-                {{ shopInfo.name }}
-            </h2>
+        <!-- Modern Header Branding -->
+        <div class="border-b-2 border-black pb-2 text-center">
+            <div class="mb-1 flex items-center justify-center gap-1.5">
+                <span class="inline-block h-3 w-3 rounded-full bg-black"></span>
+                <h2 class="text-base font-black tracking-tight uppercase">
+                    {{ shopInfo.name }}
+                </h2>
+            </div>
             <p
                 v-if="shopInfo.tagline"
-                class="text-[9px] leading-tight font-bold text-slate-700 uppercase"
+                class="text-[9px] font-bold text-slate-800 uppercase tracking-wide"
             >
                 {{ shopInfo.tagline }}
             </p>
-            <p class="text-[10px] leading-tight">
+            <p class="text-[9.5px] mt-0.5 leading-tight font-medium">
                 {{ shopInfo.address }}
             </p>
-            <p class="text-[10px] font-semibold">
+            <p class="text-[9.5px] font-semibold">
                 Ph: {{ shopInfo.phone }}
                 <span v-if="shopInfo.ntn" class="ml-1"
                     >| NTN: {{ shopInfo.ntn }}</span
@@ -175,50 +218,65 @@ const getLineTotal = (item: any) => {
         </div>
 
         <!-- Receipt Title Banner -->
-        <div
-            class="my-1 border-b border-dashed border-black py-1.5 text-center"
-        >
+        <div class="my-1.5 border-b border-dashed border-black py-1 text-center">
             <span
-                class="rounded border border-black px-2 py-0.5 text-xs font-black tracking-widest uppercase"
+                class="inline-block rounded border border-black px-2.5 py-0.5 text-xs font-black tracking-wider uppercase bg-slate-100"
             >
-                RETAIL CASH INVOICE
+                CASH / KHATA SALE INVOICE
             </span>
         </div>
 
         <!-- Metadata Section -->
-        <div class="space-y-0.5 border-b border-black py-1 text-[10px]">
+        <div class="space-y-1 border-b border-black pb-1.5 text-[10px]">
             <div class="flex justify-between">
                 <span class="font-bold">INVOICE #:</span>
                 <span class="text-xs font-black">{{ receipt.invoice_no }}</span>
             </div>
             <div class="flex justify-between">
                 <span>DATE/TIME:</span>
-                <span>{{ formattedDate }}</span>
+                <span class="font-medium">{{ formattedDate }}</span>
             </div>
             <div class="flex justify-between">
-                <span>CASHIER:</span>
-                <span class="font-semibold">{{ cashierName }}</span>
+                <span>SALESPERSON:</span>
+                <span class="font-bold">{{ cashierName }}</span>
             </div>
             <div class="flex justify-between" v-if="receipt.payment_method">
                 <span>PAYMENT TYPE:</span>
-                <span class="font-bold uppercase">{{
-                    receipt.payment_method
-                }}</span>
+                <span class="font-extrabold uppercase bg-slate-100 px-1 rounded border border-slate-300">
+                    {{ receipt.payment_method }}
+                </span>
             </div>
+
+            <!-- Customer Details -->
             <div
                 v-if="receipt.customer"
-                class="flex justify-between border-t border-dotted border-slate-400 pt-1"
+                class="mt-1 border-t border-dashed border-slate-400 pt-1 space-y-0.5"
             >
-                <span class="font-bold">CUSTOMER:</span>
-                <span class="max-w-[140px] truncate text-right font-bold">
-                    {{ receipt.customer.name }}
-                    <span
-                        v-if="receipt.customer.phone"
-                        class="block text-[9px] font-normal text-slate-600"
-                    >
-                        {{ receipt.customer.phone }}
+                <div class="flex justify-between">
+                    <span class="font-bold">CUSTOMER:</span>
+                    <span class="font-extrabold text-right">
+                        {{ receipt.customer.name }}
                     </span>
-                </span>
+                </div>
+                <div v-if="receipt.customer.phone" class="flex justify-between text-[9.5px]">
+                    <span>CONTACT:</span>
+                    <span class="font-mono">{{ receipt.customer.phone }}</span>
+                </div>
+
+                <!-- Ledger Balance Summary (Before & After Sale) -->
+                <div
+                    v-if="receipt.previous_customer_balance !== undefined || receipt.customer.current_balance !== undefined"
+                    class="mt-1 rounded border border-slate-300 bg-slate-50 p-1 text-[9px] space-y-0.5"
+                >
+                    <div v-if="receipt.previous_customer_balance !== undefined" class="flex justify-between">
+                        <span>PREV KHATA BAL:</span>
+                        <span class="font-bold">{{ formatBalanceLabel(receipt.previous_customer_balance) }}</span>
+                    </div>
+                    <div v-if="receipt.new_customer_balance !== undefined || receipt.customer.current_balance !== undefined" class="flex justify-between border-t border-slate-200 pt-0.5 font-extrabold">
+                        <span>NEW KHATA BAL:</span>
+                        <span>{{ formatBalanceLabel(receipt.new_customer_balance ?? receipt.customer.current_balance) }}</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -226,13 +284,9 @@ const getLineTotal = (item: any) => {
         <div class="border-b-2 border-black py-2">
             <table class="w-full table-fixed text-left text-[10px]">
                 <thead>
-                    <tr
-                        class="border-b border-black text-[9px] font-black uppercase"
-                    >
-                        <th class="w-6 py-0.5 text-left">QTY</th>
-                        <th class="w-auto py-0.5 text-left">
-                            ITEM DESCRIPTION
-                        </th>
+                    <tr class="border-b-2 border-black text-[9px] font-black uppercase">
+                        <th class="w-5 py-0.5 text-left">QTY</th>
+                        <th class="w-auto py-0.5 text-left">ITEM & IMEI / SN</th>
                         <th class="w-12 py-0.5 text-right">PRICE</th>
                         <th class="w-14 py-0.5 text-right">TOTAL</th>
                     </tr>
@@ -240,35 +294,28 @@ const getLineTotal = (item: any) => {
                 <tbody class="divide-y divide-dashed divide-slate-300">
                     <template v-for="(item, idx) in receipt.items" :key="idx">
                         <tr>
-                            <td class="py-1 text-center align-top font-bold">
+                            <td class="py-1 text-center align-top font-black">
                                 {{ item.quantity }}
                             </td>
-                            <td
-                                class="py-1 pr-1 align-top font-bold break-words"
-                            >
-                                {{ getItemName(item) }}
+                            <td class="py-1 pr-1 align-top break-words">
+                                <div class="font-bold text-slate-900 leading-snug">
+                                    {{ getItemName(item) }}
+                                </div>
+
+                                <!-- IMEI / Serial Numbers -->
                                 <div
-                                    v-if="
-                                        item.imei ||
-                                        (item as any).product_imei?.imei_1
-                                    "
-                                    class="font-mono text-[9px] font-normal tracking-tight text-slate-700"
+                                    v-if="getItemImeis(item).length > 0"
+                                    class="mt-0.5 font-mono text-[8.5px] font-bold text-slate-700 bg-slate-100 px-1 py-0.5 rounded inline-block"
                                 >
-                                    S/N:
-                                    {{
-                                        item.imei ||
-                                        (item as any).product_imei?.imei_1
-                                    }}
+                                    <span v-for="(imeiNum, i) in getItemImeis(item)" :key="i" class="block">
+                                        IMEI {{ i + 1 }}: {{ imeiNum }}
+                                    </span>
                                 </div>
                             </td>
-                            <td
-                                class="py-1 text-right align-top whitespace-nowrap"
-                            >
+                            <td class="py-1 text-right align-top whitespace-nowrap font-medium">
                                 {{ getUnitPrice(item).toLocaleString('en-PK') }}
                             </td>
-                            <td
-                                class="py-1 text-right align-top font-bold whitespace-nowrap"
-                            >
+                            <td class="py-1 text-right align-top font-black whitespace-nowrap">
                                 {{ getLineTotal(item).toLocaleString('en-PK') }}
                             </td>
                         </tr>
@@ -281,88 +328,77 @@ const getLineTotal = (item: any) => {
         <div class="space-y-1 border-b-2 border-black py-1.5 text-[10px]">
             <div class="flex justify-between">
                 <span>SUBTOTAL:</span>
-                <span class="font-bold">{{
-                    formatCurrency(receipt.total_amount)
-                }}</span>
+                <span class="font-bold">{{ formatCurrency(receipt.total_amount) }}</span>
             </div>
 
-            <div
-                v-if="Number(receipt.discount_amount) > 0"
-                class="flex justify-between font-semibold"
-            >
-                <span
-                    >DISCOUNT
-                    {{
-                        receipt.discount_code
-                            ? `(${receipt.discount_code})`
-                            : ''
-                    }}:</span
-                >
+            <div v-if="Number(receipt.discount_amount) > 0" class="flex justify-between font-semibold text-rose-700">
+                <span>DISCOUNT {{ receipt.discount_code ? `(${receipt.discount_code})` : '' }}:</span>
                 <span>-{{ formatCurrency(receipt.discount_amount) }}</span>
             </div>
 
-            <div
-                v-if="Number(receipt.trade_in_amount) > 0"
-                class="flex justify-between text-[10px] font-bold"
-            >
-                <span>TRADE-IN CREDIT:</span>
-                <span class="text-black"
-                    >-{{ formatCurrency(receipt.trade_in_amount) }}</span
-                >
+            <div v-if="Number(receipt.trade_in_amount) > 0" class="flex justify-between font-bold text-amber-800">
+                <span>TRADE-IN ({{ tradeInDeviceName }}):</span>
+                <span>-{{ formatCurrency(receipt.trade_in_amount) }}</span>
             </div>
 
-            <!-- Net Total Highlight Box -->
-            <div
-                class="my-1 flex justify-between rounded border-2 border-black bg-slate-100 px-1.5 py-1 text-xs font-black"
-            >
-                <span>NET TOTAL:</span>
+            <!-- Net Total Box -->
+            <div class="my-1 flex justify-between rounded border-2 border-black bg-slate-100 px-1.5 py-1 text-xs font-black">
+                <span>NET PAYABLE:</span>
                 <span>{{ formatCurrency(receipt.net_amount) }}</span>
             </div>
 
-            <div class="flex justify-between">
+            <!-- Payment Details & Split Breakdown -->
+            <div class="flex justify-between font-bold">
                 <span>PAID AMOUNT:</span>
-                <span class="font-bold">{{
-                    formatCurrency(receipt.paid_amount || receipt.net_amount)
-                }}</span>
+                <span>{{ formatCurrency(receipt.paid_amount || receipt.net_amount) }}</span>
             </div>
 
-            <div
-                v-if="Number(receipt.change_amount) > 0"
-                class="flex justify-between font-bold"
-            >
+            <div v-if="receipt.payment_details && Object.keys(receipt.payment_details).length > 0" class="rounded border border-slate-200 bg-slate-50 p-1 text-[9px] space-y-0.5 my-1">
+                <div class="font-black border-b border-slate-200 pb-0.5 uppercase">Tender Breakdown:</div>
+                <div v-for="(amt, pkey) in receipt.payment_details" :key="pkey" class="flex justify-between capitalize">
+                    <span>{{ pkey }}:</span>
+                    <span class="font-bold">Rs. {{ Number(amt).toLocaleString('en-PK') }}</span>
+                </div>
+            </div>
+
+            <div v-if="Number(receipt.change_amount) > 0" class="flex justify-between font-bold text-emerald-700">
                 <span>CHANGE RETURN:</span>
                 <span>{{ formatCurrency(receipt.change_amount) }}</span>
             </div>
 
-            <div
-                v-if="Number(receipt.due_balance) > 0"
-                class="flex justify-between font-bold text-rose-700"
-            >
-                <span>BALANCE DUE (KHATA):</span>
+            <div v-if="Number(receipt.due_balance) > 0" class="flex justify-between font-extrabold text-rose-700">
+                <span>UNPAID DUE ADDED:</span>
                 <span>{{ formatCurrency(receipt.due_balance) }}</span>
             </div>
         </div>
 
-        <!-- Invoice Barcode SVG -->
-        <div
-            v-if="showBarcode && receipt.invoice_no"
-            class="border-b border-dashed border-black py-2 text-center"
-        >
+        <!-- Barcode SVG -->
+        <div v-if="showBarcode && receipt.invoice_no" class="border-b border-dashed border-black py-2 text-center">
             <div class="mx-auto w-48 py-1" v-html="barcodeSvg"></div>
-            <div class="font-mono text-[9px] font-bold tracking-widest">
-                {{ receipt.invoice_no }}
+            <div class="font-mono text-[9px] font-bold tracking-widest uppercase">
+                * {{ receipt.invoice_no }} *
+            </div>
+        </div>
+
+        <!-- Signature & Stamp Section -->
+        <div class="grid grid-cols-2 gap-2 pt-3 text-[8.5px] font-bold text-center">
+            <div class="border-t border-slate-400 pt-1">
+                Customer Signature
+            </div>
+            <div class="border-t border-slate-400 pt-1">
+                Shop Stamp & Signature
             </div>
         </div>
 
         <!-- Terms, Policy & Footer -->
-        <div class="space-y-1 pt-2 text-center text-[9px] leading-tight">
-            <p class="font-bold tracking-tight uppercase">
+        <div class="space-y-1 pt-2.5 text-center text-[8.5px] leading-tight">
+            <p class="font-black tracking-tight uppercase">
                 *** TERMS & CONDITIONS ***
             </p>
-            <p class="text-slate-700">
+            <p class="text-slate-800">
                 {{ shopInfo.return_policy }}
             </p>
-            <p class="pt-1 text-[10px] font-black tracking-wider uppercase">
+            <p class="pt-1 text-[9.5px] font-black tracking-wider uppercase">
                 *** THANK YOU FOR YOUR VISIT! ***
             </p>
         </div>

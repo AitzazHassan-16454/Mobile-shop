@@ -26,8 +26,10 @@ class ProductImeiController extends Controller
             'storage' => ['nullable', 'string', 'max:255'],
             'condition' => ['required', 'string', 'in:new,used'],
             'pta_status' => ['required', 'string', 'in:approved,non_pta,jv,cpid,software'],
-            'purchase_cost' => ['required', 'numeric', 'min:0'],
+            'purchase_cost' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'warranty_days' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'purchase_cost.max' => 'The purchase cost cannot exceed Rs 1,000,000 (1 Million) / خریداری لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $validated['status'] = 'in_stock';
@@ -49,11 +51,13 @@ class ProductImeiController extends Controller
             'storage' => ['nullable', 'string', 'max:255'],
             'condition' => ['required', 'string', 'in:new,used'],
             'pta_status' => ['required', 'string', 'in:approved,non_pta,jv,cpid,software'],
-            'purchase_cost' => ['required', 'numeric', 'min:0'],
+            'purchase_cost' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'warranty_days' => ['nullable', 'integer', 'min:0'],
             'imeis' => ['required', 'array', 'min:1'],
             'imeis.*.imei_1' => ['required', 'string', 'max:255', 'distinct', 'unique:product_imeis,imei_1'],
             'imeis.*.imei_2' => ['nullable', 'string', 'max:255', 'distinct', 'different:imeis.*.imei_1', 'unique:product_imeis,imei_2'],
+        ], [
+            'purchase_cost.max' => 'The purchase cost cannot exceed Rs 1,000,000 (1 Million) / خریداری لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         DB::transaction(function () use ($product, $common) {
@@ -86,9 +90,11 @@ class ProductImeiController extends Controller
             'storage' => ['nullable', 'string', 'max:255'],
             'condition' => ['required', 'string', 'in:new,used'],
             'pta_status' => ['required', 'string', 'in:approved,non_pta,jv,cpid,software'],
-            'purchase_cost' => ['required', 'numeric', 'min:0'],
+            'purchase_cost' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'warranty_days' => ['nullable', 'integer', 'min:0'],
             'status' => ['required', 'string', 'in:in_stock,sold,repairing,returned'],
+        ], [
+            'purchase_cost.max' => 'The purchase cost cannot exceed Rs 1,000,000 (1 Million) / خریداری لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $imei->update($validated);

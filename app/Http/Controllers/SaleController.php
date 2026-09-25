@@ -96,14 +96,16 @@ class SaleController extends Controller
         $validated = $request->validate([
             'customer_id' => ['nullable', 'exists:customers,id'],
             'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card,split,udhaar'],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'paid_amount' => ['required', 'numeric', 'min:0'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'paid_amount' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'payment_details' => ['nullable', 'array'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.product_imei_id' => ['nullable', 'exists:product_imeis,id'],
-            'items.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:1000000'],
+        ], [
+            'items.*.unit_price.max' => 'Item unit price cannot exceed Rs 1,000,000 (1 Million) / پراڈکٹ کی فی یونٹ قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $discountAmount = (float) ($validated['discount_amount'] ?? 0.00);

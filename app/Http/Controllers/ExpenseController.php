@@ -108,7 +108,7 @@ class ExpenseController extends Controller
     {
         $validated = $request->validate([
             'category' => ['required', 'string', 'max:255'],
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'register_shift_id' => ['nullable', 'exists:register_shifts,id'],
         ]);
@@ -139,7 +139,7 @@ class ExpenseController extends Controller
     {
         $validated = $request->validate([
             'category' => ['required', 'string', 'max:255'],
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 

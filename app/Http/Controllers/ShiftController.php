@@ -96,14 +96,19 @@ class ShiftController extends Controller
             $activeShiftData = null;
         }
 
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [10, 15, 25, 50, 100, 250, 500], true)) {
+            $perPage = 15;
+        }
+
         $pastShifts = RegisterShift::query()
             ->with('user')
             ->orderBy('created_at', 'desc')
-            ->take(20)
-            ->get()
-            ->map(fn (RegisterShift $s) => [
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (RegisterShift $s) => [
                 'id' => $s->id,
-                'cashier' => $s->user->name,
+                'cashier' => $s->user?->name ?? 'Cashier',
                 'opened_at' => $s->opened_at->format('Y-m-d H:i'),
                 'closed_at' => $s->closed_at?->format('Y-m-d H:i'),
                 'opening_float' => (float) $s->opening_float,
@@ -124,7 +129,7 @@ class ShiftController extends Controller
     public function open(Request $request, string $currentTeam): RedirectResponse
     {
         $validated = $request->validate([
-            'opening_float' => ['required', 'numeric', 'min:0'],
+            'opening_float' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
         ]);
 
         $existingOpen = RegisterShift::query()
@@ -150,7 +155,7 @@ class ShiftController extends Controller
     {
         $validated = $request->validate([
             'category' => ['required', 'string', 'max:255'],
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -177,7 +182,7 @@ class ShiftController extends Controller
     public function close(Request $request, string $currentTeam): RedirectResponse
     {
         $validated = $request->validate([
-            'actual_cash' => ['required', 'numeric', 'min:0'],
+            'actual_cash' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 

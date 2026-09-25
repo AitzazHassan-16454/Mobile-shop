@@ -119,25 +119,29 @@ class PosController extends Controller
             'salesman_id' => ['nullable', 'exists:users,id'],
             'sale_date' => ['nullable', 'date'],
             'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card,split,udhaar'],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'trade_in_purchase_id' => ['nullable', 'exists:used_phone_purchases,id'],
-            'paid_amount' => ['required', 'numeric', 'min:0'],
+            'paid_amount' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'payment_details' => ['nullable', 'array'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.product_imei_id' => ['nullable', 'exists:product_imeis,id'],
-            'items.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:1000000'],
+        ], [
+            'items.*.unit_price.max' => 'Item unit price cannot exceed Rs 1,000,000 (1 Million) / پراڈکٹ کی فی یونٹ قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $discountAmount = (float) ($validated['discount_amount'] ?? 0.00);
         $paidAmount = (float) $validated['paid_amount'];
         $paymentMethod = $validated['payment_method'];
 
-        if ($paymentMethod === 'udhaar' && empty($validated['customer_id'])) {
-            throw ValidationException::withMessages([
-                'customer_id' => ['A customer must be selected for Udhaar (Khata) sales.'],
-            ]);
+        if (empty($validated['customer_id'])) {
+            if ($paymentMethod === 'udhaar') {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['Walk-In Customers cannot have due / Udhaar sales. Please select or register a customer account.'],
+                ]);
+            }
         }
 
         $completedSale = DB::transaction(function () use ($request, $validated, $discountAmount, $paidAmount, $paymentMethod) {
@@ -279,20 +283,52 @@ class PosController extends Controller
                 $sale->items()->create($lineData);
             }
 
-            if ($unpaidPortion > 0 && ! empty($validated['customer_id'])) {
+            if (! empty($validated['customer_id'])) {
                 $customer = Customer::lockForUpdate()->find($validated['customer_id']);
                 if ($customer) {
-                    $newBalance = round((float) $customer->current_balance + $unpaidPortion, 2);
-                    $customer->update(['current_balance' => $newBalance]);
+                    $oldBalance = (float) $customer->current_balance;
+                    $newBalance = $oldBalance;
 
-                    CustomerLedger::create([
-                        'customer_id' => $customer->id,
-                        'type' => 'sale',
-                        'amount' => $unpaidPortion,
-                        'balance_after' => $newBalance,
-                        'reference_id' => $invoiceNo,
-                        'notes' => "Unpaid balance from Invoice #{$invoiceNo}",
-                    ]);
+                    if ($paymentMethod === 'udhaar' || $paidAmount < $netAmount) {
+                        $unpaidPortion = max(0.00, round($netAmount - $paidAmount, 2));
+                        if ($unpaidPortion > 0) {
+                            $newBalance = round($oldBalance + $unpaidPortion, 2);
+                            $customer->update(['current_balance' => $newBalance]);
+
+                            CustomerLedger::create([
+                                'customer_id' => $customer->id,
+                                'user_id' => $cashierId,
+                                'type' => \App\Enums\LedgerType::Sale,
+                                'amount' => $unpaidPortion,
+                                'payment_method' => $paymentMethod,
+                                'balance_after' => $newBalance,
+                                'reference_id' => $invoiceNo,
+                                'notes' => "Unpaid balance added from Invoice #{$invoiceNo}",
+                            ]);
+                        }
+                    } elseif ($paidAmount > $netAmount && $oldBalance > 0) {
+                        $overpayment = round($paidAmount - $netAmount, 2);
+                        $debtSettled = min($oldBalance, $overpayment);
+                        $newBalance = round($oldBalance - $debtSettled, 2);
+                        $customer->update(['current_balance' => $newBalance]);
+
+                        CustomerLedger::create([
+                            'customer_id' => $customer->id,
+                            'user_id' => $cashierId,
+                            'type' => \App\Enums\LedgerType::Payment,
+                            'amount' => $debtSettled,
+                            'payment_method' => $paymentMethod,
+                            'balance_after' => $newBalance,
+                            'reference_id' => $invoiceNo,
+                            'notes' => "Previous debt payment from Invoice #{$invoiceNo} overpayment",
+                        ]);
+
+                        $changeAmount = max(0.00, round($overpayment - $debtSettled, 2));
+                        $sale->update(['change_amount' => $changeAmount]);
+                    }
+
+                    $sale->setAttribute('previous_customer_balance', $oldBalance);
+                    $sale->setAttribute('new_customer_balance', $newBalance);
                 }
             }
 
@@ -324,13 +360,15 @@ class PosController extends Controller
             'customer_id' => ['nullable', 'exists:customers,id'],
             'cashier_id' => ['nullable', 'exists:users,id'],
             'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card,split,udhaar'],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'paid_amount' => ['required', 'numeric', 'min:0'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'paid_amount' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
             'payment_details' => ['nullable', 'array'],
             'items' => ['nullable', 'array'],
             'items.*.id' => ['required_with:items', 'exists:sale_items,id'],
-            'items.*.quantity' => ['required_with:items', 'numeric', 'gt:0'],
-            'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required_with:items', 'numeric', 'gt:0', 'max:999999'],
+            'items.*.unit_price' => ['required_with:items', 'numeric', 'min:0', 'max:1000000'],
+        ], [
+            'items.*.unit_price.max' => 'Item unit price cannot exceed Rs 1,000,000 (1 Million) / پراڈکٹ کی فی یونٹ قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $discountAmount = (float) ($validated['discount_amount'] ?? 0.00);
@@ -379,7 +417,8 @@ class PosController extends Controller
             // Adjust previous customer balance if customer changed
             if ($sale->customer_id && $sale->customer_id != ($validated['customer_id'] ?? null)) {
                 $oldUnpaid = max(0.00, round((float) $sale->net_amount - (float) $sale->paid_amount, 2));
-                if ($oldUnpaid > 0 && $sale->payment_method->value === 'udhaar') {
+                $prevMethod = is_object($sale->payment_method) ? $sale->payment_method->value : (string) $sale->payment_method;
+                if ($oldUnpaid > 0 && $prevMethod === 'udhaar') {
                     $oldCustomer = Customer::lockForUpdate()->find($sale->customer_id);
                     if ($oldCustomer) {
                         $oldCustomer->decrement('current_balance', $oldUnpaid);
@@ -421,5 +460,117 @@ class PosController extends Controller
         return response()->json(
             $sale->fresh(['customer', 'cashier', 'items.product', 'items.productImei', 'usedPhonePurchase'])
         );
+    }
+
+    public function searchSalesForReturn(Request $request, string $currentTeam)
+    {
+        $search = trim($request->input('search', ''));
+        $invoiceNo = trim($request->input('invoice_no', ''));
+        $customerQuery = trim($request->input('customer', ''));
+        $date = $request->input('date');
+
+        $query = Sale::with([
+            'customer:id,name,phone,current_balance',
+            'cashier:id,name',
+            'items.product:id,name,brand,is_serialized',
+            'items.productImei:id,imei_1,imei_2,status,condition',
+            'items.returnItems',
+            'returns.items.product',
+            'returns.items.productImei',
+            'returns.user:id,name',
+        ])->latest();
+
+        if ($invoiceNo !== '') {
+            $query->where('invoice_no', 'like', "%{$invoiceNo}%");
+        }
+
+        if ($customerQuery !== '') {
+            $query->whereHas('customer', function ($cq) use ($customerQuery): void {
+                $cq->where('name', 'like', "%{$customerQuery}%")
+                    ->orWhere('phone', 'like', "%{$customerQuery}%");
+            });
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search): void {
+                $q->where('invoice_no', 'like', "%{$search}%")
+                    ->orWhereHas('customer', function ($cq) use ($search): void {
+                        $cq->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($date) {
+            $query->whereDate('created_at', $date);
+        }
+
+        $sales = $query->take(30)->get()->map(function (Sale $sale) {
+            $items = $sale->items->map(function (\App\Models\SaleItem $item) {
+                $returnedQty = (float) $item->returnItems->sum('quantity');
+                $purchasedQty = (float) $item->quantity;
+                $remainingQty = max(0.00, round($purchasedQty - $returnedQty, 2));
+
+                return [
+                    'id' => $item->id,
+                    'sale_id' => $item->sale_id,
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product?->name ?? 'Unknown Item',
+                    'is_serialized' => (bool) $item->product?->is_serialized,
+                    'product_imei_id' => $item->product_imei_id,
+                    'imei_1' => $item->productImei?->imei_1,
+                    'imei_status' => $item->productImei?->status?->value ?? null,
+                    'quantity' => $purchasedQty,
+                    'returned_quantity' => $returnedQty,
+                    'remaining_quantity' => $remainingQty,
+                    'unit_price' => (float) $item->unit_price,
+                    'line_total' => (float) $item->line_total,
+                    'is_returnable' => $remainingQty > 0,
+                ];
+            });
+
+            $totalReturned = (float) $sale->returns->sum('total_return_amount');
+            $totalRefunded = (float) $sale->returns->sum('refund_amount');
+            $dueAmount = max(0.00, round((float) $sale->net_amount - (float) $sale->paid_amount, 2));
+            $allRemainingQty = $items->sum('remaining_quantity');
+            $returnStatus = $allRemainingQty <= 0 ? 'fully_returned' : ($totalReturned > 0 ? 'partially_returned' : 'not_returned');
+
+            return [
+                'id' => $sale->id,
+                'invoice_no' => $sale->invoice_no,
+                'customer' => $sale->customer ? [
+                    'id' => $sale->customer->id,
+                    'name' => $sale->customer->name,
+                    'phone' => $sale->customer->phone,
+                    'current_balance' => (float) $sale->customer->current_balance,
+                ] : null,
+                'cashier' => $sale->cashier?->name,
+                'sale_date' => $sale->created_at->format('Y-m-d H:i'),
+                'total_amount' => (float) $sale->total_amount,
+                'discount_amount' => (float) $sale->discount_amount,
+                'trade_in_amount' => (float) $sale->trade_in_amount,
+                'net_amount' => (float) $sale->net_amount,
+                'paid_amount' => (float) $sale->paid_amount,
+                'change_amount' => (float) $sale->change_amount,
+                'due_amount' => $dueAmount,
+                'payment_method' => $sale->payment_method->value,
+                'items' => $items,
+                'total_returned_amount' => $totalReturned,
+                'total_refunded_amount' => $totalRefunded,
+                'return_status' => $returnStatus,
+                'returns_history' => $sale->returns->map(fn ($r) => [
+                    'id' => $r->id,
+                    'return_no' => $r->return_no,
+                    'created_at' => $r->created_at->format('Y-m-d H:i'),
+                    'total_return_amount' => (float) $r->total_return_amount,
+                    'refund_amount' => (float) $r->refund_amount,
+                    'refund_payment_method' => $r->refund_payment_method,
+                    'notes' => $r->notes,
+                    'user' => $r->user?->name,
+                ]),
+            ];
+        });
+
+        return response()->json($sales);
     }
 }

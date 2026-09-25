@@ -146,6 +146,36 @@ const filteredDeviceProfits = computed(() => {
     );
 });
 
+const deviceProfitPage = ref(1);
+const deviceProfitPerPage = ref(10);
+const paginatedDeviceProfits = computed(() => {
+    const start = (deviceProfitPage.value - 1) * deviceProfitPerPage.value;
+    return filteredDeviceProfits.value.slice(
+        start,
+        start + deviceProfitPerPage.value,
+    );
+});
+const totalDeviceProfitPages = computed(() =>
+    Math.ceil(filteredDeviceProfits.value.length / deviceProfitPerPage.value) || 1,
+);
+
+const slowMovingPage = ref(1);
+const slowMovingPerPage = ref(10);
+const paginatedSlowMoving = computed(() => {
+    const start = (slowMovingPage.value - 1) * slowMovingPerPage.value;
+    return (props.slowMovingStock || []).slice(
+        start,
+        start + slowMovingPerPage.value,
+    );
+});
+const totalSlowMovingPages = computed(() =>
+    Math.ceil((props.slowMovingStock?.length || 0) / slowMovingPerPage.value) || 1,
+);
+
+watch(searchDeviceQuery, () => {
+    deviceProfitPage.value = 1;
+});
+
 const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
@@ -483,7 +513,7 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                             </td>
                         </tr>
                         <tr
-                            v-for="d in filteredDeviceProfits"
+                            v-for="d in paginatedDeviceProfits"
                             :key="d.id"
                             class="hover:bg-gray-50"
                         >
@@ -542,6 +572,44 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div
+                v-if="filteredDeviceProfits.length > 0"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 bg-slate-50/50 px-6 py-3.5 sm:flex-row dark:border-slate-800 dark:bg-slate-800/20"
+            >
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ paginatedDeviceProfits.length }}</span>
+                    of
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ filteredDeviceProfits.length }}</span>
+                    sold handsets
+                </div>
+
+                <div v-if="totalDeviceProfitPages > 1" class="flex items-center gap-1.5">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="h-8 px-2.5 text-xs"
+                        :disabled="deviceProfitPage <= 1"
+                        @click="deviceProfitPage--"
+                    >
+                        Previous
+                    </Button>
+                    <span class="text-xs font-semibold px-2">
+                        Page {{ deviceProfitPage }} of {{ totalDeviceProfitPages }}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="h-8 px-2.5 text-xs"
+                        :disabled="deviceProfitPage >= totalDeviceProfitPages"
+                        @click="deviceProfitPage++"
+                    >
+                        Next
+                    </Button>
+                </div>
             </div>
         </div>
 
@@ -665,7 +733,7 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                             </td>
                         </tr>
                         <tr
-                            v-for="(item, idx) in slowMovingStock"
+                            v-for="(item, idx) in paginatedSlowMoving"
                             :key="idx"
                             class="hover:bg-gray-50"
                         >
@@ -701,6 +769,44 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div
+                v-if="slowMovingStock.length > 0"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 bg-slate-50/50 px-6 py-3.5 sm:flex-row dark:border-slate-800 dark:bg-slate-800/20"
+            >
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ paginatedSlowMoving.length }}</span>
+                    of
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ slowMovingStock.length }}</span>
+                    items
+                </div>
+
+                <div v-if="totalSlowMovingPages > 1" class="flex items-center gap-1.5">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="h-8 px-2.5 text-xs"
+                        :disabled="slowMovingPage <= 1"
+                        @click="slowMovingPage--"
+                    >
+                        Previous
+                    </Button>
+                    <span class="text-xs font-semibold px-2">
+                        Page {{ slowMovingPage }} of {{ totalSlowMovingPages }}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        class="h-8 px-2.5 text-xs"
+                        :disabled="slowMovingPage >= totalSlowMovingPages"
+                        @click="slowMovingPage++"
+                    >
+                        Next
+                    </Button>
+                </div>
             </div>
         </div>
     </div>

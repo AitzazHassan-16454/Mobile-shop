@@ -45,6 +45,7 @@ import {
 import { useConfirm } from '@/composables/useConfirm';
 import usedPhones from '@/routes/used-phones';
 import type { Team } from '@/types';
+import { toast } from 'vue-sonner';
 
 // Table Column Customizer State
 const defaultVisibleColumns = {
@@ -246,6 +247,16 @@ const openCreateModal = () => {
 };
 
 const submitPurchaseForm = () => {
+    purchaseForm.clearErrors();
+
+    if (Number(purchaseForm.purchase_amount) > 1000000) {
+        purchaseForm.setError('purchase_amount', 'خریداری رقم 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase amount cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'فون کی خریداری رقم زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+
     purchaseForm.post(usedPhones.store(currentTeamSlug.value).url, {
         onSuccess: () => {
             isCreateModalOpen.value = false;
@@ -915,19 +926,21 @@ const formatCurrency = (val: number | string) => {
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <Label for="purch_amt"
-                                >Agreed Purchase Amount (PKR) *</Label
+                                >Agreed Purchase Amount (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
                             >
                             <Input
                                 id="purch_amt"
                                 type="number"
                                 step="0.01"
+                                min="0"
+                                max="1000000"
                                 v-model="purchaseForm.purchase_amount"
                                 placeholder="0.00"
                                 class="tnum border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
                             />
                             <span
                                 v-if="purchaseForm.errors.purchase_amount"
-                                class="text-xs text-rose-600"
+                                class="text-xs text-rose-600 font-bold block mt-1"
                                 >{{ purchaseForm.errors.purchase_amount }}</span
                             >
                         </div>

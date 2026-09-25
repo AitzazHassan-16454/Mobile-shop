@@ -86,8 +86,11 @@ class RepairTicketController extends Controller
             'pattern_or_pin' => ['nullable', 'string', 'max:255'],
             'problem_description' => ['required', 'string'],
             'condition_notes' => ['nullable', 'string'],
-            'estimated_cost' => ['required', 'numeric', 'min:0'],
-            'advance_paid' => ['nullable', 'numeric', 'min:0'],
+            'estimated_cost' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'advance_paid' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+        ], [
+            'estimated_cost.max' => 'Estimated cost cannot exceed Rs 1,000,000 (1 Million) / تخمینہ لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
+            'advance_paid.max' => 'Advance paid cannot exceed Rs 1,000,000 (1 Million) / پیشگی رقم 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $nextId = (RepairTicket::max('id') ?? 0) + 1;
@@ -106,8 +109,11 @@ class RepairTicketController extends Controller
     {
         $validated = $request->validate([
             'status' => ['required', 'string', 'in:received,in_diagnosis,waiting_parts,ready,delivered,cancelled'],
-            'estimated_cost' => ['nullable', 'numeric', 'min:0'],
-            'advance_paid' => ['nullable', 'numeric', 'min:0'],
+            'estimated_cost' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'advance_paid' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+        ], [
+            'estimated_cost.max' => 'Estimated cost cannot exceed Rs 1,000,000 (1 Million) / تخمینہ لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
+            'advance_paid.max' => 'Advance paid cannot exceed Rs 1,000,000 (1 Million) / پیشگی رقم 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $updateData = [

@@ -42,6 +42,9 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user,
+                'role' => $user && $user->currentTeam ? $user->teamRole($user->currentTeam)?->value : 'admin',
+                'isAdmin' => $user && $user->currentTeam ? ($user->teamRole($user->currentTeam)?->isAtLeast(\App\Enums\TeamRole::Admin) ?? true) : true,
+                'isOwner' => $user && $user->currentTeam ? $user->ownsTeam($user->currentTeam) : true,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'currentTeam' => fn () => $user?->currentTeam ? $user->toUserTeam($user->currentTeam) : null,

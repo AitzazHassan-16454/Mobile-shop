@@ -77,11 +77,13 @@ class UsedPhonePurchaseController extends Controller
             'pta_status' => ['nullable', 'string', 'in:approved,non_pta,jv,cpid,software'],
             'imei_1' => ['required', 'string', 'max:255', 'unique:product_imeis,imei_1'],
             'imei_2' => ['nullable', 'string', 'max:255', 'different:imei_1', 'unique:product_imeis,imei_2'],
-            'purchase_amount' => ['required', 'numeric', 'min:0'],
+            'purchase_amount' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'payment_method' => ['required', 'string', 'in:cash,bank,jazzcash,easypaisa'],
             'cnic_front_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:4096'],
             'cnic_back_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:4096'],
             'auto_add_stock' => ['nullable', 'boolean'],
+        ], [
+            'purchase_amount.max' => 'The purchase amount cannot exceed Rs 1,000,000 (1 Million) / خریداری رقم 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $cnicFrontPath = null;

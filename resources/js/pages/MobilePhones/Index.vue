@@ -192,6 +192,23 @@ const openAddMobileModal = () => {
 };
 
 const submitAddMobile = () => {
+    addMobileForm.clearErrors();
+
+    if (Number(addMobileForm.sale_price) > 1000000) {
+        addMobileForm.setError('sale_price', 'موبائل کی فروخت کی قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sale price cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'موبائل کی سیل پرائس زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+    if (Number(addMobileForm.purchase_cost) > 1000000) {
+        addMobileForm.setError('purchase_cost', 'موبائل کی خریداری لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase cost cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'موبائل کی خریداری لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+
     addMobileForm.post(`/${currentTeam.value}/mobile-phones`, {
         onSuccess: () => {
             isAddMobileModalOpen.value = false;
@@ -206,6 +223,23 @@ const openPurchaseUsedModal = () => {
 };
 
 const submitUsedPurchase = () => {
+    usedPurchaseForm.clearErrors();
+
+    if (Number(usedPurchaseForm.sale_price) > 1000000) {
+        usedPurchaseForm.setError('sale_price', 'موبائل کی فروخت کی قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sale price cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'موبائل کی سیل پرائس زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+    if (Number(usedPurchaseForm.purchase_amount) > 1000000) {
+        usedPurchaseForm.setError('purchase_amount', 'خریداری رقم 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase amount cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'خریداری رقم زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+
     usedPurchaseForm.post(`/${currentTeam.value}/mobile-phones/used-purchase`, {
         onSuccess: () => {
             isPurchaseUsedModalOpen.value = false;
@@ -230,6 +264,17 @@ const openEditImeiModal = (item: ProductImeiItem) => {
 
 const submitEditImei = () => {
     if (!editingImei.value) return;
+
+    editImeiForm.clearErrors();
+
+    if (Number(editImeiForm.purchase_cost) > 1000000) {
+        editImeiForm.setError('purchase_cost', 'خریداری لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase cost cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'خریداری لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+
     editImeiForm.put(`/${currentTeam.value}/imeis/${editingImei.value.id}`, {
         onSuccess: () => {
             isEditImeiModalOpen.value = false;
@@ -640,12 +685,14 @@ const formatRs = (val: number | string) => {
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <Label>Purchase Cost (Rs) <span class="text-red-500">*</span></Label>
-                            <Input v-model.number="addMobileForm.purchase_cost" type="number" required />
+                            <Label>Purchase Cost (Rs) <span class="text-red-500">*</span> <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
+                            <Input v-model.number="addMobileForm.purchase_cost" type="number" min="0" max="1000000" required />
+                            <span v-if="addMobileForm.errors.purchase_cost" class="text-xs text-red-500 font-bold block mt-1">{{ addMobileForm.errors.purchase_cost }}</span>
                         </div>
                         <div>
-                            <Label>Selling Price (Rs) <span class="text-red-500">*</span></Label>
-                            <Input v-model.number="addMobileForm.sale_price" type="number" required />
+                            <Label>Selling Price (Rs) <span class="text-red-500">*</span> <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
+                            <Input v-model.number="addMobileForm.sale_price" type="number" min="0" max="1000000" required />
+                            <span v-if="addMobileForm.errors.sale_price" class="text-xs text-red-500 font-bold block mt-1">{{ addMobileForm.errors.sale_price }}</span>
                         </div>
                     </div>
 
@@ -740,12 +787,14 @@ const formatRs = (val: number | string) => {
 
                     <div class="grid grid-cols-3 gap-3">
                         <div>
-                            <Label>Purchase Amount (Paid) <span class="text-red-500">*</span></Label>
-                            <Input v-model.number="usedPurchaseForm.purchase_amount" type="number" required />
+                            <Label>Purchase Amount <span class="text-red-500">*</span> <span class="text-[10px] text-slate-400 font-normal">(Max: 10L)</span></Label>
+                            <Input v-model.number="usedPurchaseForm.purchase_amount" type="number" min="0" max="1000000" required />
+                            <span v-if="usedPurchaseForm.errors.purchase_amount" class="text-xs text-red-500 font-bold block mt-1">{{ usedPurchaseForm.errors.purchase_amount }}</span>
                         </div>
                         <div>
-                            <Label>Target Sale Price <span class="text-red-500">*</span></Label>
-                            <Input v-model.number="usedPurchaseForm.sale_price" type="number" required />
+                            <Label>Target Sale Price <span class="text-red-500">*</span> <span class="text-[10px] text-slate-400 font-normal">(Max: 10L)</span></Label>
+                            <Input v-model.number="usedPurchaseForm.sale_price" type="number" min="0" max="1000000" required />
+                            <span v-if="usedPurchaseForm.errors.sale_price" class="text-xs text-red-500 font-bold block mt-1">{{ usedPurchaseForm.errors.sale_price }}</span>
                         </div>
                         <div>
                             <Label>Payment Mode</Label>
@@ -820,8 +869,9 @@ const formatRs = (val: number | string) => {
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <Label>Purchase Cost (Rs)</Label>
-                            <Input v-model.number="editImeiForm.purchase_cost" type="number" required />
+                            <Label>Purchase Cost (Rs) <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
+                            <Input v-model.number="editImeiForm.purchase_cost" type="number" min="0" max="1000000" required />
+                            <span v-if="editImeiForm.errors.purchase_cost" class="text-xs text-red-500 font-bold block mt-1">{{ editImeiForm.errors.purchase_cost }}</span>
                         </div>
                         <div>
                             <Label>Status</Label>

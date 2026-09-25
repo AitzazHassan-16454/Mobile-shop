@@ -60,4 +60,24 @@ class Sale extends Model
     {
         return $this->hasMany(SaleItem::class);
     }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(SaleReturn::class);
+    }
+
+    public function getDueAmountAttribute(): float
+    {
+        return (float) max(0.00, round((float) $this->net_amount - (float) $this->paid_amount, 2));
+    }
+
+    public function getTotalReturnedAmountAttribute(): float
+    {
+        return (float) round((float) $this->returns()->sum('total_return_amount'), 2);
+    }
+
+    public function getTotalRefundedAmountAttribute(): float
+    {
+        return (float) round((float) $this->returns()->sum('refund_amount'), 2);
+    }
 }

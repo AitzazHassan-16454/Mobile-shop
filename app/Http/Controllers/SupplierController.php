@@ -71,7 +71,7 @@ class SupplierController extends Controller
             'company' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
-            'opening_balance' => ['nullable', 'numeric'],
+            'opening_balance' => ['nullable', 'numeric', 'between:-99999999.99,99999999.99'],
             'balance_type' => ['nullable', 'string', 'in:due,advance'],
         ]);
 
@@ -125,7 +125,7 @@ class SupplierController extends Controller
     public function recordPurchase(Request $request, string $currentTeam, Supplier $supplier): RedirectResponse
     {
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'reference_id' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
@@ -151,7 +151,7 @@ class SupplierController extends Controller
     public function recordPayment(Request $request, string $currentTeam, Supplier $supplier): RedirectResponse
     {
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'gt:0'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
             'reference_id' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);

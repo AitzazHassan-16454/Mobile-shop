@@ -50,6 +50,7 @@ import {
 import { useConfirm } from '@/composables/useConfirm';
 import repairs from '@/routes/repairs';
 import type { Team } from '@/types';
+import { toast } from 'vue-sonner';
 
 // Table Column Customizer State
 const defaultVisibleColumns = {
@@ -272,6 +273,16 @@ const openCreateModal = () => {
 };
 
 const submitCreateTicket = () => {
+    ticketForm.clearErrors();
+
+    if (Number(ticketForm.estimated_cost) > 1000000) {
+        ticketForm.setError('estimated_cost', 'تخمینہ لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Estimated cost cannot exceed Rs 1,000,000.');
+        toast.error('قیمت کی حد سے تجاوز', {
+            description: 'مرمت کی تخمینہ لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+        });
+        return;
+    }
+
     ticketForm.post(repairs.store(currentTeamSlug.value).url, {
         onSuccess: () => {
             isCreateModalOpen.value = false;
@@ -985,18 +996,20 @@ const getStatusBadgeClass = (status: string) => {
                     <div class="grid grid-cols-2 gap-4 border-t pt-2">
                         <div class="space-y-1">
                             <Label for="estimated_cost"
-                                >Estimated Cost (PKR) *</Label
+                                >Estimated Cost (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
                             >
                             <Input
                                 id="estimated_cost"
                                 type="number"
                                 step="0.01"
+                                min="0"
+                                max="1000000"
                                 v-model="ticketForm.estimated_cost"
                                 placeholder="0.00"
                             />
                             <span
                                 v-if="ticketForm.errors.estimated_cost"
-                                class="text-xs text-rose-600"
+                                class="text-xs text-rose-600 font-bold block mt-1"
                                 >{{ ticketForm.errors.estimated_cost }}</span
                             >
                         </div>

@@ -113,6 +113,13 @@ class MobileShopSeeder extends Seeder
         ]);
 
         Customer::create([
+            'name' => 'Ali Hasnain',
+            'phone' => '03144791853',
+            'address' => 'Johar Town, Lahore',
+            'current_balance' => -5000.00,
+        ]);
+
+        Customer::create([
             'name' => 'Muhammad Usman',
             'phone' => '03214567890',
             'address' => 'Gulberg III, Lahore',

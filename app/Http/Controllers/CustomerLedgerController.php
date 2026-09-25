@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LedgerType;
 use App\Models\AppSetting;
 use App\Models\Customer;
 use App\Models\CustomerLedger;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,12 +25,12 @@ class CustomerLedgerController extends Controller
         $search = trim($request->input('search', ''));
         $balanceFilter = $request->input('balance_filter', 'all');
 
-        $query = Customer::query()->with(['ledgers' => function ($q) {
-            $q->latest()->limit(30);
+        $query = Customer::query()->with(['ledgers' => function ($q): void {
+            $q->with('user:id,name')->latest()->limit(50);
         }]);
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search): void {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('address', 'like', "%{$search}%");
@@ -78,12 +80,12 @@ class CustomerLedgerController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50', 'unique:customers,phone'],
             'address' => ['nullable', 'string', 'max:500'],
-            'initial_balance' => ['nullable', 'numeric'],
+            'initial_balance' => ['nullable', 'numeric', 'between:-99999999.99,99999999.99'],
         ]);
 
         $initialBalance = (float) ($validated['initial_balance'] ?? 0.00);
 
-        DB::transaction(function () use ($validated, $initialBalance) {
+        DB::transaction(function () use ($request, $validated, $initialBalance): void {
             $customer = Customer::create([
                 'name' => $validated['name'],
                 'phone' => $validated['phone'],
@@ -94,11 +96,13 @@ class CustomerLedgerController extends Controller
             if ($initialBalance != 0) {
                 CustomerLedger::create([
                     'customer_id' => $customer->id,
-                    'type' => 'adjustment',
+                    'user_id' => $request->user()->id,
+                    'type' => LedgerType::Adjustment,
                     'amount' => abs($initialBalance),
+                    'payment_method' => null,
                     'balance_after' => $initialBalance,
                     'reference_id' => 'OPENING-BAL',
-                    'notes' => $initialBalance > 0 ? 'Opening Balance (Udhaar)' : 'Opening Balance (Advance)',
+                    'notes' => $initialBalance > 0 ? 'Opening Balance (Udhaar/Due)' : 'Opening Balance (Advance)',
                 ]);
             }
         });
@@ -119,35 +123,156 @@ class CustomerLedgerController extends Controller
         return redirect()->back()->with('success', 'Customer updated.');
     }
 
-    public function recordPayment(Request $request, string $currentTeam, Customer $customer): RedirectResponse
+    public function recordPayment(Request $request, string $currentTeam, Customer $customer): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'amount' => ['required', 'numeric', 'gt:0'],
-            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank'],
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card'],
+            'allow_overpayment_as_advance' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        DB::transaction(function () use ($customer, $validated) {
-            $paidAmount = (float) $validated['amount'];
-            $newBalance = round((float) $customer->current_balance - $paidAmount, 2);
+        $paidAmount = (float) $validated['amount'];
+        $currentDue = $customer->due_balance;
+        $allowAdvance = $request->boolean('allow_overpayment_as_advance', true);
 
-            $customer->update([
-                'current_balance' => $newBalance,
+        if ($currentDue > 0 && $paidAmount > $currentDue && ! $allowAdvance) {
+            throw ValidationException::withMessages([
+                'amount' => ['Payment amount ('.number_format($paidAmount, 2).') exceeds outstanding due balance of '.number_format($currentDue, 2).'. Enable overpayment advance or enter up to exact due.'],
             ]);
+        }
 
-            $refNo = 'RCPT-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+        DB::transaction(function () use ($request, $customer, $validated, $paidAmount, $currentDue): void {
+            $customer->lockForUpdate();
+            $newBalance = round((float) $customer->current_balance - $paidAmount, 2);
+            $customer->update(['current_balance' => $newBalance]);
+
+            $refNo = 'PAY-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 6, '0', STR_PAD_LEFT);
+
+            $notes = $validated['notes'];
+            if (empty($notes)) {
+                if ($currentDue > 0 && $paidAmount >= $currentDue) {
+                    $notes = 'Full due settlement ('.ucfirst($validated['payment_method']).')';
+                    if ($paidAmount > $currentDue) {
+                        $over = round($paidAmount - $currentDue, 2);
+                        $notes .= " + Rs. {$over} converted to advance credit";
+                    }
+                } else {
+                    $notes = 'Due payment received ('.ucfirst($validated['payment_method']).')';
+                }
+            }
 
             CustomerLedger::create([
                 'customer_id' => $customer->id,
-                'type' => 'payment',
+                'user_id' => $request->user()->id,
+                'type' => LedgerType::Payment,
                 'amount' => $paidAmount,
+                'payment_method' => $validated['payment_method'],
                 'balance_after' => $newBalance,
                 'reference_id' => $refNo,
-                'notes' => $validated['notes'] ?? 'Payment Received ('.ucfirst($validated['payment_method']).')',
+                'notes' => $notes,
             ]);
         });
 
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Due payment recorded successfully.',
+                'customer' => $customer->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Payment recorded successfully.');
+    }
+
+    public function recordAdvance(Request $request, string $currentTeam, Customer $customer): RedirectResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $advanceAmount = (float) $validated['amount'];
+
+        DB::transaction(function () use ($request, $customer, $validated, $advanceAmount): void {
+            $customer->lockForUpdate();
+            // In our ledger, negative balance = advance credit owed to customer
+            $newBalance = round((float) $customer->current_balance - $advanceAmount, 2);
+            $customer->update(['current_balance' => $newBalance]);
+
+            $refNo = 'ADV-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 6, '0', STR_PAD_LEFT);
+
+            CustomerLedger::create([
+                'customer_id' => $customer->id,
+                'user_id' => $request->user()->id,
+                'type' => LedgerType::Advance,
+                'amount' => $advanceAmount,
+                'payment_method' => $validated['payment_method'],
+                'balance_after' => $newBalance,
+                'reference_id' => $refNo,
+                'notes' => $validated['notes'] ?? 'Advance received from customer ('.ucfirst($validated['payment_method']).')',
+            ]);
+        });
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance received and credited successfully.',
+                'customer' => $customer->fresh(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Customer advance recorded successfully.');
+    }
+
+    public function refundAdvance(Request $request, string $currentTeam, Customer $customer): RedirectResponse|JsonResponse
+    {
+        $availableAdvance = $customer->advance_balance;
+
+        if ($availableAdvance <= 0.001) {
+            throw ValidationException::withMessages([
+                'amount' => ['Customer has no available advance balance to refund.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99', "max:{$availableAdvance}"],
+            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $refundAmount = (float) $validated['amount'];
+
+        DB::transaction(function () use ($request, $customer, $validated, $refundAmount): void {
+            $customer->lockForUpdate();
+            // Refunding advance moves balance back towards 0 (balance + refundAmount)
+            $newBalance = round((float) $customer->current_balance + $refundAmount, 2);
+            $customer->update(['current_balance' => $newBalance]);
+
+            $refNo = 'REF-ADV-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 6, '0', STR_PAD_LEFT);
+
+            CustomerLedger::create([
+                'customer_id' => $customer->id,
+                'user_id' => $request->user()->id,
+                'type' => LedgerType::AdvanceReturn,
+                'amount' => $refundAmount,
+                'payment_method' => $validated['payment_method'],
+                'balance_after' => $newBalance,
+                'reference_id' => $refNo,
+                'notes' => $validated['notes'] ?? 'Advance refund returned to customer ('.ucfirst($validated['payment_method']).')',
+            ]);
+        });
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance refund processed successfully.',
+                'customer' => $customer->fresh(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Advance refund processed successfully.');
     }
 
     public function statement(Request $request, string $currentTeam, Customer $customer): JsonResponse
@@ -159,6 +284,8 @@ class CustomerLedgerController extends Controller
                 'phone' => $customer->phone,
                 'address' => $customer->address,
                 'current_balance' => (float) $customer->current_balance,
+                'due_balance' => $customer->due_balance,
+                'advance_balance' => $customer->advance_balance,
             ],
             'entries' => $this->statementEntries($customer)->values()->all(),
         ]);
@@ -167,7 +294,7 @@ class CustomerLedgerController extends Controller
     public function statementExport(Request $request, string $currentTeam, Customer $customer): HttpResponse
     {
         $format = $request->query('format', 'csv') === 'xlsx' ? 'xlsx' : 'csv';
-        $headers = ['Date', 'Type', 'Reference', 'Notes', 'Debit', 'Credit', 'Balance'];
+        $headers = ['Date', 'Reference', 'Type', 'Method', 'Staff', 'Notes', 'Debit', 'Credit', 'Balance'];
         $rows = $this->statementEntries($customer)
             ->map(fn (array $entry) => collect($entry)->only($headers)->all())
             ->values()
@@ -188,6 +315,7 @@ class CustomerLedgerController extends Controller
         $previous = 0.00;
 
         return $customer->ledgers()
+            ->with('user:id,name')
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()
@@ -199,8 +327,10 @@ class CustomerLedgerController extends Controller
 
                 return [
                     'Date' => $entry->created_at->format('Y-m-d H:i'),
-                    'Type' => $entry->type->value,
-                    'Reference' => $entry->reference_id ?? '',
+                    'Reference' => $entry->reference_id ?? ('TXN-'.$entry->id),
+                    'Type' => $entry->type->label(),
+                    'Method' => $entry->payment_method ? ucfirst($entry->payment_method) : '-',
+                    'Staff' => $entry->user?->name ?? 'Staff',
                     'Notes' => $entry->notes ?? '',
                     'Debit' => $delta > 0 ? $amount : 0.0,
                     'Credit' => $delta < 0 ? $amount : 0.0,

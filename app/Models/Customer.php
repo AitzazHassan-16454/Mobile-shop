@@ -35,4 +35,19 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerLedger::class);
     }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(SaleReturn::class);
+    }
+
+    public function getDueBalanceAttribute(): float
+    {
+        return (float) max(0.00, (float) $this->current_balance);
+    }
+
+    public function getAdvanceBalanceAttribute(): float
+    {
+        return (float) ((float) $this->current_balance < 0 ? abs((float) $this->current_balance) : 0.00);
+    }
 }

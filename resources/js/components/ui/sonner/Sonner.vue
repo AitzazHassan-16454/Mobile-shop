@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { ToasterProps } from "vue-sonner"
-import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon, XIcon } from "@lucide/vue"
+import { CircleCheckIcon, InfoIcon, Loader2Icon, OctagonXIcon, TriangleAlertIcon } from "@lucide/vue"
 import { Toaster as Sonner } from "vue-sonner"
 import { cn } from "@/lib/utils"
 
@@ -24,138 +24,135 @@ const {
 <template>
   <Sonner
     :class="cn('toaster group', cls)"
-    :close-button="true"
+    :close-button="false"
     :rich-colors="false"
-    :visible-toasts="5"
-    :close-button-position="'top-right'"
+    :visible-toasts="3"
     :toast-options="{
-      duration: 3000,
+      duration: 2500,
       classes: {
         toast: 'group toast',
         title: 'font-semibold',
-        description: 'mt-0.5',
-        actionButton: 'inline-flex items-center rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-800',
-        cancelButton: 'inline-flex items-center rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50',
       },
     }"
     v-bind="restProps"
   >
     <template #error-icon>
-      <OctagonXIcon class="h-5 w-5 text-red-500" />
+      <OctagonXIcon class="h-4 w-4 shrink-0 text-white" />
     </template>
     <template #success-icon>
-      <CircleCheckIcon class="h-5 w-5 text-emerald-500" />
+      <CircleCheckIcon class="h-4 w-4 shrink-0 text-white" />
     </template>
     <template #warning-icon>
-      <TriangleAlertIcon class="h-5 w-5 text-amber-500" />
+      <TriangleAlertIcon class="h-4 w-4 shrink-0 text-slate-900" />
     </template>
     <template #info-icon>
-      <InfoIcon class="h-5 w-5 text-blue-500" />
+      <InfoIcon class="h-4 w-4 shrink-0 text-white" />
     </template>
     <template #loading-icon>
-      <Loader2Icon class="h-5 w-5 animate-spin text-slate-400" />
-    </template>
-    <template #close-icon>
-      <XIcon class="h-3.5 w-3.5" />
+      <Loader2Icon class="h-4 w-4 animate-spin text-white" />
     </template>
   </Sonner>
 </template>
 
 <style>
-/* Clean shadcn-style toasts that match the rest of the website UI */
+/* Simple Pill Toast styling with Green for Success and Red for Error */
 
 [data-sonner-toaster] {
-  --normal-bg: #ffffff;
-  --normal-text: #0f172a;
-  --normal-border: #e2e8f0;
-  --border-radius: 0.75rem;
-  --width: 380px;
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  gap: 6px;
+  --width: auto;
+  font-family: 'Outfit', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  gap: 8px;
+  max-width: 90vw;
 }
 
 [data-sonner-toast][data-styled='true'] {
   position: relative;
-  align-items: flex-start;
-  gap: 0;
-  padding: 12px 44px 12px 16px;
-  border-radius: 0.75rem;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 4px 16px -4px rgb(15 23 42 / 0.08), 0 2px 6px -2px rgb(15 23 42 / 0.04);
-  transition: transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 250ms ease, opacity 250ms ease;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 8px 18px !important;
+  min-height: 40px !important;
+  border-radius: 9999px !important; /* Pill shape */
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: #16a34a !important; /* Green for Success */
+  color: #ffffff !important;
+  box-shadow: 0 8px 25px -4px rgba(22, 163, 74, 0.35), 0 3px 8px -2px rgba(0, 0, 0, 0.08) !important;
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  white-space: nowrap !important;
+  width: auto !important;
 }
 
-[data-sonner-toast][data-styled='true']:hover {
-  box-shadow: 0 10px 28px -8px rgb(15 23 42 / 0.14), 0 4px 10px -4px rgb(15 23 42 / 0.06);
+/* Success & Default Toasts (Vibrant Rich Green) */
+[data-sonner-toast],
+[data-sonner-toast][data-type='success'],
+[data-sonner-toast][data-type='default'],
+[data-sonner-toast][data-type='info'] {
+  background: #16a34a !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 25px -4px rgba(22, 163, 74, 0.35) !important;
 }
 
-/* Icon */
-[data-sonner-toast] [data-icon] {
-  height: auto;
-  width: auto;
-  margin: 1px 10px 0 0;
+[data-sonner-toast][data-type='success'] [data-title],
+[data-sonner-toast][data-type='default'] [data-title],
+[data-sonner-toast][data-type='info'] [data-title] {
+  color: #ffffff !important;
 }
 
-/* Content */
-[data-sonner-toast] [data-content] {
-  flex: 1;
-  min-width: 0;
+/* Warning Toasts (Warm Amber/Mustard Gold) */
+[data-sonner-toast][data-type='warning'] {
+  background: #d4a328 !important;
+  color: #1c1917 !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 8px 20px -4px rgba(212, 163, 40, 0.35) !important;
 }
 
-[data-sonner-toast] [data-title] {
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
+[data-sonner-toast][data-type='warning'] [data-title] {
+  color: #1c1917 !important;
+  font-weight: 700 !important;
 }
 
-[data-sonner-toast] [data-description] {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.45;
-  margin-top: 2px;
-}
-
-/* Close button */
-[data-sonner-toast] [data-close-button] {
-  height: 1.5rem;
-  width: 1.5rem;
-  color: #94a3b8;
-  background: transparent;
-  border: none;
-  border-radius: 0.5rem;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-[data-sonner-toast] [data-close-button]:hover {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-/* ERROR: light red alert styling so it clearly reads as an error */
+/* Error Toasts (Real Error Red Pill) */
 [data-sonner-toast][data-type='error'] {
-  background: #fef2f2;
-  border-color: #fecaca;
-  box-shadow: 0 4px 16px -4px rgb(239 68 68 / 0.12), 0 2px 6px -2px rgb(239 68 68 / 0.06);
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 20px -4px rgba(220, 38, 38, 0.35) !important;
 }
 
 [data-sonner-toast][data-type='error'] [data-title] {
-  color: #991b1b;
+  color: #ffffff !important;
 }
 
-[data-sonner-toast][data-type='error'] [data-description] {
-  color: #b91c1c;
+/* Toast Icon */
+[data-sonner-toast] [data-icon] {
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-[data-sonner-toast][data-type='error'] [data-close-button] {
-  color: #fca5a5;
+/* Content Container */
+[data-sonner-toast] [data-content] {
+  display: flex !important;
+  align-items: center !important;
+  flex: none !important;
 }
 
-[data-sonner-toast][data-type='error'] [data-close-button]:hover {
-  background: #fee2e2;
-  color: #b91c1c;
+/* Title text */
+[data-sonner-toast] [data-title] {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+}
+
+/* Hide multi-line sub-description to keep simple 1-line pill toast */
+[data-sonner-toast] [data-description] {
+  display: none !important;
+}
+
+/* Close button hidden for simple clean pill look */
+[data-sonner-toast] [data-close-button] {
+  display: none !important;
 }
 </style>

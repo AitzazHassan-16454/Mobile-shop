@@ -26,7 +26,11 @@ class MobilePhonesController extends Controller
             $perPage = 20;
         }
 
-        $query = ProductImei::query()->with(['product']);
+        $query = ProductImei::query()
+            ->whereHas('product', function ($productQuery) {
+                $productQuery->where('is_serialized', true);
+            })
+            ->with(['product']);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -74,10 +78,14 @@ class MobilePhonesController extends Controller
             ->orderBy('name', 'asc')
             ->get();
 
-        $inStockCount = ProductImei::where('status', 'in_stock')->count();
-        $newStockCount = ProductImei::where('status', 'in_stock')->where('condition', 'new')->count();
-        $usedStockCount = ProductImei::where('status', 'in_stock')->where('condition', 'used')->count();
-        $totalCostValue = (float) ProductImei::where('status', 'in_stock')->sum('purchase_cost');
+        $phoneImeiQuery = ProductImei::query()
+            ->whereHas('product', function ($productQuery) {
+                $productQuery->where('is_serialized', true);
+            });
+        $inStockCount = (clone $phoneImeiQuery)->where('status', 'in_stock')->count();
+        $newStockCount = (clone $phoneImeiQuery)->where('status', 'in_stock')->where('condition', 'new')->count();
+        $usedStockCount = (clone $phoneImeiQuery)->where('status', 'in_stock')->where('condition', 'used')->count();
+        $totalCostValue = (float) (clone $phoneImeiQuery)->where('status', 'in_stock')->sum('purchase_cost');
 
         $summary = [
             'in_stock_count' => $inStockCount,
@@ -113,9 +121,12 @@ class MobilePhonesController extends Controller
             'pta_status' => ['required', 'string', 'in:approved,non_pta,jv,cpid,software'],
             'imei_1' => ['required', 'string', 'max:255', 'unique:product_imeis,imei_1'],
             'imei_2' => ['nullable', 'string', 'max:255', 'different:imei_1', 'unique:product_imeis,imei_2'],
-            'purchase_cost' => ['required', 'numeric', 'min:0'],
-            'sale_price' => ['required', 'numeric', 'min:0'],
+            'purchase_cost' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'sale_price' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'warranty_days' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'sale_price.max' => 'The phone sale price cannot exceed Rs 1,000,000 (1 Million) / موبائل کی فروخت قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
+            'purchase_cost.max' => 'The purchase cost cannot exceed Rs 1,000,000 (1 Million) / خریداری لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -171,9 +182,12 @@ class MobilePhonesController extends Controller
             'pta_status' => ['required', 'string', 'in:approved,non_pta,jv,cpid,software'],
             'imei_1' => ['required', 'string', 'max:255', 'unique:product_imeis,imei_1'],
             'imei_2' => ['nullable', 'string', 'max:255', 'different:imei_1', 'unique:product_imeis,imei_2'],
-            'purchase_amount' => ['required', 'numeric', 'min:0'],
-            'sale_price' => ['required', 'numeric', 'min:0'],
+            'purchase_amount' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'sale_price' => ['required', 'numeric', 'min:0', 'max:1000000'],
             'payment_method' => ['required', 'string', 'in:cash,bank,jazzcash,easypaisa'],
+        ], [
+            'sale_price.max' => 'The phone sale price cannot exceed Rs 1,000,000 (1 Million) / موبائل کی فروخت قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
+            'purchase_amount.max' => 'The purchase amount cannot exceed Rs 1,000,000 (1 Million) / خریداری رقم 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         DB::transaction(function () use ($validated) {

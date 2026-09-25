@@ -9,6 +9,7 @@ import {
     Wallet,
 } from '@lucide/vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -100,7 +101,11 @@ interface Plan {
     status: string;
 }
 const props = defineProps<{
-    plans: { data: Plan[] };
+    plans: {
+        data: Plan[];
+        links?: Array<{ url: string | null; label: string; active: boolean }>;
+        total?: number;
+    };
     customers: Array<{ id: number; name: string; phone: string }>;
     filters?: { per_page?: number };
     summary: {
@@ -153,8 +158,14 @@ const createPlan = () =>
         onSuccess: () => {
             planForm.reset();
             showCreate.value = false;
+            toast.success('Installment plan created successfully.');
+        },
+        onError: (errors) => {
+            const msg = Object.values(errors).flat().join(' ') || 'Could not create installment plan.';
+            toast.error('Failed to create plan', { description: msg });
         },
     });
+
 const collectPayment = (planId: number) =>
     paymentForm.post(
         installments.payments.store({ current_team: team.value, plan: planId })
@@ -163,6 +174,11 @@ const collectPayment = (planId: number) =>
             onSuccess: () => {
                 paymentForm.reset();
                 paymentPlan.value = null;
+                toast.success('Installment payment recorded successfully.');
+            },
+            onError: (errors) => {
+                const msg = Object.values(errors).flat().join(' ') || 'Could not record installment payment.';
+                toast.error('Payment Failed', { description: msg });
             },
         },
     );
@@ -516,26 +532,31 @@ defineOptions({
                                 >
                                 <form
                                     v-if="paymentPlan === plan.id"
-                                    class="mt-3 flex justify-end gap-2"
+                                    class="mt-3 flex flex-col items-end gap-1"
                                     @submit.prevent="collectPayment(plan.id)"
                                 >
-                                    <Input
-                                        v-model="paymentForm.amount"
-                                        required
-                                        type="number"
-                                        min="0.01"
-                                        step="0.01"
-                                        class="w-28 border-gray-200 bg-gray-50 text-gray-900"
-                                        placeholder="Amount"
-                                    /><Button
-                                        size="sm"
-                                        class="bg-[#003B7D] text-white hover:bg-[#002b5c]"
-                                        :disabled="paymentForm.processing"
-                                        ><CircleDollarSign
-                                            class="mr-1 h-4 w-4"
-                                        />
-                                        Save</Button
-                                    >
+                                    <div class="flex justify-end gap-2">
+                                        <Input
+                                            v-model="paymentForm.amount"
+                                            required
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            class="w-28 border-gray-200 bg-gray-50 text-gray-900"
+                                            placeholder="Amount"
+                                        /><Button
+                                            size="sm"
+                                            class="bg-[#003B7D] text-white hover:bg-[#002b5c]"
+                                            :disabled="paymentForm.processing"
+                                            ><CircleDollarSign
+                                                class="mr-1 h-4 w-4"
+                                            />
+                                            Save</Button
+                                        >
+                                    </div>
+                                    <span v-if="paymentForm.errors.amount" class="text-[10px] font-bold text-rose-500 text-right">
+                                        {{ paymentForm.errors.amount }}
+                                    </span>
                                 </form>
                             </td>
                         </tr>
@@ -549,6 +570,43 @@ defineOptions({
                         </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div
+                v-if="plans.total && plans.total > 0"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 bg-slate-50/50 px-6 py-3.5 sm:flex-row dark:border-slate-800 dark:bg-slate-800/20"
+            >
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ plans.data.length }}</span>
+                    of
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ plans.total }}</span>
+                    plans
+                </div>
+
+                <div v-if="plans.links && plans.links.length > 3" class="flex items-center gap-1.5">
+                    <template v-for="(link, idx) in plans.links" :key="idx">
+                        <Button
+                            v-if="link.url"
+                            variant="outline"
+                            size="sm"
+                            :class="[
+                                'h-8 px-3 text-xs',
+                                link.active
+                                    ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
+                                    : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
+                            ]"
+                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            v-html="link.label"
+                        />
+                        <span
+                            v-else
+                            class="px-2 text-xs text-slate-400 dark:text-slate-600"
+                            v-html="link.label"
+                        />
+                    </template>
+                </div>
             </div>
         </section>
     </div>

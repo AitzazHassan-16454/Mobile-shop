@@ -132,5 +132,12 @@ defineProps<{
             <span class="h-1.5 w-1.5 rounded-full bg-[#003B7D] shadow-sm" />
             Secure shop access
         </div>
+
+        <div class="text-center text-xs text-slate-600">
+            Don't have an account?
+            <a href="/register" class="font-bold text-[#003B7D] hover:underline">
+                Create account
+            </a>
+        </div>
     </Form>
 </template>

@@ -75,7 +75,7 @@ class StockAdjustmentController extends Controller
             'product_id' => ['required', 'exists:products,id'],
             'product_imei_id' => ['nullable', 'exists:product_imeis,id'],
             'type' => ['required', 'string', 'in:addition,subtraction'],
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:999999'],
             'reason' => ['required', 'string', 'in:damaged,lost,stolen,audit_reconciliation,found,other'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);

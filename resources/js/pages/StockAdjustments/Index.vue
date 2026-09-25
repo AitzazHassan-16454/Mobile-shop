@@ -699,6 +699,43 @@ const formatReasonLabel = (r: string) => {
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Footer -->
+            <div
+                v-if="adjustments.total > 0"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 bg-slate-50/50 px-6 py-3.5 sm:flex-row dark:border-slate-800 dark:bg-slate-800/20"
+            >
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ adjustments.data.length }}</span>
+                    of
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ adjustments.total }}</span>
+                    adjustments
+                </div>
+
+                <div v-if="adjustments.links && adjustments.links.length > 3" class="flex items-center gap-1.5">
+                    <template v-for="(link, idx) in adjustments.links" :key="idx">
+                        <Button
+                            v-if="link.url"
+                            variant="outline"
+                            size="sm"
+                            :class="[
+                                'h-8 px-3 text-xs',
+                                link.active
+                                    ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
+                                    : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
+                            ]"
+                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            v-html="link.label"
+                        />
+                        <span
+                            v-else
+                            class="px-2 text-xs text-slate-400 dark:text-slate-600"
+                            v-html="link.label"
+                        />
+                    </template>
+                </div>
+            </div>
         </section>
 
         <!-- New Stock Adjustment Modal Window -->

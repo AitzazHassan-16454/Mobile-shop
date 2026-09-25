@@ -21,7 +21,7 @@ import {
     Wallet,
     X,
 } from '@lucide/vue';
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -194,6 +194,20 @@ const activeSupplierTab = ref<'ledger' | 'profile' | 'action'>('ledger');
 const managingBalanceSupplier = ref<SupplierItem | null>(null);
 const balanceActionType = ref<'purchase' | 'payment'>('purchase');
 const deletingSupplier = ref<SupplierItem | null>(null);
+
+const supplierLedgerPage = ref(1);
+const supplierLedgerPerPage = ref(15);
+const totalSupplierLedgerPages = computed(() => {
+    return Math.ceil((viewingSupplierModal.value?.ledgers?.length || 0) / supplierLedgerPerPage.value) || 1;
+});
+const paginatedSupplierLedgers = computed(() => {
+    const list = viewingSupplierModal.value?.ledgers || [];
+    const start = (supplierLedgerPage.value - 1) * supplierLedgerPerPage.value;
+    return list.slice(start, start + supplierLedgerPerPage.value);
+});
+watch(viewingSupplierModal, () => {
+    supplierLedgerPage.value = 1;
+});
 
 const createForm = useForm({
     name: '',
@@ -996,6 +1010,43 @@ defineOptions({
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Footer -->
+            <div
+                v-if="props.suppliers?.total && props.suppliers.total > 0"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 bg-slate-50/50 px-6 py-3.5 sm:flex-row dark:border-slate-800 dark:bg-slate-800/20"
+            >
+                <div class="text-xs text-slate-500 dark:text-slate-400">
+                    Showing
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ supplierList.length }}</span>
+                    of
+                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ props.suppliers.total }}</span>
+                    suppliers
+                </div>
+
+                <div v-if="props.suppliers.links && props.suppliers.links.length > 3" class="flex items-center gap-1.5">
+                    <template v-for="(link, idx) in props.suppliers.links" :key="idx">
+                        <Button
+                            v-if="link.url"
+                            variant="outline"
+                            size="sm"
+                            :class="[
+                                'h-8 px-3 text-xs',
+                                link.active
+                                    ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
+                                    : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
+                            ]"
+                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            v-html="link.label"
+                        />
+                        <span
+                            v-else
+                            class="px-2 text-xs text-slate-400 dark:text-slate-600"
+                            v-html="link.label"
+                        />
+                    </template>
+                </div>
+            </div>
         </section>
 
         <!-- Manage Balance Popup Modal Window -->
@@ -1566,7 +1617,7 @@ defineOptions({
                                     class="divide-y divide-slate-100 font-medium"
                                 >
                                     <tr
-                                        v-for="ledger in viewingSupplierModal.ledgers"
+                                        v-for="ledger in paginatedSupplierLedgers"
                                         :key="ledger.id"
                                         class="hover:bg-slate-50/50"
                                     >
@@ -1635,6 +1686,39 @@ defineOptions({
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Supplier Ledger Pagination Controls -->
+                        <div
+                            v-if="(viewingSupplierModal.ledgers?.length || 0) > supplierLedgerPerPage"
+                            class="flex items-center justify-between border-t border-slate-200 pt-3 text-xs dark:border-slate-800"
+                        >
+                            <span class="text-slate-500 font-medium">
+                                Showing {{ (supplierLedgerPage - 1) * supplierLedgerPerPage + 1 }} to {{ Math.min(supplierLedgerPage * supplierLedgerPerPage, viewingSupplierModal.ledgers?.length || 0) }} of {{ viewingSupplierModal.ledgers?.length || 0 }} records
+                            </span>
+                            <div class="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    class="h-7 text-xs font-bold rounded-lg"
+                                    :disabled="supplierLedgerPage <= 1"
+                                    @click="supplierLedgerPage--"
+                                >
+                                    Previous
+                                </Button>
+                                <span class="px-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                                    Page {{ supplierLedgerPage }} of {{ totalSupplierLedgerPages }}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    class="h-7 text-xs font-bold rounded-lg"
+                                    :disabled="supplierLedgerPage >= totalSupplierLedgerPages"
+                                    @click="supplierLedgerPage++"
+                                >
+                                    Next
+                                </Button>
+                            </div>
                         </div>
                     </div>
 

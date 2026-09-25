@@ -15,8 +15,10 @@ class CustomerLedger extends Model
 
     protected $fillable = [
         'customer_id',
+        'user_id',
         'type',
         'amount',
+        'payment_method',
         'balance_after',
         'reference_id',
         'notes',
@@ -34,5 +36,10 @@ class CustomerLedger extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

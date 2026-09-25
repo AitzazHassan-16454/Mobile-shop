@@ -8,6 +8,7 @@ import {
     Check,
     CheckCircle,
     ChevronDown,
+    ChevronRight,
     CreditCard,
     DollarSign,
     Edit,
@@ -32,6 +33,8 @@ import {
     RotateCcw,
     Search,
     Settings,
+    MessageSquare,
+    Share2,
     ShoppingCart,
     Smartphone,
     Sparkles,
@@ -165,9 +168,13 @@ interface CompletedSale {
     change_amount: number | string;
     payment_method: string;
     payment_details?: Record<string, number> | null;
+    previous_customer_balance?: number | string;
+    new_customer_balance?: number | string;
     created_at: string;
     customer?: CustomerItem | null;
     cashier?: { id: number; name: string };
+    salesman?: { id: number; name: string } | null;
+    used_phone_purchase?: { id: number; device_model?: string; purchase_amount?: number | string } | null;
     items: CompletedSaleItem[];
 }
 
@@ -215,10 +222,9 @@ const searchBySku = ref(true);
 const exactMatch = ref(false);
 const selectedCategory = ref<string>('all');
 
-// POS Settings & Sound
+// POS Settings
 const isSettingsModalOpen = ref(false);
 const posSettings = ref({
-    soundEnabled: true,
     compactView: false,
     autoPrint: false,
     defaultPayment: 'cash',
@@ -241,41 +247,6 @@ const savePosSettings = () => {
         );
         toast.success('POS preferences saved.');
         isSettingsModalOpen.value = false;
-    } catch (e) {}
-};
-
-const playAudioBeep = (type: 'scan' | 'success' | 'delete' = 'scan') => {
-    if (!posSettings.value.soundEnabled) return;
-    try {
-        const AudioCtx =
-            window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        if (type === 'scan') {
-            osc.frequency.setValueAtTime(1100, ctx.currentTime);
-            gain.gain.setValueAtTime(0.12, ctx.currentTime);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.08);
-        } else if (type === 'success') {
-            osc.frequency.setValueAtTime(700, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(
-                1300,
-                ctx.currentTime + 0.12,
-            );
-            gain.gain.setValueAtTime(0.18, ctx.currentTime);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.12);
-        } else if (type === 'delete') {
-            osc.frequency.setValueAtTime(350, ctx.currentTime);
-            gain.gain.setValueAtTime(0.15, ctx.currentTime);
-            osc.start();
-            osc.stop(ctx.currentTime + 0.09);
-        }
     } catch (e) {}
 };
 
@@ -451,6 +422,274 @@ const fetchRecentSales = async () => {
     }
 };
 
+// ==========================================
+// SALE RETURN MODULE (POS RETURN SALE)
+// ==========================================
+const isReturnSaleModalOpen = ref(false);
+const returnSaleStep = ref<'search' | 'items'>('search');
+const returnSearchQuery = ref('');
+const returnSearchDate = ref('');
+const isSearchingSalesForReturn = ref(false);
+const returnSearchResults = ref<any[]>([]);
+const selectedReturnSale = ref<any | null>(null);
+
+interface PosReturnLineItem {
+    sale_item_id: number;
+    product_id: number;
+    product_imei_id: number | null;
+    product_name: string;
+    imei_1: string | null;
+    is_serialized: boolean;
+    quantity: number;
+    returned_quantity: number;
+    remaining_quantity: number;
+    unit_price: number;
+    return_qty: number;
+    is_selected: boolean;
+}
+
+const returnLineItems = ref<PosReturnLineItem[]>([]);
+const returnRefundMethod = ref<string>('cash');
+const returnNotes = ref('');
+const customRefundAmount = ref<string>('');
+const isSubmittingReturn = ref(false);
+
+const completedReturnData = ref<any | null>(null);
+const isReturnReceiptModalOpen = ref(false);
+
+const searchSalesForReturn = async () => {
+    isSearchingSalesForReturn.value = true;
+    try {
+        const params = new URLSearchParams();
+        if (returnSearchQuery.value.trim()) {
+            params.append('search', returnSearchQuery.value.trim());
+        }
+        if (returnSearchDate.value) {
+            params.append('date', returnSearchDate.value);
+        }
+        const res = await fetch(`/${currentTeamSlug.value}/pos/sales-search?${params.toString()}`, {
+            headers: { Accept: 'application/json' },
+        });
+        if (res.ok) {
+            const data = await res.json();
+            returnSearchResults.value = Array.isArray(data) ? data : [];
+        }
+    } catch (err) {
+        console.error('Failed to search sales for return:', err);
+        toast.error('Search failed', { description: 'Could not fetch sales from server.' });
+    } finally {
+        isSearchingSalesForReturn.value = false;
+    }
+};
+
+const openReturnSaleModal = () => {
+    returnSaleStep.value = 'search';
+    returnSearchQuery.value = '';
+    returnSearchDate.value = '';
+    selectedReturnSale.value = null;
+    returnLineItems.value = [];
+    isReturnSaleModalOpen.value = true;
+    searchSalesForReturn();
+};
+
+const openReturnSaleForSpecificSale = (sale: any) => {
+    selectSaleForReturn(sale);
+    isReturnSaleModalOpen.value = true;
+};
+
+const selectSaleForReturn = (sale: any) => {
+    selectedReturnSale.value = sale;
+    returnLineItems.value = (sale.items || []).map((item: any) => {
+        const purchased = Number(item.quantity) || 1;
+        const returned = Number(item.returned_quantity) || 0;
+        const remaining = Number(item.remaining_quantity) !== undefined 
+            ? Number(item.remaining_quantity) 
+            : Math.max(0, purchased - returned);
+
+        return {
+            sale_item_id: item.id,
+            product_id: item.product_id,
+            product_imei_id: item.product_imei_id || null,
+            product_name: item.product_name || item.product?.name || 'Item',
+            imei_1: item.imei_1 || item.product_imei?.imei_1 || null,
+            is_serialized: Boolean(item.is_serialized || item.product?.is_serialized),
+            quantity: purchased,
+            returned_quantity: returned,
+            remaining_quantity: remaining,
+            unit_price: Number(item.unit_price) || 0,
+            return_qty: 0,
+            is_selected: false,
+        };
+    });
+    returnRefundMethod.value = 'cash';
+    returnNotes.value = '';
+    customRefundAmount.value = '';
+    returnSaleStep.value = 'items';
+};
+
+const returnAllReturnableItems = () => {
+    returnLineItems.value.forEach((item) => {
+        if (item.remaining_quantity > 0) {
+            item.return_qty = item.remaining_quantity;
+            item.is_selected = true;
+        }
+    });
+};
+
+const clearReturnSelection = () => {
+    returnLineItems.value.forEach((item) => {
+        item.return_qty = 0;
+        item.is_selected = false;
+    });
+};
+
+const toggleReturnItemSelection = (item: PosReturnLineItem) => {
+    item.is_selected = !item.is_selected;
+    if (item.is_selected && item.return_qty === 0) {
+        item.return_qty = item.is_serialized ? 1 : Math.min(1, item.remaining_quantity);
+    } else if (!item.is_selected) {
+        item.return_qty = 0;
+    }
+};
+
+const updateReturnItemQty = (item: PosReturnLineItem, newQty: number) => {
+    const clamped = Math.max(0, Math.min(newQty, item.remaining_quantity));
+    item.return_qty = clamped;
+    item.is_selected = clamped > 0;
+};
+
+const totalReturnAmount = computed(() => {
+    return returnLineItems.value
+        .filter((item) => item.is_selected && item.return_qty > 0)
+        .reduce((sum, item) => sum + (item.return_qty * item.unit_price), 0);
+});
+
+const calculatedDueOffset = computed(() => {
+    if (!selectedReturnSale.value) return 0;
+    const saleDue = Number(selectedReturnSale.value.due_amount) || 0;
+    const custDebt = selectedReturnSale.value.customer
+        ? Math.max(0, Number(selectedReturnSale.value.customer.current_balance) || 0)
+        : 0;
+    return Math.min(totalReturnAmount.value, saleDue, custDebt);
+});
+
+const calculatedNetRefund = computed(() => {
+    return Math.max(0, totalReturnAmount.value - calculatedDueOffset.value);
+});
+
+const effectiveRefundAmount = computed(() => {
+    if (customRefundAmount.value !== '' && customRefundAmount.value !== null && !isNaN(Number(customRefundAmount.value))) {
+        return Math.max(0, Number(customRefundAmount.value));
+    }
+    return calculatedNetRefund.value;
+});
+
+const submitPosReturn = async () => {
+    const activeItems = returnLineItems.value.filter((i) => i.is_selected && i.return_qty > 0);
+    if (activeItems.length === 0) {
+        toast.error('No items selected', { description: 'Please select at least one product with return quantity > 0.' });
+        return;
+    }
+
+    for (const item of activeItems) {
+        if (item.return_qty > item.remaining_quantity) {
+            toast.error('Invalid quantity', {
+                description: `Return quantity for "${item.product_name}" exceeds remaining returnable quantity (${item.remaining_quantity}).`,
+            });
+            return;
+        }
+    }
+
+    if (effectiveRefundAmount.value > calculatedNetRefund.value + 0.01) {
+        toast.error('Invalid Refund Amount', {
+            description: `Refund amount (Rs ${effectiveRefundAmount.value.toLocaleString()}) cannot exceed maximum payable refund of Rs ${calculatedNetRefund.value.toLocaleString()}.`,
+        });
+        return;
+    }
+
+    const payload = {
+        sale_id: selectedReturnSale.value?.id || null,
+        customer_id: selectedReturnSale.value?.customer?.id || null,
+        refund_amount: effectiveRefundAmount.value,
+        refund_payment_method: returnRefundMethod.value,
+        notes: returnNotes.value || null,
+        items: activeItems.map((i) => ({
+            sale_item_id: i.sale_item_id,
+            product_id: i.product_id,
+            product_imei_id: i.product_imei_id || null,
+            quantity: i.return_qty,
+            unit_price: i.unit_price,
+        })),
+    };
+
+    isSubmittingReturn.value = true;
+    try {
+        const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+        const res = await fetch(`/${currentTeamSlug.value}/pos/returns`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            toast.success('Sale Return Processed Successfully', {
+                description: `Return #${data.return?.return_no || ''} completed. Stock restored to inventory.`,
+            });
+
+            // Restore in-memory product stock in POS props
+            activeItems.forEach((item) => {
+                const prod = props.products.find((p) => p.id === item.product_id);
+                if (prod) {
+                    prod.stock_quantity = (prod.stock_quantity || 0) + item.return_qty;
+                    if (prod.is_serialized && item.imei_1 && prod.in_stock_imeis) {
+                        const exists = prod.in_stock_imeis.some((im: any) => im.id === item.product_imei_id);
+                        if (!exists && item.product_imei_id) {
+                            prod.in_stock_imeis.push({
+                                id: item.product_imei_id,
+                                product_id: item.product_id,
+                                imei_1: item.imei_1,
+                                status: 'in_stock',
+                                condition: 'used',
+                                pta_status: 'approved',
+                                purchase_cost: item.unit_price,
+                                warranty_days: 0,
+                            });
+                        }
+                    }
+                }
+            });
+
+            completedReturnData.value = {
+                ...data.return,
+                original_sale: selectedReturnSale.value,
+                due_offset: calculatedDueOffset.value,
+                items: activeItems,
+            };
+
+            isReturnSaleModalOpen.value = false;
+            isReturnReceiptModalOpen.value = true;
+        } else {
+            toast.error('Return Failed', {
+                description: data.message || Object.values(data.errors || {}).flat().join(' ') || 'Could not process sale return.',
+            });
+        }
+    } catch (err: any) {
+        console.error('Return error:', err);
+        toast.error('Return Request Error', { description: err?.message || 'Server error processing return.' });
+    } finally {
+        isSubmittingReturn.value = false;
+    }
+};
+
+const printReturnReceipt = () => {
+    window.print();
+};
+
 const openRecentSalesModal = () => {
     isRecentSalesModalOpen.value = true;
     fetchRecentSales();
@@ -530,6 +769,14 @@ const editSaleCalculatedUdhaar = computed(() => {
 
 const saveEditSale = async () => {
     if (!editingSale.value) return;
+
+    const invalidEditItem = editSaleItems.value.find((item) => Number(item.unit_price) > 1000000);
+    if (invalidEditItem) {
+        toast.error('قیمت کی حد سے تجاوز / Price Limit Exceeded', {
+            description: `آئٹم "${invalidEditItem.product_name}" کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔ / Unit price cannot exceed Rs 1,000,000.`,
+        });
+        return;
+    }
 
     if (editSaleForm.value.payment_method === 'udhaar' && !editSaleForm.value.customer_id) {
         toast.error('Customer Required', {
@@ -624,6 +871,19 @@ const filteredRecentSales = computed(() => {
     });
 });
 
+const recentSalesPage = ref(1);
+const recentSalesPerPage = ref(10);
+const totalRecentSalesPages = computed(() => {
+    return Math.ceil(filteredRecentSales.value.length / recentSalesPerPage.value) || 1;
+});
+const paginatedRecentSales = computed(() => {
+    const start = (recentSalesPage.value - 1) * recentSalesPerPage.value;
+    return filteredRecentSales.value.slice(start, start + recentSalesPerPage.value);
+});
+watch([recentSalesQuery, recentSalesPaymentFilter], () => {
+    recentSalesPage.value = 1;
+});
+
 // Discount Mode ($ or %)
 const discountMode = ref<'amount' | 'percent'>('amount');
 const discountInput = ref<number | string>(0);
@@ -685,7 +945,6 @@ const selectTradeIn = (purchase: TradeInItem) => {
     selectedTradeIn.value = purchase;
     tradeInTab.value = 'apply';
     isTradeInModalOpen.value = false;
-    playAudioBeep('scan');
 };
 
 const openNewTradeIn = () => {
@@ -702,7 +961,6 @@ const submitTradeIn = () => {
             const submittedImei = tradeInForm.imei_1;
             tradeInForm.reset();
             tradeInTab.value = 'apply';
-            playAudioBeep('success');
             router.reload({
                 only: ['usedPhonePurchases'],
                 onSuccess: (page) => {
@@ -797,7 +1055,6 @@ const holdCurrentSale = () => {
 
     heldSales.value.unshift(heldItem);
     saveHeldSalesToStorage();
-    playAudioBeep('success');
 
     cart.value = [];
     discountInput.value = 0;
@@ -818,14 +1075,12 @@ const restoreHeldSale = (held: HeldSale, index: number) => {
     heldSales.value.splice(index, 1);
     saveHeldSalesToStorage();
     isHeldSalesModalOpen.value = false;
-    playAudioBeep('scan');
     toast.success('Held Sale Loaded into Cart!');
 };
 
 const deleteHeldSale = (index: number) => {
     heldSales.value.splice(index, 1);
     saveHeldSalesToStorage();
-    playAudioBeep('delete');
     toast.info('Held sale deleted.');
 };
 
@@ -839,7 +1094,18 @@ const customerForm = useForm({
 const availableCategories = computed(() => {
     const set = new Set<string>();
     props.products.forEach((p) => {
-        if (p.category) set.add(p.category);
+        if (p.category) {
+            const cat = p.category.trim().toLowerCase();
+            if (
+                !cat.includes('smartphone') &&
+                !cat.includes('mobile handset') &&
+                !cat.includes('mobile phone') &&
+                cat !== 'mobiles' &&
+                cat !== 'phones'
+            ) {
+                set.add(p.category);
+            }
+        }
     });
     return Array.from(set);
 });
@@ -931,12 +1197,38 @@ const navigateSearchResults = (direction: number) => {
     }
 };
 
+const isCustomerDropdownOpen = ref(false);
+const customerSearchQuery = ref('');
+const customerDropdownRef = ref<HTMLElement | null>(null);
+
+const filteredCustomerOptions = computed(() => {
+    const q = customerSearchQuery.value.trim().toLowerCase();
+    if (!q) return props.customers;
+    return props.customers.filter(
+        (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.phone && c.phone.toLowerCase().includes(q)),
+    );
+});
+
+const selectCustomer = (customerId: string) => {
+    selectedCustomerId.value = customerId;
+    isCustomerDropdownOpen.value = false;
+    customerSearchQuery.value = '';
+};
+
 const handleClickOutside = (event: MouseEvent) => {
     if (
         searchContainerRef.value &&
         !searchContainerRef.value.contains(event.target as Node)
     ) {
         closeSearchDropdown();
+    }
+    if (
+        customerDropdownRef.value &&
+        !customerDropdownRef.value.contains(event.target as Node)
+    ) {
+        isCustomerDropdownOpen.value = false;
     }
 };
 
@@ -980,6 +1272,9 @@ const selectApiProduct = (
     clearSearchQuery();
 };
 
+const includePreviousDue = ref(true);
+const useAdvanceCredit = ref(true);
+
 const selectedCustomer = computed(() => {
     if (selectedCustomerId.value === 'walk_in') return null;
     return (
@@ -987,6 +1282,18 @@ const selectedCustomer = computed(() => {
             (c) => c.id === Number(selectedCustomerId.value),
         ) || null
     );
+});
+
+const customerPreviousDue = computed(() => {
+    if (!selectedCustomer.value) return 0;
+    const bal = Number(selectedCustomer.value.current_balance) || 0;
+    return bal > 0 ? bal : 0;
+});
+
+const customerPreviousAdvance = computed(() => {
+    if (!selectedCustomer.value) return 0;
+    const bal = Number(selectedCustomer.value.current_balance) || 0;
+    return bal < 0 ? Math.abs(bal) : 0;
 });
 
 const subtotal = computed(() => {
@@ -1016,6 +1323,23 @@ const netPayableAfterTradeIn = computed(() => {
     return Math.max(0, netPayable.value - appliedTradeInAmount.value);
 });
 
+const appliedAdvanceCredit = computed(() => {
+    if (!useAdvanceCredit.value) return 0;
+    return Math.min(netPayableAfterTradeIn.value, customerPreviousAdvance.value);
+});
+
+const currentSaleNetPayable = computed(() => {
+    return Math.max(0, netPayableAfterTradeIn.value - appliedAdvanceCredit.value);
+});
+
+const payablePreviousDue = computed(() => {
+    return includePreviousDue.value ? customerPreviousDue.value : 0;
+});
+
+const grandTotalPayable = computed(() => {
+    return currentSaleNetPayable.value + payablePreviousDue.value;
+});
+
 const effectivePaid = computed(() => {
     if (paymentMethod.value === 'split') {
         return splitTotal.value;
@@ -1024,11 +1348,15 @@ const effectivePaid = computed(() => {
 });
 
 const duePayment = computed(() => {
-    return Math.max(0, netPayableAfterTradeIn.value - effectivePaid.value);
+    return Math.max(0, grandTotalPayable.value - effectivePaid.value);
+});
+
+const changeAmount = computed(() => {
+    return Math.max(0, effectivePaid.value - grandTotalPayable.value);
 });
 
 watch(
-    netPayableAfterTradeIn,
+    grandTotalPayable,
     (newPayable) => {
         if (!isPaidUserOverridden.value) {
             paidInput.value = newPayable;
@@ -1048,13 +1376,12 @@ watch(
 );
 
 const splitRemaining = computed(() =>
-    Math.max(0, netPayableAfterTradeIn.value - splitTotal.value),
+    Math.max(0, grandTotalPayable.value - splitTotal.value),
 );
 
 const fillSplitRemaining = () => {
     splitAmounts.value.cash =
         (Number(splitAmounts.value.cash) || 0) + splitRemaining.value;
-    playAudioBeep('scan');
 };
 
 watch(
@@ -1183,7 +1510,6 @@ const addProductToCart = (
                         max_stock: Number(product.stock_quantity),
                     });
                 }
-                playAudioBeep('scan');
                 toast.success('Item Added to Invoice', {
                     description: `"${fullName}" added to cart.`,
                 });
@@ -1221,7 +1547,6 @@ const addProductToCart = (
             unit_price: Number(product.sale_price),
             item_discount: 0,
         });
-        playAudioBeep('scan');
         toast.success('Device Serial Added', {
             description: `"${fullName}" (IMEI: ${availableImei.imei_1}) added to invoice.`,
         });
@@ -1259,7 +1584,6 @@ const addProductToCart = (
                 max_stock: Number(product.stock_quantity),
             });
         }
-        playAudioBeep('scan');
         toast.success('Item Added to Invoice', {
             description: `"${fullName}" added to cart.`,
         });
@@ -1268,7 +1592,6 @@ const addProductToCart = (
 
 const removeCartItem = (index: number) => {
     cart.value.splice(index, 1);
-    playAudioBeep('delete');
 };
 
 const clearCart = () => {
@@ -1289,7 +1612,6 @@ const clearCart = () => {
     };
     selectedCustomerId.value = 'walk_in';
     selectedTradeIn.value = null;
-    playAudioBeep('delete');
     toast.info('Terminal Reset', {
         description: 'Cart and invoice inputs cleared.',
     });
@@ -1299,7 +1621,6 @@ const addQuickCashPreset = (amount: number) => {
     isPaidUserOverridden.value = true;
     const current = Number(paidInput.value) || 0;
     paidInput.value = current + amount;
-    playAudioBeep('scan');
 };
 
 const saveSale = () => {
@@ -1310,29 +1631,30 @@ const saveSale = () => {
         return;
     }
 
-    if (
-        paymentMethod.value === 'udhaar' &&
-        selectedCustomerId.value === 'walk_in'
-    ) {
-        toast.error('Customer Account Required', {
-            description:
-                'Please select or register a customer for credit ledger transactions.',
+    const isWalkIn = selectedCustomerId.value === 'walk_in';
+    const isUdhaar = paymentMethod.value === 'udhaar';
+    const isSplitWithUdhaar =
+        paymentMethod.value === 'split' &&
+        ((Number(splitAmounts.value.udhaar) || 0) > 0 ||
+            splitTotal.value < grandTotalPayable.value);
+    const hasUnpaidDue = duePayment.value > 0;
+
+    if (isWalkIn && (isUdhaar || isSplitWithUdhaar || hasUnpaidDue)) {
+        const unpaidAmount = isUdhaar
+            ? grandTotalPayable.value
+            : duePayment.value;
+        toast.error('Customer Account Required for Due / Udhaar', {
+            description: `Walk-In Customers cannot have an unpaid due of Rs ${unpaidAmount.toLocaleString()}. Please select or register a customer account.`,
         });
         isCustomerModalOpen.value = true;
         return;
     }
 
-    if (
-        paymentMethod.value === 'split' &&
-        selectedCustomerId.value === 'walk_in' &&
-        ((Number(splitAmounts.value.udhaar) || 0) > 0 ||
-            splitTotal.value < netPayableAfterTradeIn.value)
-    ) {
-        toast.error('Customer Account Required', {
-            description:
-                'Select a customer when splitting with Udhaar or paying less than the total.',
+    const invalidCartItem = cart.value.find((item) => Number(item.unit_price) > 1000000);
+    if (invalidCartItem) {
+        toast.error('قیمت کی حد سے تجاوز / Price Limit Exceeded', {
+            description: `آئٹم "${invalidCartItem.name}" کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔ / Unit price cannot exceed Rs 1,000,000.`,
         });
-        isCustomerModalOpen.value = true;
         return;
     }
 
@@ -1365,7 +1687,7 @@ const saveSale = () => {
         );
     } else {
         payload.paid_amount =
-            Number(paidInput.value) || netPayableAfterTradeIn.value;
+            Number(paidInput.value) ?? grandTotalPayable.value;
     }
 
     router.post(pos.sales.store(currentTeamSlug.value).url, payload, {
@@ -1394,7 +1716,6 @@ const saveSale = () => {
                 }
             });
 
-            playAudioBeep('success');
             toast.success('Transaction Completed', {
                 description:
                     'Sale processed and invoice recorded successfully.',
@@ -1417,7 +1738,6 @@ const submitCustomerForm = () => {
         onSuccess: (page) => {
             customerForm.reset();
             isCustomerModalOpen.value = false;
-            playAudioBeep('success');
             toast.success('Customer Registered', {
                 description: 'New customer account created for credit ledger.',
             });
@@ -1482,6 +1802,9 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     } else if (e.altKey && (e.key === 'u' || e.key === 'U')) {
         e.preventDefault();
         document.getElementById('salesman-select-trigger')?.focus();
+    } else if (e.key === 'F7') {
+        e.preventDefault();
+        openReturnSaleModal();
     }
 };
 
@@ -1503,6 +1826,36 @@ onUnmounted(() => {
     document.removeEventListener('mousedown', handleClickOutside);
 });
 
+const paperWidthSize = ref<'80mm' | '58mm'>('80mm');
+
+const shareWhatsAppInvoice = () => {
+    if (!activeReceipt.value) return;
+    const r = activeReceipt.value;
+    const phoneRaw = r.customer?.phone || selectedCustomer.value?.phone || '';
+    const cleanPhone = phoneRaw.replace(/[^0-9]/g, '');
+
+    let text = `*${props.shopInfo?.name || currentShopName.value}*\n`;
+    text += `*Official Sale Invoice*\n`;
+    text += `---------------------------------\n`;
+    text += `Invoice #: ${r.invoice_no}\n`;
+    text += `Customer: ${r.customer?.name || 'Walk-In Customer'}\n`;
+    text += `Payment Method: ${r.payment_method?.toUpperCase() || 'CASH'}\n`;
+    text += `Net Amount: Rs. ${Number(r.net_amount).toLocaleString('en-PK')}\n`;
+    if (r.new_customer_balance !== undefined) {
+        text += `Khata Balance: ${Number(r.new_customer_balance) > 0 ? 'Due Rs. ' + Number(r.new_customer_balance).toLocaleString() : 'Clear'}\n`;
+    }
+    text += `---------------------------------\n`;
+    text += `Thank you for your business!`;
+
+    const encoded = encodeURIComponent(text);
+    const targetPhone = cleanPhone ? (cleanPhone.startsWith('92') ? cleanPhone : '92' + cleanPhone.replace(/^0/, '')) : '';
+    const url = targetPhone
+        ? `https://wa.me/${targetPhone}?text=${encoded}`
+        : `https://wa.me/?text=${encoded}`;
+
+    window.open(url, '_blank');
+};
+
 const printReceipt = () => {
     window.print();
 };
@@ -1520,6 +1873,15 @@ const printReceipt = () => {
         >
             <!-- Left: Quick Action Tools -->
             <div class="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+                <Link
+                    :href="`/${currentTeamSlug}/mobile-sales`"
+                    class="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95"
+                    title="Open mobile sales"
+                >
+                    <ExternalLink class="h-4 w-4 text-emerald-400" />
+                    <span>Sell Mobile</span>
+                </Link>
+
                 <!-- Add Expense Button -->
                 <button
                     type="button"
@@ -1540,6 +1902,17 @@ const printReceipt = () => {
                 >
                     <History class="h-4 w-4 text-sky-300" />
                     <span>Recent Sales</span>
+                </button>
+
+                <!-- Return Sale Button -->
+                <button
+                    type="button"
+                    @click="openReturnSaleModal"
+                    class="flex items-center gap-1.5 rounded-xl border border-rose-400/40 bg-rose-500/20 px-3 py-1.5 text-xs font-bold text-rose-200 backdrop-blur-md transition hover:bg-rose-500/30 active:scale-95"
+                    title="Customer Sale Return & Stock Restore (F7)"
+                >
+                    <RotateCcw class="h-4 w-4 text-rose-300" />
+                    <span>Return Sale</span>
                 </button>
 
                 <!-- POS Settings Button -->
@@ -1650,24 +2023,100 @@ const printReceipt = () => {
                         </button>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <select
+                    <!-- Custom Searchable Combobox Trigger & Dropdown -->
+                    <div ref="customerDropdownRef" class="relative flex-1">
+                        <button
                             id="customer-select-trigger"
-                            v-model="selectedCustomerId"
-                            class="h-12 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-bold text-slate-900 shadow-xs transition focus:border-[#003B7D] focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            type="button"
+                            @click="isCustomerDropdownOpen = !isCustomerDropdownOpen"
+                            class="h-12 w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white px-3.5 text-sm font-bold text-slate-900 shadow-xs transition hover:border-[#003B7D] focus:border-[#003B7D] focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                         >
-                            <option value="walk_in">
-                                Walk In Customer
-                            </option>
-                            <option
-                                v-for="c in customers"
-                                :key="c.id"
-                                :value="String(c.id)"
-                            >
-                                {{ c.name }} ({{ c.phone }}) — Bal: Rs
-                                {{ Number(c.current_balance).toLocaleString() }}
-                            </option>
-                        </select>
+                            <div class="flex items-center gap-2 truncate">
+                                <span class="truncate text-slate-900 dark:text-white font-bold">
+                                    {{ selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.phone})` : 'Walk In Customer' }}
+                                </span>
+                                <span
+                                    v-if="selectedCustomer && Number(selectedCustomer.current_balance) > 0"
+                                    class="shrink-0 rounded-md bg-red-100 px-2 py-0.5 text-xs font-black text-red-600 dark:bg-red-950/80 dark:text-red-400 border border-red-200 dark:border-red-900/50"
+                                >
+                                    Due: Rs {{ Number(selectedCustomer.current_balance).toLocaleString() }}
+                                </span>
+                                <span
+                                    v-else-if="selectedCustomer && Number(selectedCustomer.current_balance) < 0"
+                                    class="shrink-0 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-black text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50"
+                                >
+                                    Advance: Rs {{ Math.abs(Number(selectedCustomer.current_balance)).toLocaleString() }}
+                                </span>
+                            </div>
+                            <ChevronDown class="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200" :class="{ 'rotate-180': isCustomerDropdownOpen }" />
+                        </button>
+
+                        <!-- Dropdown Menu -->
+                        <div
+                            v-if="isCustomerDropdownOpen"
+                            class="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-72 w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+                        >
+                            <!-- Search Bar inside Dropdown -->
+                            <div class="relative mb-1.5 p-1">
+                                <Search class="absolute left-3 top-3 h-3.5 w-3.5 text-slate-400" />
+                                <input
+                                    v-model="customerSearchQuery"
+                                    type="text"
+                                    placeholder="Type name or phone to search..."
+                                    class="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs font-semibold text-slate-900 focus:border-[#003B7D] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                    @click.stop
+                                />
+                            </div>
+
+                            <!-- Options Scroll Area -->
+                            <div class="max-h-56 overflow-y-auto space-y-0.5 [scrollbar-width:none]">
+                                <!-- Walk-In Customer -->
+                                <button
+                                    type="button"
+                                    @click="selectCustomer('walk_in')"
+                                    class="w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-bold transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    :class="selectedCustomerId === 'walk_in' ? 'bg-blue-50 text-[#003B7D] dark:bg-blue-950/50 dark:text-blue-400' : 'text-slate-900 dark:text-white'"
+                                >
+                                    <span>Walk In Customer</span>
+                                    <Check v-if="selectedCustomerId === 'walk_in'" class="h-3.5 w-3.5 text-[#003B7D] dark:text-blue-400" />
+                                </button>
+
+                                <!-- Customer Items -->
+                                <button
+                                    v-for="c in filteredCustomerOptions"
+                                    :key="c.id"
+                                    type="button"
+                                    @click="selectCustomer(String(c.id))"
+                                    class="w-full flex items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition hover:bg-slate-100 dark:hover:bg-slate-800"
+                                    :class="selectedCustomerId === String(c.id) ? 'bg-blue-50 dark:bg-blue-950/50' : ''"
+                                >
+                                    <div class="truncate font-bold text-slate-900 dark:text-white">
+                                        {{ c.name }} <span class="font-normal text-slate-500">({{ c.phone }})</span>
+                                    </div>
+
+                                    <!-- Right Side Balance Pill (Only shown if non-zero due/advance) -->
+                                    <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                                        <span
+                                            v-if="Number(c.current_balance) > 0"
+                                            class="rounded-md bg-red-100 px-2 py-0.5 text-[11px] font-black text-red-600 dark:bg-red-950/80 dark:text-red-400 border border-red-200 dark:border-red-900/50"
+                                        >
+                                            Due: Rs {{ Number(c.current_balance).toLocaleString() }}
+                                        </span>
+                                        <span
+                                            v-else-if="Number(c.current_balance) < 0"
+                                            class="rounded-md bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-600 dark:bg-emerald-950/80 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50"
+                                        >
+                                            Advance: Rs {{ Math.abs(Number(c.current_balance)).toLocaleString() }}
+                                        </span>
+                                        <Check v-if="selectedCustomerId === String(c.id)" class="h-3.5 w-3.5 text-[#003B7D] dark:text-blue-400" />
+                                    </div>
+                                </button>
+
+                                <div v-if="filteredCustomerOptions.length === 0" class="p-3 text-center text-xs text-slate-400 font-medium">
+                                    No matching customer found.
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Sub-row: Sale Date (Ctrl+D) & Salesman (Alt+U) -->
@@ -1870,8 +2319,8 @@ const printReceipt = () => {
                         <button
                             type="button"
                             @click="handleScanSubmit"
-                            class="flex h-12 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#003B7D] to-[#004f9e] px-5 text-sm font-black text-white shadow-md transition hover:brightness-105 active:scale-95"
-                            title="Add Product"
+                            class="flex h-12 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#003B7D] to-[#004f9e] px-4 text-xs font-black text-white shadow-md transition hover:brightness-105 active:scale-95 shrink-0"
+                            title="Add Scanned Barcode Product"
                         >
                             <Plus class="h-4 w-4" />
                             <span>Add</span>
@@ -2018,6 +2467,8 @@ const printReceipt = () => {
                                     <input
                                         v-model.number="item.unit_price"
                                         type="number"
+                                        min="0"
+                                        max="1000000"
                                         class="w-22 rounded-lg border border-slate-300 px-2 py-1 text-right text-xs font-bold text-slate-900 focus:border-indigo-600 focus:outline-none"
                                     />
                                 </td>
@@ -2135,6 +2586,46 @@ const printReceipt = () => {
                     </button>
                 </div>
 
+                <!-- 3.5 Customer Balance Adjustments (Advance Credit / Previous Due) -->
+                <div v-if="customerPreviousAdvance > 0" class="rounded-xl border border-emerald-300 bg-emerald-50/90 p-2 text-xs text-emerald-900 shadow-xs dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
+                    <div class="flex items-center justify-between font-bold">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                            Advance Credit Available:
+                        </span>
+                        <span class="font-black">Rs {{ customerPreviousAdvance.toLocaleString() }}</span>
+                    </div>
+                    <label class="mt-1.5 flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-200 bg-white p-1.5 text-[11px] font-extrabold text-emerald-900 shadow-xs transition hover:bg-emerald-100/60 dark:border-emerald-900 dark:bg-slate-900 dark:text-emerald-200">
+                        <input
+                            type="checkbox"
+                            v-model="useAdvanceCredit"
+                            class="h-4 w-4 rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Deduct Advance Credit (-Rs {{ Math.min(netPayableAfterTradeIn, customerPreviousAdvance).toLocaleString() }})</span>
+                    </label>
+                    <div v-if="useAdvanceCredit && customerPreviousAdvance > appliedAdvanceCredit" class="mt-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                        Remaining Advance: Rs {{ (customerPreviousAdvance - appliedAdvanceCredit).toLocaleString() }}
+                    </div>
+                </div>
+
+                <div v-if="customerPreviousDue > 0" class="rounded-xl border border-rose-300 bg-rose-50/90 p-2 text-xs shadow-xs dark:border-rose-800 dark:bg-rose-950/60">
+                    <div class="flex items-center justify-between font-bold text-rose-900 dark:text-rose-200">
+                        <span class="flex items-center gap-1">
+                            <span class="inline-block h-2 w-2 rounded-full bg-rose-500"></span>
+                            Previous Unpaid Due:
+                        </span>
+                        <span class="font-black text-rose-600 dark:text-rose-400">Rs {{ customerPreviousDue.toLocaleString() }}</span>
+                    </div>
+                    <label class="mt-1.5 flex cursor-pointer items-center gap-2 rounded-lg border border-rose-200 bg-white p-1.5 text-[11px] font-extrabold text-rose-900 shadow-xs transition hover:bg-rose-100/60 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-200">
+                        <input
+                            type="checkbox"
+                            v-model="includePreviousDue"
+                            class="h-4 w-4 rounded border-rose-400 text-[#003B7D] focus:ring-[#003B7D]"
+                        />
+                        <span>Add Previous Due (+Rs {{ customerPreviousDue.toLocaleString() }})</span>
+                    </label>
+                </div>
+
                 <!-- 4. Payment Method Selector Dropdown -->
                 <div>
                     <label class="mb-1 block text-xs font-black text-slate-700 dark:text-slate-300">
@@ -2190,8 +2681,6 @@ const printReceipt = () => {
                             </div>
                         </div>
                     </div>
-
-
                 </div>
 
                 <!-- 6. Grand Hero Checkout Card (Original Total, Final Total, You Save & Side-by-Side Save/Clear Buttons) -->
@@ -2208,7 +2697,12 @@ const printReceipt = () => {
                     <div class="my-1">
                         <div class="text-[10px] font-black tracking-widest text-emerald-400 uppercase">Final Total</div>
                         <div class="tnum text-2xl lg:text-3xl font-black text-emerald-400">
-                            Rs {{ netPayableAfterTradeIn.toLocaleString() }}
+                            Rs {{ grandTotalPayable.toLocaleString() }}
+                        </div>
+                        <div v-if="appliedAdvanceCredit > 0 || payablePreviousDue > 0" class="mt-1 flex flex-wrap items-center justify-center gap-x-2 text-[10px] font-bold text-slate-300">
+                            <span>Sale Net: Rs {{ netPayableAfterTradeIn.toLocaleString() }}</span>
+                            <span v-if="appliedAdvanceCredit > 0" class="text-emerald-300 font-extrabold">Adv: -Rs {{ appliedAdvanceCredit.toLocaleString() }}</span>
+                            <span v-if="payablePreviousDue > 0" class="text-rose-300 font-extrabold">Due: +Rs {{ payablePreviousDue.toLocaleString() }}</span>
                         </div>
                     </div>
 
@@ -2660,38 +3154,77 @@ const printReceipt = () => {
         <!-- DIALOG 2: Thermal Receipt Print -->
         <Dialog v-model:open="isReceiptModalOpen">
             <DialogContent
-                class="max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl z-[120]"
+                class="max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl z-[120]"
                 overlayClass="z-[110]"
             >
-                <DialogHeader class="no-print">
-                    <DialogTitle
-                        class="text-center text-sm font-black text-slate-900"
-                        >Thermal Invoice Receipt</DialogTitle
-                    >
+                <DialogHeader class="no-print border-b border-slate-100 pb-3 pr-14">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <Receipt class="h-5 w-5 text-[#003B7D]" />
+                            <DialogTitle class="text-base font-black text-slate-900">
+                                Official Invoice Receipt
+                            </DialogTitle>
+                        </div>
+
+                        <!-- Paper Width Selector -->
+                        <div class="flex items-center rounded-xl bg-slate-100 p-0.5 dark:bg-slate-800">
+                            <button
+                                type="button"
+                                @click="paperWidthSize = '80mm'"
+                                :class="paperWidthSize === '80mm' ? 'bg-[#003B7D] font-black text-white shadow-xs' : 'text-slate-600 font-bold hover:text-slate-900 dark:text-slate-400'"
+                                class="rounded-lg px-2.5 py-1 text-[11px] transition"
+                            >
+                                80mm
+                            </button>
+                            <button
+                                type="button"
+                                @click="paperWidthSize = '58mm'"
+                                :class="paperWidthSize === '58mm' ? 'bg-[#003B7D] font-black text-white shadow-xs' : 'text-slate-600 font-bold hover:text-slate-900 dark:text-slate-400'"
+                                class="rounded-lg px-2.5 py-1 text-[11px] transition"
+                            >
+                                58mm
+                            </button>
+                        </div>
+                    </div>
                 </DialogHeader>
 
-                <div class="max-h-[70vh] overflow-y-auto py-2">
+                <div class="max-h-[65vh] overflow-y-auto py-2">
                     <ThermalReceipt
                         v-if="activeReceipt"
                         :receipt="activeReceipt as any"
                         :shop-info="shopInfo"
+                        :paper-width="paperWidthSize"
                     />
                 </div>
 
-                <DialogFooter class="no-print flex justify-between pt-2">
+                <DialogFooter class="no-print flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                     <Button
                         type="button"
                         variant="outline"
                         @click="isReceiptModalOpen = false"
-                        >Close</Button
+                        class="rounded-xl font-bold"
                     >
-                    <Button
-                        type="button"
-                        @click="printReceipt"
-                        class="bg-gradient-to-r from-[#003B7D] to-[#004f9e] font-black text-white shadow-md hover:brightness-105"
-                    >
-                        <Printer class="mr-1 h-4 w-4" /> Print
+                        Close
                     </Button>
+
+                    <div class="flex items-center gap-2">
+                        <Button
+                            type="button"
+                            @click="shareWhatsAppInvoice"
+                            class="bg-emerald-600 font-bold text-white hover:bg-emerald-500 rounded-xl shadow-xs"
+                            title="Share Invoice summary via WhatsApp"
+                        >
+                            <MessageSquare class="mr-1.5 h-4 w-4" /> WhatsApp
+                        </Button>
+
+                        <Button
+                            type="button"
+                            @click="printReceipt"
+                            class="bg-gradient-to-r from-[#003B7D] to-[#004f9e] font-black text-white shadow-md hover:brightness-105 rounded-xl"
+                        >
+                            <Printer class="mr-1.5 h-4 w-4" /> Print Thermal
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -2870,30 +3403,7 @@ const printReceipt = () => {
                 </DialogHeader>
 
                 <div class="space-y-4 py-3 text-xs">
-                    <div
-                        class="flex items-center justify-between border-b pb-3"
-                    >
-                        <div>
-                            <div class="font-bold text-slate-900">
-                                Audio Beep Sound Effects
-                            </div>
-                            <div class="text-[11px] text-slate-500">
-                                Play synth beep sound on barcode scan / action
-                            </div>
-                        </div>
-                        <label
-                            class="relative inline-flex cursor-pointer items-center"
-                        >
-                            <input
-                                type="checkbox"
-                                v-model="posSettings.soundEnabled"
-                                class="peer sr-only"
-                            />
-                            <div
-                                class="peer h-5 w-9 rounded-full bg-slate-200 peer-checked:bg-indigo-600 peer-focus:outline-none after:absolute after:top-[2px] after:left-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
-                            ></div>
-                        </label>
-                    </div>
+
 
                     <div
                         class="flex items-center justify-between border-b pb-3"
@@ -3004,6 +3514,10 @@ const printReceipt = () => {
                         ><span class="font-extrabold text-indigo-600"
                             >Alt + H</span
                         >
+                    </div>
+                    <div class="flex justify-between border-b pb-1.5">
+                        <span>Sale Return / Refund</span
+                        ><span class="font-extrabold text-rose-600">F7</span>
                     </div>
                 </div>
                 <DialogFooter>
@@ -3187,7 +3701,7 @@ const printReceipt = () => {
         <!-- DIALOG: Recent Sales History & Re-print / Edit -->
         <Dialog v-model:open="isRecentSalesModalOpen">
             <DialogContent class="max-w-[96vw] w-[96vw] h-[92vh] max-h-[95vh] rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 flex flex-col">
-                <DialogHeader class="flex flex-row items-center justify-between border-b pb-3 shrink-0">
+                <DialogHeader class="flex flex-row items-center justify-between border-b pb-3 pr-14 shrink-0">
                     <div>
                         <DialogTitle class="flex items-center gap-2 text-lg font-black text-slate-900 dark:text-white">
                             <History class="h-6 w-6 text-[#003B7D] dark:text-blue-400" />
@@ -3262,7 +3776,7 @@ const printReceipt = () => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
-                            <tr v-for="sale in filteredRecentSales" :key="sale.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                            <tr v-for="sale in paginatedRecentSales" :key="sale.id" class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                 <td class="px-4 py-2.5 font-mono font-black text-[#003B7D] dark:text-blue-400 text-sm">
                                     {{ sale.invoice_no }}
                                 </td>
@@ -3331,11 +3845,51 @@ const printReceipt = () => {
                                             <Edit class="h-3.5 w-3.5" />
                                             <span>Edit</span>
                                         </button>
+                                        <!-- Return Sale -->
+                                        <button
+                                            type="button"
+                                            @click="openReturnSaleForSpecificSale(sale)"
+                                            class="flex h-8 items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950 dark:text-rose-300"
+                                            title="Process Return for this Sale"
+                                        >
+                                            <RotateCcw class="h-3.5 w-3.5" />
+                                            <span>Return</span>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Recent Sales Pagination Footer -->
+                <div v-if="filteredRecentSales.length > recentSalesPerPage" class="flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-800 shrink-0 text-xs">
+                    <span class="text-slate-500 font-medium">
+                        Showing {{ (recentSalesPage - 1) * recentSalesPerPage + 1 }} to {{ Math.min(recentSalesPage * recentSalesPerPage, filteredRecentSales.length) }} of {{ filteredRecentSales.length }} sales
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 text-xs font-bold rounded-xl"
+                            :disabled="recentSalesPage <= 1"
+                            @click="recentSalesPage--"
+                        >
+                            Previous
+                        </Button>
+                        <span class="px-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Page {{ recentSalesPage }} of {{ totalRecentSalesPages }}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 text-xs font-bold rounded-xl"
+                            :disabled="recentSalesPage >= totalRecentSalesPages"
+                            @click="recentSalesPage++"
+                        >
+                            Next
+                        </Button>
+                    </div>
                 </div>
 
                 <DialogFooter class="pt-3 shrink-0">
@@ -3483,8 +4037,12 @@ const printReceipt = () => {
                                 class="w-full rounded-xl border border-slate-300 bg-slate-50 p-2.5 text-xs font-bold text-slate-900 focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                             >
                                 <option value="">Walk-In Customer</option>
-                                <option v-for="cust in customers" :key="cust.id" :value="cust.id">
-                                    {{ cust.name }} ({{ cust.phone }})
+                                <option
+                                    v-for="cust in customers"
+                                    :key="cust.id"
+                                    :value="cust.id"
+                                >
+                                    {{ cust.name }} ({{ cust.phone }}) — {{ Number(cust.current_balance) > 0 ? `Due: Rs ${Number(cust.current_balance).toLocaleString()}` : Number(cust.current_balance) < 0 ? `Advance: Rs ${Math.abs(Number(cust.current_balance)).toLocaleString()}` : 'Bal: Rs 0' }}
                                 </option>
                             </select>
                         </div>
@@ -3536,6 +4094,7 @@ const printReceipt = () => {
                                                 v-model.number="item.unit_price"
                                                 type="number"
                                                 min="0"
+                                                max="1000000"
                                                 class="h-7 w-28 text-right rounded-lg border border-slate-300 bg-white font-bold text-slate-900 focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                                             />
                                         </td>
@@ -3619,6 +4178,517 @@ const printReceipt = () => {
                     >
                         <span v-if="isSavingEditSale">Saving...</span>
                         <span v-else>Save Changes</span>
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- DIALOG: POS Sale Return & Refund Module -->
+        <Dialog v-model:open="isReturnSaleModalOpen">
+            <DialogContent class="max-w-6xl w-[95vw] h-[88vh] max-h-[90vh] rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900 flex flex-col z-[80] overflow-hidden" overlayClass="z-[75]">
+                <!-- Dialog Header -->
+                <DialogHeader class="flex flex-row items-center justify-between border-b border-slate-100 pb-3 pr-14 shrink-0 dark:border-slate-800">
+                    <div>
+                        <DialogTitle class="flex items-center gap-2.5 text-lg font-black text-slate-900 dark:text-white">
+                            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                                <RotateCcw class="h-5 w-5" />
+                            </div>
+                            <span>Sale Return & Refund Module</span>
+                        </DialogTitle>
+                        <DialogDescription class="text-xs text-slate-500 mt-0.5">
+                            Locate previous sales, restore products to inventory, offset customer khata dues, and issue refunds.
+                        </DialogDescription>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span v-if="returnSaleStep === 'items'" class="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 font-mono text-xs font-black text-[#003B7D] dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
+                            Invoice #{{ selectedReturnSale?.invoice_no }}
+                        </span>
+                        <button
+                            v-if="returnSaleStep === 'items'"
+                            type="button"
+                            @click="returnSaleStep = 'search'"
+                            class="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                            <ArrowLeft class="h-3.5 w-3.5" />
+                            <span>Back to Search</span>
+                        </button>
+                    </div>
+                </DialogHeader>
+
+                <!-- Workflow Stepper Indicator -->
+                <div class="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500 dark:bg-slate-800/60 shrink-0">
+                    <div class="flex items-center gap-1.5" :class="returnSaleStep === 'search' ? 'text-[#003B7D] dark:text-blue-400 font-black' : 'text-slate-400'">
+                        <span class="flex h-5 w-5 items-center justify-center rounded-full text-[11px]" :class="returnSaleStep === 'search' ? 'bg-[#003B7D] text-white shadow-xs' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">1</span>
+                        <span>1. Search & Select Sale</span>
+                    </div>
+                    <ChevronRight class="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
+                    <div class="flex items-center gap-1.5" :class="returnSaleStep === 'items' ? 'text-[#003B7D] dark:text-blue-400 font-black' : 'text-slate-400'">
+                        <span class="flex h-5 w-5 items-center justify-center rounded-full text-[11px]" :class="returnSaleStep === 'items' ? 'bg-[#003B7D] text-white shadow-xs' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">2</span>
+                        <span>2. Select Return Quantities</span>
+                    </div>
+                    <ChevronRight class="h-3.5 w-3.5 text-slate-300 dark:text-slate-600" />
+                    <div class="flex items-center gap-1.5" :class="returnSaleStep === 'items' && totalReturnAmount > 0 ? 'text-emerald-600 dark:text-emerald-400 font-black' : 'text-slate-400'">
+                        <span class="flex h-5 w-5 items-center justify-center rounded-full text-[11px]" :class="returnSaleStep === 'items' && totalReturnAmount > 0 ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'">3</span>
+                        <span>3. Refund Settlement</span>
+                    </div>
+                </div>
+
+                <!-- STEP 1: Search & Select Sale -->
+                <div v-if="returnSaleStep === 'search'" class="flex-1 flex flex-col min-h-0 pt-1 gap-2.5">
+                    <!-- Search Bar & Filters -->
+                    <div class="flex flex-wrap items-center justify-between gap-2.5 shrink-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                        <div class="relative flex-1 min-w-[260px]">
+                            <Search class="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                            <input
+                                v-model="returnSearchQuery"
+                                @keyup.enter="searchSalesForReturn"
+                                type="text"
+                                placeholder="Search by Invoice #, Customer Name, or Phone..."
+                                class="h-9 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-xs font-semibold text-slate-900 shadow-xs focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            />
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input
+                                v-model="returnSearchDate"
+                                type="date"
+                                @change="searchSalesForReturn"
+                                class="h-9 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 shadow-xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                            />
+                            <button
+                                v-if="returnSearchDate"
+                                type="button"
+                                @click="returnSearchDate = ''; searchSalesForReturn()"
+                                class="text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            >
+                                Clear Date
+                            </button>
+                            <button
+                                type="button"
+                                @click="searchSalesForReturn"
+                                class="flex h-9 items-center gap-1.5 rounded-xl bg-[#003B7D] px-4 text-xs font-bold text-white shadow-sm hover:bg-[#002752] transition active:scale-95"
+                            >
+                                <Search class="h-3.5 w-3.5" />
+                                <span>Find Sales</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sales Results Table -->
+                    <div class="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs [scrollbar-width:thin]">
+                        <div v-if="isSearchingSalesForReturn" class="py-20 text-center text-xs font-bold text-slate-500">
+                            <div class="inline-block h-7 w-7 animate-spin rounded-full border-2 border-[#003B7D] border-t-transparent mb-2"></div>
+                            <div>Searching previous completed sales...</div>
+                        </div>
+                        <div v-else-if="returnSearchResults.length === 0" class="py-20 text-center text-xs text-slate-400">
+                            <Receipt class="mx-auto h-9 w-9 text-slate-300 mb-2" />
+                            <div class="font-bold text-slate-600 dark:text-slate-300">No Sales Found</div>
+                            <div class="text-[11px] mt-0.5">Try searching with a different invoice number, phone, or date.</div>
+                        </div>
+                        <table v-else class="w-full text-left text-xs">
+                            <thead class="sticky top-0 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300 z-10 shadow-xs">
+                                <tr>
+                                    <th class="px-4 py-2.5">Invoice #</th>
+                                    <th class="px-4 py-2.5">Date & Time</th>
+                                    <th class="px-4 py-2.5">Customer</th>
+                                    <th class="px-4 py-2.5">Products Summary</th>
+                                    <th class="px-4 py-2.5 text-right">Net Bill</th>
+                                    <th class="px-4 py-2.5">Paid / Due</th>
+                                    <th class="px-4 py-2.5 text-center">Status</th>
+                                    <th class="px-4 py-2.5 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                <tr
+                                    v-for="sale in returnSearchResults"
+                                    :key="sale.id"
+                                    :class="sale.return_status === 'fully_returned' ? 'opacity-60 bg-slate-50/50 dark:bg-slate-900/40' : 'hover:bg-blue-50/30 dark:hover:bg-slate-800/50 cursor-pointer'"
+                                    @click="sale.return_status !== 'fully_returned' && selectSaleForReturn(sale)"
+                                    class="transition-colors"
+                                >
+                                    <td class="px-4 py-2.5 font-mono font-black text-[#003B7D] dark:text-blue-400 text-sm">
+                                        {{ sale.invoice_no }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-[11px] text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                                        {{ sale.sale_date }}
+                                    </td>
+                                    <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="truncate">{{ sale.customer?.name || 'Walk-In Customer' }}</span>
+                                        </div>
+                                        <div v-if="sale.customer?.phone" class="text-[10px] font-mono text-slate-400 font-normal">
+                                            {{ sale.customer.phone }}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-slate-600 dark:text-slate-400">
+                                        <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                            {{ sale.items?.length || 0 }} Items
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right font-black text-slate-900 dark:text-white text-sm">
+                                        Rs {{ Number(sale.net_amount).toLocaleString() }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-xs">
+                                        <span class="font-bold text-emerald-600">Paid: Rs {{ Number(sale.paid_amount).toLocaleString() }}</span>
+                                        <span v-if="Number(sale.due_amount) > 0" class="block font-bold text-amber-600">
+                                            Due: Rs {{ Number(sale.due_amount).toLocaleString() }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center">
+                                        <span
+                                            v-if="sale.return_status === 'fully_returned'"
+                                            class="inline-block rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/60 dark:text-rose-300"
+                                        >
+                                            Fully Returned
+                                        </span>
+                                        <span
+                                            v-else-if="sale.return_status === 'partially_returned'"
+                                            class="inline-block rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/60 dark:text-amber-300"
+                                        >
+                                            Partial Return
+                                        </span>
+                                        <span
+                                            v-else
+                                            class="inline-block rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-extrabold uppercase text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                        >
+                                            Returnable
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right" @click.stop>
+                                        <button
+                                            type="button"
+                                            :disabled="sale.return_status === 'fully_returned'"
+                                            @click="selectSaleForReturn(sale)"
+                                            class="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed dark:border-rose-900/50 dark:bg-rose-950/60 dark:text-rose-300 transition active:scale-95 shadow-2xs"
+                                        >
+                                            <RotateCcw class="h-3.5 w-3.5" />
+                                            <span>Select Sale</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- STEP 2: Return Items Selection & Refund Calculation -->
+                <div v-else-if="returnSaleStep === 'items'" class="flex-1 flex flex-col min-h-0 pt-1 gap-2.5">
+                    <!-- Sale Banner Info: 4 Clean Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 shrink-0">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 text-xs dark:border-slate-800 dark:bg-slate-800/40">
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Original Invoice</span>
+                            <span class="font-mono font-black text-[#003B7D] dark:text-blue-400 text-sm">{{ selectedReturnSale?.invoice_no }}</span>
+                            <span class="text-[10px] text-slate-500 block">{{ selectedReturnSale?.sale_date }}</span>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 text-xs dark:border-slate-800 dark:bg-slate-800/40">
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Customer Details</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-200 truncate block">{{ selectedReturnSale?.customer?.name || 'Walk-In Customer' }}</span>
+                            <span v-if="selectedReturnSale?.customer?.phone" class="text-[10px] text-slate-500 font-mono block">{{ selectedReturnSale.customer.phone }}</span>
+                            <span v-else class="text-[10px] text-slate-400 block">Walk-In</span>
+                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-2.5 text-xs dark:border-slate-800 dark:bg-slate-800/40">
+                            <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Invoice Billing</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="font-black text-slate-900 dark:text-white text-sm">Rs {{ Number(selectedReturnSale?.net_amount).toLocaleString() }}</span>
+                                <span class="text-[10px] text-emerald-600 font-bold">(Paid Rs {{ Number(selectedReturnSale?.paid_amount).toLocaleString() }})</span>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border p-2.5 text-xs" :class="Number(selectedReturnSale?.due_amount) > 0 ? 'border-amber-200 bg-amber-50/80 dark:border-amber-900/50 dark:bg-amber-950/40' : 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/50 dark:bg-emerald-950/40'">
+                            <span class="block text-[10px] uppercase font-bold tracking-wider" :class="Number(selectedReturnSale?.due_amount) > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'">
+                                Unpaid Invoice Due
+                            </span>
+                            <span class="font-black text-sm" :class="Number(selectedReturnSale?.due_amount) > 0 ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'">
+                                {{ Number(selectedReturnSale?.due_amount) > 0 ? `Rs ${Number(selectedReturnSale.due_amount).toLocaleString()}` : 'Rs 0 (Fully Paid)' }}
+                            </span>
+                            <span v-if="selectedReturnSale?.customer && Number(selectedReturnSale.customer.current_balance) > 0" class="text-[10px] text-amber-600 block font-semibold">
+                                Total Khata Due: Rs {{ Number(selectedReturnSale.customer.current_balance).toLocaleString() }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Action buttons for selection -->
+                    <div class="flex items-center justify-between shrink-0 px-0.5">
+                        <div class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                            Select Products to Return
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                @click="returnAllReturnableItems"
+                                class="flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/60 dark:text-rose-300 transition"
+                            >
+                                <Check class="h-3.5 w-3.5" />
+                                <span>Return All Available</span>
+                            </button>
+                            <button
+                                type="button"
+                                @click="clearReturnSelection"
+                                class="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 transition"
+                            >
+                                <X class="h-3.5 w-3.5" />
+                                <span>Clear Selection</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Return Items Table -->
+                    <div class="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs [scrollbar-width:thin]">
+                        <table class="w-full text-left text-xs">
+                            <thead class="sticky top-0 bg-slate-100 text-[11px] uppercase tracking-wider text-slate-600 dark:bg-slate-800 dark:text-slate-300 z-10 shadow-xs">
+                                <tr>
+                                    <th class="px-3 py-2.5 w-10 text-center">#</th>
+                                    <th class="px-4 py-2.5">Product & Details</th>
+                                    <th class="px-4 py-2.5 text-center">Sold Qty</th>
+                                    <th class="px-4 py-2.5 text-center">Already Returned</th>
+                                    <th class="px-4 py-2.5 text-center">Available Return</th>
+                                    <th class="px-4 py-2.5 text-right">Unit Price</th>
+                                    <th class="px-4 py-2.5 text-center">Return Qty</th>
+                                    <th class="px-4 py-2.5 text-right">Return Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80">
+                                <tr
+                                    v-for="item in returnLineItems"
+                                    :key="item.sale_item_id"
+                                    :class="[
+                                        item.is_selected ? 'bg-blue-50/50 dark:bg-blue-950/20' : '',
+                                        item.remaining_quantity <= 0 ? 'opacity-50' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
+                                    ]"
+                                    class="transition-colors"
+                                >
+                                    <td class="px-3 py-2.5 text-center">
+                                        <input
+                                            type="checkbox"
+                                            :checked="item.is_selected"
+                                            :disabled="item.remaining_quantity <= 0"
+                                            @change="toggleReturnItemSelection(item)"
+                                            class="h-4 w-4 rounded border-slate-300 text-[#003B7D] focus:ring-[#003B7D]"
+                                        />
+                                    </td>
+                                    <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-200">
+                                        <div>{{ item.product_name }}</div>
+                                        <div v-if="item.is_serialized && item.imei_1" class="mt-0.5 inline-block font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
+                                            IMEI: {{ item.imei_1 }}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center font-bold text-slate-700 dark:text-slate-300">
+                                        {{ item.quantity }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center font-semibold text-slate-500">
+                                        {{ item.returned_quantity }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center font-black" :class="item.remaining_quantity > 0 ? 'text-emerald-600' : 'text-slate-400'">
+                                        {{ item.remaining_quantity }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right font-semibold text-slate-700 dark:text-slate-300">
+                                        Rs {{ Number(item.unit_price).toLocaleString() }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center">
+                                        <div v-if="item.remaining_quantity > 0" class="inline-flex items-center gap-1 border border-slate-300 rounded-xl p-0.5 bg-white dark:border-slate-700 dark:bg-slate-800 shadow-2xs">
+                                            <button
+                                                type="button"
+                                                @click="updateReturnItemQty(item, item.return_qty - 1)"
+                                                :disabled="item.return_qty <= 0"
+                                                class="h-6 w-6 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 transition active:scale-95"
+                                            >
+                                                <Minus class="h-3 w-3" />
+                                            </button>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                :max="item.remaining_quantity"
+                                                :value="item.return_qty"
+                                                @input="updateReturnItemQty(item, Number(($event.target as HTMLInputElement).value))"
+                                                class="h-6 w-12 text-center text-xs font-black border-none focus:outline-none bg-transparent"
+                                            />
+                                            <button
+                                                type="button"
+                                                @click="updateReturnItemQty(item, item.return_qty + 1)"
+                                                :disabled="item.return_qty >= item.remaining_quantity"
+                                                class="h-6 w-6 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 transition active:scale-95"
+                                            >
+                                                <Plus class="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                        <span v-else class="text-[11px] font-bold text-slate-400">All Returned</span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-right font-black text-slate-900 dark:text-white">
+                                        Rs {{ (item.return_qty * item.unit_price).toLocaleString() }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Financial Settlement Card: 3 Unified Columns -->
+                    <div class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900 shrink-0">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                            <!-- Col 1: Financial breakdown -->
+                            <div class="space-y-1.5 text-xs rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                                <div class="flex justify-between text-slate-600 dark:text-slate-400">
+                                    <span class="font-medium">Total Return Value:</span>
+                                    <span class="font-black text-slate-900 dark:text-white">Rs {{ totalReturnAmount.toLocaleString() }}</span>
+                                </div>
+                                <div v-if="calculatedDueOffset > 0" class="flex justify-between text-amber-600 dark:text-amber-400 font-bold">
+                                    <span>Offset Unpaid Due:</span>
+                                    <span>-Rs {{ calculatedDueOffset.toLocaleString() }}</span>
+                                </div>
+                                <div class="flex justify-between text-emerald-600 dark:text-emerald-400 font-black text-sm border-t pt-1.5 border-slate-200 dark:border-slate-700">
+                                    <span>Net Refund Payable:</span>
+                                    <span>Rs {{ calculatedNetRefund.toLocaleString() }}</span>
+                                </div>
+                                <div v-if="calculatedDueOffset > 0" class="text-[10px] text-amber-600">
+                                    * Due debt on this invoice will automatically be reduced by Rs {{ calculatedDueOffset.toLocaleString() }}.
+                                </div>
+                            </div>
+
+                            <!-- Col 2: Refund Method & Custom Amount -->
+                            <div class="space-y-2 rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Refund Payout Mode:</label>
+                                    <select
+                                        v-model="returnRefundMethod"
+                                        class="h-8 w-full rounded-xl border border-slate-300 bg-white px-2.5 text-xs font-bold text-slate-800 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                    >
+                                        <option value="cash">Cash Refund</option>
+                                        <option value="jazzcash">JazzCash Payout</option>
+                                        <option value="easypaisa">EasyPaisa Payout</option>
+                                        <option value="bank">Bank Transfer</option>
+                                        <option value="card">Card Refund</option>
+                                        <option value="khata_credit">Khata Credit (Keep as Advance)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Refund Amount (PKR):</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        :max="calculatedNetRefund"
+                                        step="0.01"
+                                        :placeholder="String(calculatedNetRefund)"
+                                        v-model="customRefundAmount"
+                                        class="h-8 w-full rounded-xl border border-slate-300 bg-white px-2.5 text-xs font-black text-slate-900 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Col 3: Notes & Atomic Safety Notice -->
+                            <div class="space-y-2 rounded-xl bg-slate-50/70 p-3 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">Return Reason / Notes (Optional):</label>
+                                    <input
+                                        type="text"
+                                        v-model="returnNotes"
+                                        placeholder="e.g. Defective piece, wrong model, customer request..."
+                                        class="h-8 w-full rounded-xl border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-800 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                                    />
+                                </div>
+                                <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
+                                    <CheckCircle class="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                                    <span>Returned quantities will instantly be restored to inventory stock with audit log.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dialog Footer -->
+                <DialogFooter class="pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0 flex items-center justify-between">
+                    <div>
+                        <span v-if="returnSaleStep === 'items'" class="text-xs font-bold text-slate-600 dark:text-slate-300">
+                            {{ returnLineItems.filter(i => i.is_selected && i.return_qty > 0).length }} products ({{ returnLineItems.reduce((acc, i) => acc + (i.is_selected ? i.return_qty : 0), 0) }} units) selected for return.
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <Button type="button" variant="outline" @click="isReturnSaleModalOpen = false" class="rounded-xl font-bold">Close</Button>
+                        <Button
+                            v-if="returnSaleStep === 'items'"
+                            type="button"
+                            @click="submitPosReturn"
+                            :disabled="isSubmittingReturn || totalReturnAmount <= 0"
+                            class="rounded-xl bg-rose-600 font-bold text-white shadow-md hover:bg-rose-700 active:scale-95 transition disabled:opacity-40"
+                        >
+                            <span v-if="isSubmittingReturn" class="flex items-center gap-1.5">
+                                <div class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                <span>Processing Return...</span>
+                            </span>
+                            <span v-else>Confirm & Process Return (Rs {{ effectiveRefundAmount.toLocaleString() }})</span>
+                        </Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- DIALOG: Return Receipt / Credit Voucher Print -->
+        <Dialog v-model:open="isReturnReceiptModalOpen">
+            <DialogContent class="max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900 z-[90]" overlayClass="z-[85]">
+                <DialogHeader class="border-b pb-3">
+                    <DialogTitle class="flex items-center justify-between text-base font-black text-slate-900 dark:text-white">
+                        <div class="flex items-center gap-2">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                                <CheckCircle class="h-5 w-5" />
+                            </div>
+                            <span>Return Voucher #{{ completedReturnData?.return_no }}</span>
+                        </div>
+                    </DialogTitle>
+                    <DialogDescription class="text-xs text-slate-500">
+                        Stock has been restored to inventory and transaction recorded.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div id="return-receipt-print-area" class="space-y-3 py-3 font-mono text-xs bg-slate-50/50 p-3 rounded-2xl border border-dashed border-slate-200 dark:bg-slate-800/40 dark:border-slate-700">
+                    <div class="border-b border-dashed border-slate-300 pb-2 text-center dark:border-slate-700">
+                        <div class="text-sm font-black text-slate-900 dark:text-white">{{ currentShopName }}</div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Sale Return Voucher</div>
+                        <div class="text-[11px] text-slate-600 mt-1">Voucher: <span class="font-bold">{{ completedReturnData?.return_no }}</span></div>
+                        <div class="text-[11px] text-slate-600">Original Invoice: <span class="font-bold">{{ completedReturnData?.original_sale?.invoice_no }}</span></div>
+                        <div class="text-[10px] text-slate-400">{{ new Date().toLocaleString() }}</div>
+                    </div>
+
+                    <!-- Customer -->
+                    <div class="text-[11px] border-b border-dashed border-slate-300 pb-2 dark:border-slate-700">
+                        <span class="text-slate-500">Customer: </span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ completedReturnData?.original_sale?.customer?.name || 'Walk-In Customer' }}</span>
+                        <span v-if="completedReturnData?.original_sale?.customer?.phone" class="text-slate-400 block font-normal">Phone: {{ completedReturnData.original_sale.customer.phone }}</span>
+                    </div>
+
+                    <!-- Items -->
+                    <div class="space-y-1.5 border-b border-dashed border-slate-300 pb-2 dark:border-slate-700">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Returned Products:</div>
+                        <div v-for="item in completedReturnData?.items" :key="item.sale_item_id" class="flex justify-between text-[11px]">
+                            <div>
+                                <span class="font-bold">{{ item.product_name }}</span>
+                                <span v-if="item.imei_1" class="text-indigo-600 dark:text-indigo-400 block text-[10px]">IMEI: {{ item.imei_1 }}</span>
+                                <span class="text-slate-400 block text-[10px]">Qty: {{ item.return_qty }} &times; Rs {{ item.unit_price }}</span>
+                            </div>
+                            <div class="font-bold text-slate-900 dark:text-white">
+                                Rs {{ (item.return_qty * item.unit_price).toLocaleString() }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Totals -->
+                    <div class="space-y-1 pt-1 text-xs">
+                        <div class="flex justify-between font-bold">
+                            <span>Total Return Value:</span>
+                            <span>Rs {{ Number(completedReturnData?.total_return_amount || 0).toLocaleString() }}</span>
+                        </div>
+                        <div v-if="Number(completedReturnData?.due_offset || 0) > 0" class="flex justify-between text-amber-600 font-bold">
+                            <span>Offset Unpaid Due:</span>
+                            <span>-Rs {{ Number(completedReturnData.due_offset).toLocaleString() }}</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-600 font-black text-sm border-t border-dashed border-slate-300 pt-1 dark:border-slate-700">
+                            <span>Refund Paid ({{ completedReturnData?.refund_payment_method }}):</span>
+                            <span>Rs {{ Number(completedReturnData?.refund_amount || 0).toLocaleString() }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter class="gap-2 pt-3 border-t">
+                    <Button type="button" variant="outline" @click="isReturnReceiptModalOpen = false" class="rounded-xl font-bold">Close</Button>
+                    <Button type="button" @click="printReturnReceipt" class="bg-[#003B7D] font-bold text-white hover:bg-[#002752] flex items-center gap-1.5 rounded-xl shadow-sm">
+                        <Printer class="h-4 w-4" />
+                        <span>Print Voucher</span>
                     </Button>
                 </DialogFooter>
             </DialogContent>

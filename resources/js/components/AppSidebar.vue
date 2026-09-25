@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     BadgePercent,
+    BarChart3,
     Boxes,
     Building2,
     CalendarDays,
@@ -15,7 +16,7 @@ import {
     TrendingDown,
     Undo2,
     UsersRound,
-    WalletCards,
+    Wrench,
 } from '@lucide/vue';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
@@ -75,6 +76,11 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         icon: ReceiptText,
         items: [
             {
+                title: 'Sell Mobile Handset',
+                href: teamUrl('/mobile-sales'),
+                icon: Smartphone,
+            },
+            {
                 title: 'Sales History & Direct Sale',
                 href: teamUrl('/sales'),
                 icon: ReceiptText,
@@ -85,9 +91,9 @@ const mainNavGroups = computed<NavGroup[]>(() => [
                 icon: Undo2,
             },
             {
-                title: 'All Payments',
-                href: teamUrl('/all-payments'),
-                icon: WalletCards,
+                title: 'Repair Sales',
+                href: teamUrl('/repair-sales'),
+                icon: Wrench,
             },
             { title: 'Expenses', href: teamUrl('/expenses'), icon: TrendingDown },
         ],
@@ -128,6 +134,11 @@ const mainNavGroups = computed<NavGroup[]>(() => [
                 title: 'Suppliers',
                 href: teamUrl('/suppliers'),
                 icon: Building2,
+            },
+            {
+                title: 'Reports & Analytics',
+                href: teamUrl('/reports'),
+                icon: BarChart3,
             },
             {
                 title: 'Local Backup',

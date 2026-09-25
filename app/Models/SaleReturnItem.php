@@ -12,6 +12,7 @@ class SaleReturnItem extends Model
 
     protected $fillable = [
         'sale_return_id',
+        'sale_item_id',
         'product_id',
         'product_imei_id',
         'quantity',
@@ -31,6 +32,11 @@ class SaleReturnItem extends Model
     public function saleReturn(): BelongsTo
     {
         return $this->belongsTo(SaleReturn::class);
+    }
+
+    public function saleItem(): BelongsTo
+    {
+        return $this->belongsTo(SaleItem::class);
     }
 
     public function product(): BelongsTo

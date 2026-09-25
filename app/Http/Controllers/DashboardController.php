@@ -211,7 +211,15 @@ class DashboardController extends Controller
             $totalCost += $sale->items->sum(fn ($item) => (float) $item->unit_cost * (float) $item->quantity);
         }
 
-        $grossProfit = round($totalSale - $totalCost, 2);
+        $returnsQuery = \App\Models\SaleReturn::query();
+        if ($start && $end) {
+            $returnsQuery->whereBetween('created_at', [$start, $end]);
+        }
+        $returnsTotal = (float) $returnsQuery->sum('total_return_amount');
+        $refundsTotal = (float) $returnsQuery->sum('refund_amount');
+
+        $effectiveTotalSale = max(0.00, round($totalSale - $returnsTotal, 2));
+        $grossProfit = round($effectiveTotalSale - $totalCost, 2);
         $totalExpense = round((float) $expenses->sum('amount'), 2);
 
         $repairQuery = RepairTicket::query()->where('status', 'delivered');
@@ -229,6 +237,8 @@ class DashboardController extends Controller
         }
         $udhaarCreated = round((float) (clone $ledgerQuery)->where('type', 'sale')->sum('amount'), 2);
         $wasooliCollected = round((float) (clone $ledgerQuery)->where('type', 'payment')->sum('amount'), 2);
+        $advancesReceived = round((float) (clone $ledgerQuery)->where('type', 'advance')->sum('amount'), 2);
+        $advancesRefunded = round((float) (clone $ledgerQuery)->where('type', 'advance_return')->sum('amount'), 2);
 
         $usedPhoneBuyingQuery = UsedPhonePurchase::query();
         if ($start && $end) {
@@ -241,8 +251,10 @@ class DashboardController extends Controller
         $totalAdvance = round((float) abs(Customer::query()->where('current_balance', '<', 0)->sum('current_balance')), 2);
 
         return [
-            'total_sale' => round($totalSale, 2),
+            'total_sale' => $effectiveTotalSale,
             'sales_count' => $sales->count(),
+            'total_returns' => $returnsTotal,
+            'total_refunds' => $refundsTotal,
             'total_expense' => $totalExpense,
             'gross_profit' => $grossProfit,
             'net_profit' => $netProfit,

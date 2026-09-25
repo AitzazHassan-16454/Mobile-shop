@@ -43,6 +43,7 @@ import installments from '@/routes/installments';
 import inventory from '@/routes/inventory';
 import pos from '@/routes/pos';
 import repairs from '@/routes/repairs';
+import repairSales from '@/routes/repair-sales';
 import reports from '@/routes/reports';
 import shifts from '@/routes/shifts';
 import suppliers from '@/routes/suppliers';
@@ -71,6 +72,7 @@ const customersUrl = computed(() => customers.index(teamSlug.value).url);
 const installmentsUrl = computed(() => installments.index(teamSlug.value).url);
 const inventoryUrl = computed(() => inventory.index(teamSlug.value).url);
 const repairsUrl = computed(() => repairs.index(teamSlug.value).url);
+const repairSalesUrl = computed(() => repairSales.index(teamSlug.value).url);
 const shiftsUrl = computed(() => shifts.index(teamSlug.value).url);
 const usedPhonesUrl = computed(() => usedPhones.index(teamSlug.value).url);
 const suppliersUrl = computed(() => suppliers.index(teamSlug.value).url);
@@ -87,6 +89,12 @@ const primaryNavItems = computed(() => [
 ]);
 
 const secondaryNavItems = computed(() => [
+    {
+        title: 'Repair Sales',
+        href: repairSalesUrl.value,
+        icon: Wrench,
+        desc: 'Quick repair item billing',
+    },
     {
         title: 'Shift & Cash',
         href: shiftsUrl.value,

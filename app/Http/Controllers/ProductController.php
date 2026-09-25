@@ -15,36 +15,18 @@ class ProductController extends Controller
     public function index(Request $request, string $currentTeam): Response
     {
         $search = trim($request->input('search', ''));
-        $type = $request->input('type', 'all');
         $category = $request->input('category', 'all');
         $stockStatus = $request->input('stock_status', 'all');
 
-        $query = Product::query()
-            ->with(['imeis' => function ($q) {
-                $q->orderBy('created_at', 'desc');
-            }])
-            ->withCount([
-                'imeis',
-                'inStockImeis',
-            ]);
+        $query = Product::query()->where('is_serialized', false);
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('brand', 'like', "%{$search}%")
                     ->orWhere('category', 'like', "%{$search}%")
-                    ->orWhere('barcode', 'like', "%{$search}%")
-                    ->orWhereHas('imeis', function ($imeiQuery) use ($search) {
-                        $imeiQuery->where('imei_1', 'like', "%{$search}%")
-                            ->orWhere('imei_2', 'like', "%{$search}%");
-                    });
+                    ->orWhere('barcode', 'like', "%{$search}%");
             });
-        }
-
-        if ($type === 'serialized') {
-            $query->where('is_serialized', true);
-        } elseif ($type === 'accessories') {
-            $query->where('is_serialized', false);
         }
 
         if ($category !== 'all' && $category !== '') {
@@ -52,25 +34,9 @@ class ProductController extends Controller
         }
 
         if ($stockStatus === 'low_stock') {
-            $query->where(function ($q) {
-                $q->where(function ($sub) {
-                    $sub->where('is_serialized', false)
-                        ->whereColumn('stock_quantity', '<=', 'alert_quantity');
-                })->orWhere(function ($sub) {
-                    $sub->where('is_serialized', true)
-                        ->whereHas('inStockImeis', null, '<=', DB::raw('products.alert_quantity'));
-                });
-            });
+            $query->whereColumn('stock_quantity', '<=', 'alert_quantity');
         } elseif ($stockStatus === 'out_of_stock') {
-            $query->where(function ($q) {
-                $q->where(function ($sub) {
-                    $sub->where('is_serialized', false)
-                        ->where('stock_quantity', '<=', 0);
-                })->orWhere(function ($sub) {
-                    $sub->where('is_serialized', true)
-                        ->doesntHave('inStockImeis');
-                });
-            });
+            $query->where('stock_quantity', '<=', 0);
         }
 
         $perPage = (int) $request->input('per_page', 15);
@@ -79,40 +45,34 @@ class ProductController extends Controller
         }
 
         $products = $query->latest()->paginate($perPage)->withQueryString();
+        $accessoryQuery = Product::query()->where('is_serialized', false);
+        $accessoryCount = (clone $accessoryQuery)->count();
+        $totalStockUnits = (int) (clone $accessoryQuery)->sum('stock_quantity');
+        $totalStockValue = (float) (clone $accessoryQuery)->sum(DB::raw('cost_price * stock_quantity'));
 
-        $categories = Product::query()
+        $categories = (clone $accessoryQuery)
             ->select('category')
             ->distinct()
             ->whereNotNull('category')
             ->pluck('category');
 
-        $brands = Product::query()
+        $brands = (clone $accessoryQuery)
             ->select('brand')
             ->distinct()
             ->whereNotNull('brand')
             ->pluck('brand');
 
-        $totalStockValueSerialized = (float) ProductImei::query()
-            ->where('status', 'in_stock')
-            ->sum('purchase_cost');
-
-        $totalStockValueAccessories = (float) Product::query()
-            ->where('is_serialized', false)
-            ->sum(DB::raw('cost_price * stock_quantity'));
-
         $summary = [
-            'total_products' => Product::count(),
-            'handsets_count' => Product::where('is_serialized', true)->count(),
-            'accessories_count' => Product::where('is_serialized', false)->count(),
-            'in_stock_imeis_count' => ProductImei::where('status', 'in_stock')->count(),
-            'total_stock_value' => round($totalStockValueSerialized + $totalStockValueAccessories, 2),
+            'total_products' => $accessoryCount,
+            'accessories_count' => $accessoryCount,
+            'total_stock_units' => $totalStockUnits,
+            'total_stock_value' => round($totalStockValue, 2),
         ];
 
         return Inertia::render('Products/Index', [
             'products' => $products,
             'filters' => [
                 'search' => $search,
-                'type' => $type,
                 'category' => $category,
                 'stock_status' => $stockStatus,
                 'per_page' => $perPage,
@@ -131,10 +91,13 @@ class ProductController extends Controller
             'category' => ['required', 'string', 'max:255'],
             'barcode' => ['nullable', 'string', 'max:255', 'unique:products,barcode'],
             'is_serialized' => ['required', 'boolean'],
-            'sale_price' => ['required', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
-            'stock_quantity' => ['nullable', 'integer', 'min:0'],
-            'alert_quantity' => ['required', 'integer', 'min:0'],
+            'sale_price' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'cost_price' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'stock_quantity' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'alert_quantity' => ['required', 'integer', 'min:0', 'max:999999'],
+        ], [
+            'sale_price.max' => 'The sale price cannot exceed Rs 1,000,000 (1 Million) / فروخت کی قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
+            'cost_price.max' => 'The cost price cannot exceed Rs 1,000,000 (1 Million) / خریداری کی قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         if (! $validated['is_serialized']) {
@@ -155,8 +118,10 @@ class ProductController extends Controller
                 'initial_storage' => ['nullable', 'string', 'max:255'],
                 'initial_condition' => ['required', 'string', 'in:new,used'],
                 'initial_pta_status' => ['required', 'string', 'in:approved,non_pta,jv,cpid,software'],
-                'initial_purchase_cost' => ['required', 'numeric', 'min:0'],
+                'initial_purchase_cost' => ['required', 'numeric', 'min:0', 'max:1000000'],
                 'initial_warranty_days' => ['nullable', 'integer', 'min:0'],
+            ], [
+                'initial_purchase_cost.max' => 'The purchase cost cannot exceed Rs 1,000,000 (1 Million) / خریداری لاگت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
             ]);
 
             $product->imeis()->create([
@@ -183,10 +148,13 @@ class ProductController extends Controller
             'category' => ['sometimes', 'required', 'string', 'max:255'],
             'barcode' => ['nullable', 'string', 'max:255', 'unique:products,barcode,'.$product->id],
             'is_serialized' => ['sometimes', 'required', 'boolean'],
-            'sale_price' => ['sometimes', 'required', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
-            'stock_quantity' => ['nullable', 'integer', 'min:0'],
-            'alert_quantity' => ['sometimes', 'required', 'integer', 'min:0'],
+            'sale_price' => ['sometimes', 'required', 'numeric', 'min:0', 'max:1000000'],
+            'cost_price' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
+            'stock_quantity' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'alert_quantity' => ['sometimes', 'required', 'integer', 'min:0', 'max:999999'],
+        ], [
+            'sale_price.max' => 'The sale price cannot exceed Rs 1,000,000 (1 Million) / فروخت کی قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
+            'cost_price.max' => 'The cost price cannot exceed Rs 1,000,000 (1 Million) / خریداری کی قیمت 10 لاکھ سے زیادہ نہیں ہو سکتی۔',
         ]);
 
         $isSerialized = $validated['is_serialized'] ?? $product->is_serialized;
