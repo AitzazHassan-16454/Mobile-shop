@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockTransferItem extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'stock_transfer_id',
@@ -24,16 +23,25 @@ class StockTransferItem extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<StockTransfer, $this>
+     */
     public function transfer(): BelongsTo
     {
         return $this->belongsTo(StockTransfer::class, 'stock_transfer_id');
     }
 
+    /**
+     * @return BelongsTo<Product, $this>
+     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * @return BelongsTo<ProductImei, $this>
+     */
     public function imei(): BelongsTo
     {
         return $this->belongsTo(ProductImei::class, 'product_imei_id');

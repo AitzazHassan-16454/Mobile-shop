@@ -34,7 +34,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       v-bind="{ ...$attrs, ...forwarded }"
       :class="
         cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border border-slate-200/90 p-6 shadow-[0_28px_70px_-16px_rgba(2,18,40,0.38)] ring-1 ring-slate-900/5 outline-none duration-200 sm:max-w-lg dark:border-slate-800 dark:ring-white/10',
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-1.5rem)] max-h-[92vh] overflow-y-auto [scrollbar-width:thin] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-3xl border border-slate-200/90 p-5 shadow-[0_32px_80px_-20px_rgba(2,18,40,0.4)] ring-1 ring-slate-900/5 outline-none duration-200 sm:max-w-lg sm:p-6 dark:border-slate-800 dark:ring-white/10',
           props.class,
         )"
     >
@@ -43,7 +43,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       <DialogClose
         v-if="showCloseButton"
         data-slot="dialog-close"
-        class="ring-offset-background focus:ring-ring absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100/80 text-slate-500 opacity-70 transition-all hover:bg-slate-200/80 hover:text-slate-900 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none dark:bg-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+        class="ring-offset-background focus:ring-ring absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100/90 text-slate-500 opacity-80 backdrop-blur-xs transition-all hover:bg-slate-200 hover:text-slate-900 hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none dark:bg-slate-800/90 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
       >
         <X />
         <span class="sr-only">Close</span>

@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class AppSetting extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'key',

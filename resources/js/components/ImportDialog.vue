@@ -214,10 +214,13 @@ const closeDialog = () => {
                     :href="templateUrl"
                     class="flex items-center justify-between rounded-xl border border-dashed border-indigo-300 bg-indigo-50/60 px-3 py-2 transition hover:bg-indigo-100 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/60"
                 >
-                    <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300"
+                    <span
+                        class="text-xs font-bold text-indigo-700 dark:text-indigo-300"
                         >Download Import Template</span
                     >
-                    <Download class="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <Download
+                        class="h-4 w-4 text-indigo-600 dark:text-indigo-400"
+                    />
                 </a>
 
                 <label

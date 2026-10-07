@@ -161,7 +161,9 @@ const createPlan = () =>
             toast.success('Installment plan created successfully.');
         },
         onError: (errors) => {
-            const msg = Object.values(errors).flat().join(' ') || 'Could not create installment plan.';
+            const msg =
+                Object.values(errors).flat().join(' ') ||
+                'Could not create installment plan.';
             toast.error('Failed to create plan', { description: msg });
         },
     });
@@ -177,7 +179,9 @@ const collectPayment = (planId: number) =>
                 toast.success('Installment payment recorded successfully.');
             },
             onError: (errors) => {
-                const msg = Object.values(errors).flat().join(' ') || 'Could not record installment payment.';
+                const msg =
+                    Object.values(errors).flat().join(' ') ||
+                    'Could not record installment payment.';
                 toast.error('Payment Failed', { description: msg });
             },
         },
@@ -345,7 +349,9 @@ defineOptions({
                 <p class="text-xs tracking-wider text-slate-500 uppercase">
                     Outstanding
                 </p>
-                <p class="tnum mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
+                <p
+                    class="tnum mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400"
+                >
                     {{ money(summary.outstanding) }}
                 </p>
             </div>
@@ -554,7 +560,10 @@ defineOptions({
                                             Save</Button
                                         >
                                     </div>
-                                    <span v-if="paymentForm.errors.amount" class="text-[10px] font-bold text-rose-500 text-right">
+                                    <span
+                                        v-if="paymentForm.errors.amount"
+                                        class="text-right text-[10px] font-bold text-rose-500"
+                                    >
                                         {{ paymentForm.errors.amount }}
                                     </span>
                                 </form>
@@ -579,13 +588,22 @@ defineOptions({
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ plans.data.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ plans.data.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ plans.total }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ plans.total }}</span
+                    >
                     plans
                 </div>
 
-                <div v-if="plans.links && plans.links.length > 3" class="flex items-center gap-1.5">
+                <div
+                    v-if="plans.links && plans.links.length > 3"
+                    class="flex items-center gap-1.5"
+                >
                     <template v-for="(link, idx) in plans.links" :key="idx">
                         <Button
                             v-if="link.url"
@@ -597,7 +615,16 @@ defineOptions({
                                     ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
                                     : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
                             ]"
-                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            @click="
+                                router.get(
+                                    link.url,
+                                    {},
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                )
+                            "
                             v-html="link.label"
                         />
                         <span

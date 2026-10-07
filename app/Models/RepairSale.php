@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RepairSale extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'item_name',
@@ -30,6 +29,9 @@ class RepairSale extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

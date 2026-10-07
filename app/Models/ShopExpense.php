@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ShopExpense extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'register_shift_id',
@@ -25,11 +24,17 @@ class ShopExpense extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<RegisterShift, $this>
+     */
     public function shift(): BelongsTo
     {
         return $this->belongsTo(RegisterShift::class, 'register_shift_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

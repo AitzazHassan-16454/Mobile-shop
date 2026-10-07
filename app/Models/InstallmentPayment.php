@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Database\Factories\InstallmentPaymentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property \Illuminate\Support\Carbon $paid_at
+ */
 class InstallmentPayment extends Model
 {
+    /** @use HasFactory<InstallmentPaymentFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -22,6 +27,9 @@ class InstallmentPayment extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<InstallmentPlan, $this>
+     */
     public function plan(): BelongsTo
     {
         return $this->belongsTo(InstallmentPlan::class, 'installment_plan_id');

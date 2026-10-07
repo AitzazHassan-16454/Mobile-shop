@@ -276,9 +276,13 @@ const submitCreateTicket = () => {
     ticketForm.clearErrors();
 
     if (Number(ticketForm.estimated_cost) > 1000000) {
-        ticketForm.setError('estimated_cost', 'تخمینہ لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Estimated cost cannot exceed Rs 1,000,000.');
+        ticketForm.setError(
+            'estimated_cost',
+            'تخمینہ لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Estimated cost cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'مرمت کی تخمینہ لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'مرمت کی تخمینہ لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -454,7 +458,9 @@ const getStatusBadgeClass = (status: string) => {
                     <span class="eyebrow">Tokens Generated</span>
                     <Clock class="h-5 w-5 text-sky-600 dark:text-sky-400" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-sky-600 dark:text-sky-400">
+                <div
+                    class="tnum mt-2 text-2xl font-bold text-sky-600 dark:text-sky-400"
+                >
                     {{ summary.received_count }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">Received / Intake</div>
@@ -881,164 +887,276 @@ const getStatusBadgeClass = (status: string) => {
 
         <!-- MODAL 1: Create Repair Ticket Modal -->
         <Dialog v-model:open="isCreateModalOpen">
-            <DialogContent class="max-w-xl">
-                <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2">
-                        <Wrench class="h-5 w-5 text-[#003B7D]" />
-                        Create Repair Job Sheet & Token
-                    </DialogTitle>
-                    <DialogDescription>
-                        Generate a new customer repair intake sheet.
-                    </DialogDescription>
+            <DialogContent
+                class="max-w-2xl rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] shadow-xs dark:bg-blue-500/20 dark:text-blue-400"
+                        >
+                            <Wrench class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Create Repair Job Sheet & Token
+                            </DialogTitle>
+                            <DialogDescription
+                                class="mt-0.5 text-xs text-slate-500"
+                            >
+                                Generate a customer device intake token with
+                                fault diagnostic notes.
+                            </DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
 
                 <form
                     @submit.prevent="submitCreateTicket"
-                    class="space-y-4 py-2 text-xs"
+                    class="space-y-4 py-1 text-xs"
                 >
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <Label for="cust_name">Customer Name *</Label>
-                            <Input
-                                id="cust_name"
-                                v-model="ticketForm.customer_name"
-                                placeholder="e.g. Ali Raza"
-                            />
-                            <span
-                                v-if="ticketForm.errors.customer_name"
-                                class="text-xs text-rose-600"
-                                >{{ ticketForm.errors.customer_name }}</span
-                            >
-                        </div>
-
-                        <div class="space-y-1">
-                            <Label for="cust_phone">Mobile Number *</Label>
-                            <Input
-                                id="cust_phone"
-                                v-model="ticketForm.customer_phone"
-                                placeholder="03001234567"
-                            />
-                            <span
-                                v-if="ticketForm.errors.customer_phone"
-                                class="text-xs text-rose-600"
-                                >{{ ticketForm.errors.customer_phone }}</span
-                            >
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="space-y-1">
-                            <Label for="device_model">Device Model *</Label>
-                            <Input
-                                id="device_model"
-                                v-model="ticketForm.device_model"
-                                placeholder="e.g. Redmi Note 12"
-                            />
-                            <span
-                                v-if="ticketForm.errors.device_model"
-                                class="text-xs text-rose-600"
-                                >{{ ticketForm.errors.device_model }}</span
-                            >
-                        </div>
-
-                        <div class="space-y-1">
-                            <Label for="imei">IMEI Number (Optional)</Label>
-                            <Input
-                                id="imei"
-                                v-model="ticketForm.imei"
-                                placeholder="15-digit IMEI"
-                                class="font-mono"
-                            />
-                        </div>
-
-                        <div class="space-y-1">
-                            <Label for="pattern_or_pin"
-                                >Pattern / Lock PIN</Label
-                            >
-                            <Input
-                                id="pattern_or_pin"
-                                v-model="ticketForm.pattern_or_pin"
-                                placeholder="e.g. 1234 or L-Shape"
-                                class="font-mono"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="space-y-1">
-                        <Label for="problem_description"
-                            >Customer Complaint / Problem *</Label
+                    <!-- 1. Customer Info -->
+                    <div
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-slate-700 uppercase dark:text-slate-300"
                         >
-                        <textarea
-                            id="problem_description"
-                            v-model="ticketForm.problem_description"
-                            rows="3"
-                            placeholder="e.g. Screen flickering, battery draining fast, charging port loose..."
-                            class="w-full rounded-md border border-gray-200 bg-gray-50 p-2 text-xs text-gray-900 placeholder:text-slate-500 focus:ring-2 focus:ring-[#003B7D]/20 focus:outline-none"
-                        ></textarea>
-                        <span
-                            v-if="ticketForm.errors.problem_description"
-                            class="text-xs text-rose-600"
-                            >{{ ticketForm.errors.problem_description }}</span
-                        >
-                    </div>
-
-                    <div class="space-y-1">
-                        <Label for="condition_notes"
-                            >Physical Condition Notes</Label
-                        >
-                        <Input
-                            id="condition_notes"
-                            v-model="ticketForm.condition_notes"
-                            placeholder="e.g. Body dented, screen glass cracked, SIM tray ok"
-                        />
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 border-t pt-2">
-                        <div class="space-y-1">
-                            <Label for="estimated_cost"
-                                >Estimated Cost (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
-                            >
-                            <Input
-                                id="estimated_cost"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="1000000"
-                                v-model="ticketForm.estimated_cost"
-                                placeholder="0.00"
+                            <User
+                                class="h-3.5 w-3.5 text-[#003B7D] dark:text-blue-400"
                             />
+                            <span>1. Customer Contact Details</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="space-y-1">
+                                <Label
+                                    for="cust_name"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Customer Name
+                                    <span class="text-rose-500">*</span></Label
+                                >
+                                <Input
+                                    id="cust_name"
+                                    v-model="ticketForm.customer_name"
+                                    placeholder="e.g. Ali Raza"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
+                                />
+                                <span
+                                    v-if="ticketForm.errors.customer_name"
+                                    class="block text-xs font-bold text-rose-600"
+                                    >{{ ticketForm.errors.customer_name }}</span
+                                >
+                            </div>
+
+                            <div class="space-y-1">
+                                <Label
+                                    for="cust_phone"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Mobile Number
+                                    <span class="text-rose-500">*</span></Label
+                                >
+                                <Input
+                                    id="cust_phone"
+                                    v-model="ticketForm.customer_phone"
+                                    placeholder="03001234567"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
+                                />
+                                <span
+                                    v-if="ticketForm.errors.customer_phone"
+                                    class="block text-xs font-bold text-rose-600"
+                                    >{{
+                                        ticketForm.errors.customer_phone
+                                    }}</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Device & Lock Details -->
+                    <div
+                        class="space-y-3 rounded-2xl border border-blue-200/80 bg-blue-50/40 p-3.5 dark:border-blue-900/40 dark:bg-blue-950/20"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-[#003B7D] uppercase dark:text-blue-300"
+                        >
+                            <Smartphone class="h-3.5 w-3.5" />
+                            <span>2. Device Model & Screen Lock</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div class="space-y-1">
+                                <Label
+                                    for="device_model"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Device Model
+                                    <span class="text-rose-500">*</span></Label
+                                >
+                                <Input
+                                    id="device_model"
+                                    v-model="ticketForm.device_model"
+                                    placeholder="e.g. Redmi Note 12"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
+                                />
+                                <span
+                                    v-if="ticketForm.errors.device_model"
+                                    class="block text-xs font-bold text-rose-600"
+                                    >{{ ticketForm.errors.device_model }}</span
+                                >
+                            </div>
+
+                            <div class="space-y-1">
+                                <Label
+                                    for="imei"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >IMEI Number (Optional)</Label
+                                >
+                                <Input
+                                    id="imei"
+                                    v-model="ticketForm.imei"
+                                    placeholder="15-digit IMEI"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs dark:border-slate-700 dark:bg-slate-800"
+                                />
+                            </div>
+
+                            <div class="space-y-1">
+                                <Label
+                                    for="pattern_or_pin"
+                                    class="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300"
+                                >
+                                    <Key class="h-3 w-3 text-slate-500" />
+                                    <span>Pattern / PIN Lock</span>
+                                </Label>
+                                <Input
+                                    id="pattern_or_pin"
+                                    v-model="ticketForm.pattern_or_pin"
+                                    placeholder="e.g. 1234 or Z-Shape"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs dark:border-slate-700 dark:bg-slate-800"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Fault & Physical Condition -->
+                    <div
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div class="space-y-1">
+                            <Label
+                                for="problem_description"
+                                class="font-bold text-slate-700 dark:text-slate-300"
+                                >Customer Complaint / Problem
+                                <span class="text-rose-500">*</span></Label
+                            >
+                            <textarea
+                                id="problem_description"
+                                v-model="ticketForm.problem_description"
+                                rows="2"
+                                placeholder="e.g. Display glass broken, touch working, charging port loose..."
+                                class="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#003B7D] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                            ></textarea>
                             <span
-                                v-if="ticketForm.errors.estimated_cost"
-                                class="text-xs text-rose-600 font-bold block mt-1"
-                                >{{ ticketForm.errors.estimated_cost }}</span
+                                v-if="ticketForm.errors.problem_description"
+                                class="block text-xs font-bold text-rose-600"
+                                >{{
+                                    ticketForm.errors.problem_description
+                                }}</span
                             >
                         </div>
 
                         <div class="space-y-1">
-                            <Label for="advance_paid"
-                                >Advance Received (PKR)</Label
+                            <Label
+                                for="condition_notes"
+                                class="font-bold text-slate-700 dark:text-slate-300"
+                                >Physical Condition & Body Scratches</Label
                             >
                             <Input
-                                id="advance_paid"
-                                type="number"
-                                step="0.01"
-                                v-model="ticketForm.advance_paid"
-                                placeholder="0.00"
+                                id="condition_notes"
+                                v-model="ticketForm.condition_notes"
+                                placeholder="e.g. Back cover dented, camera lens ok, SIM tray present"
+                                class="h-9 rounded-xl border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
                             />
                         </div>
                     </div>
 
-                    <DialogFooter class="pt-4">
+                    <!-- 4. Estimated Cost & Advance Paid -->
+                    <div
+                        class="space-y-3 rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-3.5 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-emerald-800 uppercase dark:text-emerald-300"
+                        >
+                            <DollarSign class="h-3.5 w-3.5 text-emerald-600" />
+                            <span>4. Estimated Cost & Advance Received</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <Label
+                                        for="estimated_cost"
+                                        class="font-bold text-slate-700 dark:text-slate-300"
+                                        >Estimated Cost (PKR)
+                                        <span class="text-rose-500"
+                                            >*</span
+                                        ></Label
+                                    >
+                                    <span class="text-[10px] text-slate-400"
+                                        >Max: 10 Lakh</span
+                                    >
+                                </div>
+                                <Input
+                                    id="estimated_cost"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="1000000"
+                                    v-model="ticketForm.estimated_cost"
+                                    placeholder="0.00"
+                                    class="h-10 rounded-xl border-slate-200 bg-white text-sm font-black dark:border-slate-700 dark:bg-slate-800"
+                                />
+                                <span
+                                    v-if="ticketForm.errors.estimated_cost"
+                                    class="block text-xs font-bold text-rose-600"
+                                    >{{
+                                        ticketForm.errors.estimated_cost
+                                    }}</span
+                                >
+                            </div>
+
+                            <div class="space-y-1">
+                                <Label
+                                    for="advance_paid"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Advance Received (PKR)</Label
+                                >
+                                <Input
+                                    id="advance_paid"
+                                    type="number"
+                                    step="0.01"
+                                    v-model="ticketForm.advance_paid"
+                                    placeholder="0.00"
+                                    class="h-10 rounded-xl border-slate-200 bg-white text-sm font-black text-emerald-600 dark:border-slate-700 dark:bg-slate-800 dark:text-emerald-400"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter
+                        class="gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
+                    >
                         <Button
                             type="button"
                             variant="outline"
                             @click="isCreateModalOpen = false"
+                            class="rounded-xl text-xs font-bold"
                             >Cancel</Button
                         >
                         <Button
                             type="submit"
                             :disabled="ticketForm.processing"
-                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
+                            class="rounded-xl bg-[#003B7D] text-xs font-bold text-white shadow-sm transition hover:bg-[#002b5c] active:scale-95"
                         >
                             {{
                                 ticketForm.processing
@@ -1053,28 +1171,54 @@ const getStatusBadgeClass = (status: string) => {
 
         <!-- MODAL 2: Add Spare Part Modal -->
         <Dialog v-model:open="isSparePartModalOpen">
-            <DialogContent class="max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Consume Spare Part from Stock</DialogTitle>
-                    <DialogDescription>
-                        Select a repair part / LCD / Flex from inventory to
-                        charge to ticket #{{
-                            activeTicketForSparePart?.ticket_no
-                        }}.
-                    </DialogDescription>
+            <DialogContent
+                class="max-w-md rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
+                        >
+                            <Layers class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Consume Spare Part
+                            </DialogTitle>
+                            <DialogDescription
+                                class="mt-0.5 text-xs text-slate-500"
+                            >
+                                Select a repair part from inventory to charge to
+                                ticket #{{
+                                    activeTicketForSparePart?.ticket_no
+                                }}.
+                            </DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
 
                 <form
                     @submit.prevent="submitSparePart"
                     class="space-y-4 py-2 text-xs"
                 >
-                    <div class="space-y-1">
-                        <Label>Select Spare Part / Item *</Label>
+                    <div class="space-y-1.5">
+                        <Label
+                            class="font-bold text-slate-700 dark:text-slate-300"
+                            >Select Spare Part / Item *</Label
+                        >
                         <Select v-model="sparePartForm.product_id">
-                            <SelectTrigger>
-                                <SelectValue placeholder="Choose part..." />
+                            <SelectTrigger
+                                class="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
+                            >
+                                <SelectValue
+                                    placeholder="Choose repair part..."
+                                />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent class="rounded-xl">
                                 <SelectItem
                                     v-for="part in spareParts"
                                     :key="part.id"
@@ -1088,32 +1232,40 @@ const getStatusBadgeClass = (status: string) => {
                         </Select>
                         <span
                             v-if="sparePartForm.errors.product_id"
-                            class="text-xs text-rose-600"
+                            class="block text-xs font-bold text-rose-600"
                             >{{ sparePartForm.errors.product_id }}</span
                         >
                     </div>
 
-                    <div class="space-y-1">
-                        <Label for="part_qty">Quantity *</Label>
+                    <div class="space-y-1.5">
+                        <Label
+                            for="part_qty"
+                            class="font-bold text-slate-700 dark:text-slate-300"
+                            >Quantity to Deduct *</Label
+                        >
                         <Input
                             id="part_qty"
                             type="number"
                             min="1"
                             v-model="sparePartForm.quantity"
+                            class="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold dark:border-slate-700 dark:bg-slate-800"
                         />
                     </div>
 
-                    <DialogFooter class="pt-2">
+                    <DialogFooter
+                        class="gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
+                    >
                         <Button
                             type="button"
                             variant="outline"
                             @click="isSparePartModalOpen = false"
+                            class="rounded-xl text-xs font-bold"
                             >Cancel</Button
                         >
                         <Button
                             type="submit"
                             :disabled="sparePartForm.processing"
-                            class="bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
+                            class="rounded-xl bg-[#003B7D] text-xs font-bold text-white shadow-sm transition hover:bg-[#002b5c] active:scale-95"
                         >
                             Deduct Stock & Add Cost
                         </Button>
@@ -1124,25 +1276,34 @@ const getStatusBadgeClass = (status: string) => {
 
         <!-- MODAL 3: Customer Claim Token Slip (80mm / 58mm Thermal Print) -->
         <Dialog v-model:open="isSlipModalOpen">
-            <DialogContent class="max-w-sm p-4">
-                <DialogHeader class="no-print">
-                    <DialogTitle class="text-center text-sm"
-                        >Customer Claim Slip</DialogTitle
+            <DialogContent
+                class="max-w-md rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="no-print border-b border-slate-100 pb-2 dark:border-slate-800"
+                >
+                    <DialogTitle
+                        class="text-center text-sm font-black text-slate-900 dark:text-white"
+                        >Customer Repair Claim Slip</DialogTitle
                     >
                 </DialogHeader>
 
                 <div
                     id="repair-token-slip"
-                    class="space-y-3 bg-white p-2 font-mono text-[11px] leading-tight text-black"
+                    class="space-y-3 rounded-xl border border-slate-200 bg-white p-3 font-mono text-[11px] leading-tight text-black shadow-xs"
                 >
                     <div class="border-b pb-2 text-center">
                         <div class="text-sm font-extrabold uppercase">
                             {{ shopInfo.name }}
                         </div>
-                        <div class="text-[10px]">{{ shopInfo.address }}</div>
-                        <div class="text-[10px]">Ph: {{ shopInfo.phone }}</div>
+                        <div class="text-[10px] text-slate-600">
+                            {{ shopInfo.address }}
+                        </div>
+                        <div class="text-[10px] text-slate-600">
+                            Ph: {{ shopInfo.phone }}
+                        </div>
                         <div
-                            class="mt-1 inline-block border px-2 py-0.5 text-xs font-bold"
+                            class="mt-1.5 inline-block rounded-md border border-slate-900 px-2 py-0.5 text-xs font-black"
                         >
                             REPAIR CLAIM TOKEN
                         </div>
@@ -1153,7 +1314,9 @@ const getStatusBadgeClass = (status: string) => {
                             class="flex justify-between text-xs font-extrabold"
                         >
                             <span>TOKEN #:</span>
-                            <span>{{ activeSlipTicket?.ticket_no }}</span>
+                            <span class="text-sm font-black">{{
+                                activeSlipTicket?.ticket_no
+                            }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span>Date:</span>
@@ -1234,7 +1397,7 @@ const getStatusBadgeClass = (status: string) => {
                             class="flex justify-between border-t pt-1 text-xs font-extrabold"
                         >
                             <span>Balance Due at Delivery:</span>
-                            <span>{{
+                            <span class="font-black text-rose-600">{{
                                 formatCurrency(
                                     Number(
                                         activeSlipTicket?.estimated_cost || 0,
@@ -1251,23 +1414,26 @@ const getStatusBadgeClass = (status: string) => {
                         <div class="font-bold">
                             *** PLEASE PRESENT THIS SLIP TO COLLECT DEVICE ***
                         </div>
-                        <div>
+                        <div class="text-slate-500">
                             No warranty for water damaged or burnt devices.
                         </div>
                     </div>
                 </div>
 
-                <DialogFooter class="no-print flex justify-between pt-2">
+                <DialogFooter
+                    class="no-print flex justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
+                >
                     <Button
                         type="button"
                         variant="outline"
                         @click="isSlipModalOpen = false"
+                        class="rounded-xl text-xs font-bold"
                         >Close</Button
                     >
                     <Button
                         type="button"
                         @click="printSlip"
-                        class="gap-1 bg-[#003B7D] text-white shadow-sm hover:bg-[#002b5c]"
+                        class="gap-1.5 rounded-xl bg-[#003B7D] text-xs font-bold text-white shadow-sm transition hover:bg-[#002b5c] active:scale-95"
                     >
                         <Printer class="h-4 w-4" /> Print Token
                     </Button>

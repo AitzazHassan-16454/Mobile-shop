@@ -22,6 +22,7 @@ test('shop settings can be updated', function () {
             'shop_name' => 'Faizan Mobile',
             'shop_phone' => '0300-0000000',
             'shop_address' => 'Shop #3, Saddar',
+            'invoice_style' => 'bold_banner',
             'return_policy' => '7 days checking warranty.',
             'invoice_footer' => 'Shukriya!',
         ]);
@@ -33,6 +34,7 @@ test('shop settings can be updated', function () {
     expect(AppSetting::get('shop_name'))->toBe('Faizan Mobile');
     expect(AppSetting::get('shop_phone'))->toBe('0300-0000000');
     expect(AppSetting::get('shop_address'))->toBe('Shop #3, Saddar');
+    expect(AppSetting::get('invoice_style'))->toBe('bold_banner');
     expect(AppSetting::get('return_policy'))->toBe('7 days checking warranty.');
     expect(AppSetting::get('invoice_footer'))->toBe('Shukriya!');
 });

@@ -76,7 +76,10 @@ defineProps<{
             </div>
 
             <div class="grid gap-2">
-                <Label for="password" class="text-sm font-medium text-slate-600">
+                <Label
+                    for="password"
+                    class="text-sm font-medium text-slate-600"
+                >
                     Password
                 </Label>
                 <PasswordInput
@@ -92,7 +95,10 @@ defineProps<{
             </div>
 
             <div class="grid gap-2">
-                <Label for="password_confirmation" class="text-sm font-medium text-slate-600">
+                <Label
+                    for="password_confirmation"
+                    class="text-sm font-medium text-slate-600"
+                >
                     Confirm Password
                 </Label>
                 <PasswordInput
@@ -120,7 +126,10 @@ defineProps<{
 
         <div class="text-center text-xs text-slate-600">
             Already have an account?
-            <TextLink :href="login()" class="font-bold text-[#003B7D] hover:underline">
+            <TextLink
+                :href="login()"
+                class="font-bold text-[#003B7D] hover:underline"
+            >
                 Log in
             </TextLink>
         </div>

@@ -250,9 +250,7 @@ const onProductSelect = (productIdVal: string) => {
     const productId = String(productIdVal ?? '');
     form.product_id = productId;
     form.product_imei_id = '';
-    const found = props.products.find(
-        (p) => String(p.id) === productId,
-    );
+    const found = props.products.find((p) => String(p.id) === productId);
     selectedProduct.value = found || null;
 };
 
@@ -366,7 +364,9 @@ const formatReasonLabel = (r: string) => {
                     <span class="eyebrow text-emerald-600 dark:text-emerald-400"
                         >Stock Additions (+)</span
                     >
-                    <ArrowUpRight class="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    <ArrowUpRight
+                        class="h-5 w-5 text-emerald-600 dark:text-emerald-400"
+                    />
                 </div>
                 <div
                     class="tnum mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400"
@@ -707,14 +707,26 @@ const formatReasonLabel = (r: string) => {
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ adjustments.data.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ adjustments.data.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ adjustments.total }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ adjustments.total }}</span
+                    >
                     adjustments
                 </div>
 
-                <div v-if="adjustments.links && adjustments.links.length > 3" class="flex items-center gap-1.5">
-                    <template v-for="(link, idx) in adjustments.links" :key="idx">
+                <div
+                    v-if="adjustments.links && adjustments.links.length > 3"
+                    class="flex items-center gap-1.5"
+                >
+                    <template
+                        v-for="(link, idx) in adjustments.links"
+                        :key="idx"
+                    >
                         <Button
                             v-if="link.url"
                             variant="outline"
@@ -725,7 +737,16 @@ const formatReasonLabel = (r: string) => {
                                     ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
                                     : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
                             ]"
-                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            @click="
+                                router.get(
+                                    link.url,
+                                    {},
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                )
+                            "
                             v-html="link.label"
                         />
                         <span

@@ -7,9 +7,11 @@ use App\Models\CustomerLedger;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\SupplierLedger;
+use App\Services\CsvService;
 use App\Services\XlsxService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -63,6 +65,33 @@ class ImportController extends Controller
                 ],
             ],
         );
+    }
+
+    public function productExport(Request $request, string $currentTeam): Response
+    {
+        $format = $request->query('format', 'xlsx') === 'csv' ? 'csv' : 'xlsx';
+
+        $rows = Product::query()
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Product $product): array => [
+                'name' => $product->name,
+                'brand' => $product->brand,
+                'category' => $product->category,
+                'barcode' => (string) $product->barcode,
+                'is_serialized' => $product->is_serialized ? 'Yes' : 'No',
+                'sale_price' => (string) $product->sale_price,
+                'cost_price' => (string) $product->cost_price,
+                'stock_quantity' => $product->stock_quantity,
+                'alert_quantity' => $product->alert_quantity,
+            ])
+            ->all();
+
+        $content = $format === 'csv'
+            ? CsvService::build(self::PRODUCT_HEADERS, $rows)
+            : XlsxService::build(self::PRODUCT_HEADERS, $rows);
+
+        return $this->downloadExport($content, 'products', $format);
     }
 
     public function customerTemplate(string $currentTeam): BinaryFileResponse

@@ -360,7 +360,8 @@ const deleteCategory = async (category: CategoryItem) => {
                     >
                         {{ stats.active_categories }}
                     </span>
-                    <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400"
+                    <span
+                        class="text-xs font-medium text-emerald-600 dark:text-emerald-400"
                         >Ready for POS & Sales</span
                     >
                 </div>

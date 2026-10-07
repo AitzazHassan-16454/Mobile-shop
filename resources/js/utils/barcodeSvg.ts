@@ -51,7 +51,7 @@ const CODE39_PATTERNS: Record<string, string> = {
 };
 
 export function generateBarcodeSvg(value: string, height = 40): string {
-    const rawValue = `*${value.toUpperCase().replace(/[^A-Z0-9\-.\ $\/+\%]/g, '')}*`;
+    const rawValue = `*${value.toUpperCase().replace(/[^A-Z0-9\-. $/+%]/g, '')}*`;
     let bitPattern = '';
 
     for (let i = 0; i < rawValue.length; i++) {

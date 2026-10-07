@@ -9,7 +9,6 @@ use Illuminate\Support\Str;
 
 class Category extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'name',
@@ -36,6 +35,9 @@ class Category extends Model
         });
     }
 
+    /**
+     * @return HasMany<Product, $this>
+     */
     public function products(): HasMany
     {
         return $this->hasMany(Product::class, 'category', 'name');

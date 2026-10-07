@@ -277,17 +277,17 @@ async function handleDeleteUnit(unit: UnitItem) {
         >
             <div>
                 <h1
-                    class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900"
+                    class="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl"
                 >
                     Units
                 </h1>
-                <p class="text-sm font-medium text-slate-500 mt-1">
+                <p class="mt-1 text-sm font-medium text-slate-500">
                     Manage product stock units and inventory measurement rules.
                 </p>
             </div>
             <Button
                 @click="openCreateModal"
-                class="bg-[#003B7D] hover:bg-[#002752] text-white font-bold inline-flex items-center gap-2 rounded-xl shadow-xs"
+                class="inline-flex items-center gap-2 rounded-xl bg-[#003B7D] font-bold text-white shadow-xs hover:bg-[#002752]"
             >
                 <Plus class="h-4 w-4" />
                 Add Unit
@@ -298,7 +298,7 @@ async function handleDeleteUnit(unit: UnitItem) {
         <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
             <!-- Total Units -->
             <div
-                class="glass-card rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs flex items-center justify-between"
+                class="glass-card flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs"
             >
                 <div>
                     <p
@@ -321,7 +321,7 @@ async function handleDeleteUnit(unit: UnitItem) {
 
             <!-- Active Units -->
             <div
-                class="glass-card rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs flex items-center justify-between"
+                class="glass-card flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs"
             >
                 <div>
                     <p
@@ -344,7 +344,7 @@ async function handleDeleteUnit(unit: UnitItem) {
 
             <!-- Decimal Allowed -->
             <div
-                class="glass-card rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs flex items-center justify-between"
+                class="glass-card flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs"
             >
                 <div>
                     <p
@@ -373,13 +373,13 @@ async function handleDeleteUnit(unit: UnitItem) {
             <!-- Search Bar -->
             <div class="relative flex-1">
                 <Search
-                    class="text-slate-400 absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+                    class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400"
                 />
                 <Input
                     v-model="searchQuery"
                     type="text"
                     placeholder="Search by unit name, short code, or description..."
-                    class="pl-9 rounded-xl border-slate-300 focus:border-[#003B7D]"
+                    class="rounded-xl border-slate-300 pl-9 focus:border-[#003B7D]"
                 />
             </div>
 
@@ -442,20 +442,23 @@ async function handleDeleteUnit(unit: UnitItem) {
                         <Button
                             variant="outline"
                             size="sm"
-                            class="h-8.5 gap-1.5 text-xs font-bold rounded-xl border-slate-300"
+                            class="h-8.5 gap-1.5 rounded-xl border-slate-300 text-xs font-bold"
                         >
                             <SlidersHorizontal
-                                class="text-[#003B7D] h-3.5 w-3.5"
+                                class="h-3.5 w-3.5 text-[#003B7D]"
                             />
                             <span>Columns</span>
                             <span
-                                class="bg-[#003B7D]/10 text-[#003B7D] ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                                class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
                             >
                                 {{ activeColumnCount }}/6
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" class="w-56 space-y-1 p-2 rounded-xl shadow-xl">
+                    <DropdownMenuContent
+                        align="end"
+                        class="w-56 space-y-1 rounded-xl p-2 shadow-xl"
+                    >
                         <DropdownMenuLabel
                             class="flex items-center justify-between px-1 py-1 text-xs font-bold"
                         >
@@ -463,7 +466,7 @@ async function handleDeleteUnit(unit: UnitItem) {
                             <button
                                 type="button"
                                 @click="resetColumns"
-                                class="text-[#003B7D] cursor-pointer text-[11px] font-semibold hover:underline"
+                                class="cursor-pointer text-[11px] font-semibold text-[#003B7D] hover:underline"
                             >
                                 Reset All
                             </button>
@@ -473,7 +476,7 @@ async function handleDeleteUnit(unit: UnitItem) {
                             v-for="(label, key) in unitColumnLabels"
                             :key="key"
                             @click.stop="toggleUnitColumn(key)"
-                            class="hover:bg-slate-100 flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none"
+                            class="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors select-none hover:bg-slate-100"
                         >
                             <span>{{ label }}</span>
                             <input
@@ -485,7 +488,7 @@ async function handleDeleteUnit(unit: UnitItem) {
                                 "
                                 @change="toggleUnitColumn(key)"
                                 @click.stop
-                                class="text-[#003B7D] focus:ring-[#003B7D] h-4 w-4 cursor-pointer rounded border-gray-300"
+                                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-[#003B7D] focus:ring-[#003B7D]"
                             />
                         </div>
                     </DropdownMenuContent>
@@ -493,12 +496,10 @@ async function handleDeleteUnit(unit: UnitItem) {
 
                 <!-- Per-Page Selection -->
                 <div class="flex items-center gap-2">
-                    <span class="text-slate-500 text-xs font-bold"
-                        >Show:</span
-                    >
+                    <span class="text-xs font-bold text-slate-500">Show:</span>
                     <select
                         v-model="perPage"
-                        class="bg-white border-slate-300 focus:border-[#003B7D] h-8.5 rounded-xl border px-2.5 text-xs font-bold shadow-2xs focus:outline-none cursor-pointer"
+                        class="h-8.5 cursor-pointer rounded-xl border border-slate-300 bg-white px-2.5 text-xs font-bold shadow-2xs focus:border-[#003B7D] focus:outline-none"
                     >
                         <option :value="10">10</option>
                         <option :value="15">15</option>
@@ -514,12 +515,12 @@ async function handleDeleteUnit(unit: UnitItem) {
 
         <!-- Units Table Card -->
         <div
-            class="glass-card rounded-2xl border border-slate-200/80 bg-white overflow-hidden shadow-xs"
+            class="glass-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs"
         >
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead
-                        class="border-b border-slate-200/80 bg-slate-50/80 text-slate-700 text-xs font-black tracking-wider uppercase"
+                        class="border-b border-slate-200/80 bg-slate-50/80 text-xs font-black tracking-wider text-slate-700 uppercase"
                     >
                         <tr>
                             <th v-if="visibleColumns.name" class="px-6 py-3.5">
@@ -712,13 +713,22 @@ async function handleDeleteUnit(unit: UnitItem) {
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ units.data.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ units.data.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ units.total }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ units.total }}</span
+                    >
                     units
                 </div>
 
-                <div v-if="units.links && units.links.length > 3" class="flex items-center gap-1.5">
+                <div
+                    v-if="units.links && units.links.length > 3"
+                    class="flex items-center gap-1.5"
+                >
                     <template v-for="(link, idx) in units.links" :key="idx">
                         <Button
                             v-if="link.url"
@@ -730,7 +740,16 @@ async function handleDeleteUnit(unit: UnitItem) {
                                     ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
                                     : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
                             ]"
-                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            @click="
+                                router.get(
+                                    link.url,
+                                    {},
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                )
+                            "
                             v-html="link.label"
                         />
                         <span

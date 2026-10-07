@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SaleReturn extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'return_no',
@@ -30,21 +29,33 @@ class SaleReturn extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Sale, $this>
+     */
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
     }
 
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return HasMany<SaleReturnItem, $this>
+     */
     public function items(): HasMany
     {
         return $this->hasMany(SaleReturnItem::class);

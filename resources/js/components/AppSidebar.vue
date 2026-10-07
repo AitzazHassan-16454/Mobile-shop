@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    ArrowLeftRight,
     BadgePercent,
     BarChart3,
     Boxes,
     Building2,
+    CalendarClock,
     CalendarDays,
+    Clock,
     FolderTree,
     HardDrive,
     LayoutDashboard,
@@ -63,7 +66,16 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         title: 'Core',
         icon: LayoutDashboard,
         items: [
-            { title: 'Customers', href: teamUrl('/customers'), icon: UsersRound },
+            {
+                title: 'Customers',
+                href: teamUrl('/customers'),
+                icon: UsersRound,
+            },
+            {
+                title: 'Installments',
+                href: teamUrl('/installments'),
+                icon: CalendarClock,
+            },
             {
                 title: 'Yearly Dues',
                 href: teamUrl('/yearly-dues'),
@@ -76,7 +88,7 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         icon: ReceiptText,
         items: [
             {
-                title: 'Sell Mobile Handset',
+                title: 'Mobile Handsets (Add, Sell, Buy)',
                 href: teamUrl('/mobile-sales'),
                 icon: Smartphone,
             },
@@ -95,7 +107,16 @@ const mainNavGroups = computed<NavGroup[]>(() => [
                 href: teamUrl('/repair-sales'),
                 icon: Wrench,
             },
-            { title: 'Expenses', href: teamUrl('/expenses'), icon: TrendingDown },
+            {
+                title: 'Repair Lab (Tickets)',
+                href: teamUrl('/repairs'),
+                icon: Wrench,
+            },
+            {
+                title: 'Expenses',
+                href: teamUrl('/expenses'),
+                icon: TrendingDown,
+            },
         ],
     },
     {
@@ -103,21 +124,25 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         icon: Boxes,
         items: [
             {
-                title: 'Mobile Phones',
-                href: teamUrl('/mobile-phones'),
-                icon: Smartphone,
-            },
-            {
                 title: 'Accessories',
                 href: teamUrl('/products'),
                 icon: Boxes,
             },
-            { title: 'Categories', href: teamUrl('/categories'), icon: FolderTree },
+            {
+                title: 'Categories',
+                href: teamUrl('/categories'),
+                icon: FolderTree,
+            },
             { title: 'Units', href: teamUrl('/units'), icon: Scale },
             {
                 title: 'Stock Adjustments',
                 href: teamUrl('/stock-adjustments'),
                 icon: SlidersHorizontal,
+            },
+            {
+                title: 'Stock Transfers',
+                href: teamUrl('/stock-transfers'),
+                icon: ArrowLeftRight,
             },
             {
                 title: 'Discounts',
@@ -130,6 +155,11 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         title: 'Management',
         icon: Building2,
         items: [
+            {
+                title: 'Register Shifts',
+                href: teamUrl('/shifts'),
+                icon: Clock,
+            },
             {
                 title: 'Suppliers',
                 href: teamUrl('/suppliers'),
@@ -157,15 +187,20 @@ const mainNavGroups = computed<NavGroup[]>(() => [
         variant="sidebar"
         class="text-sidebar-foreground border-r border-white/12 bg-[#002654]/95 shadow-[8px_0_36px_rgba(0,18,51,0.25)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#090d16] dark:shadow-[8px_0_36px_rgba(0,0,0,0.5)]"
     >
-        <SidebarHeader class="relative bg-transparent p-2.5 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:py-3">
+        <SidebarHeader
+            class="relative bg-transparent p-2.5 group-data-[collapsible=icon]:p-2 group-data-[collapsible=icon]:py-3"
+        >
             <SidebarMenu>
                 <SidebarMenuItem class="flex justify-center">
                     <SidebarMenuButton
                         size="lg"
                         as-child
-                        class="bg-transparent hover:bg-transparent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0"
+                        class="bg-transparent group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 hover:bg-transparent"
                     >
-                        <Link :href="dashboardUrl" class="w-full flex items-center justify-center">
+                        <Link
+                            :href="dashboardUrl"
+                            class="flex w-full items-center justify-center"
+                        >
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
@@ -173,7 +208,9 @@ const mainNavGroups = computed<NavGroup[]>(() => [
             </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent class="no-scrollbar relative bg-transparent px-2 py-3 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2">
+        <SidebarContent
+            class="no-scrollbar relative bg-transparent px-2 py-3 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2"
+        >
             <NavMain :items="mainNavGroups" :leading="dashboardNavItem" />
         </SidebarContent>
     </Sidebar>

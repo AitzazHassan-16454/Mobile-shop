@@ -40,6 +40,9 @@ class Membership extends Pivot
      *
      * @return BelongsTo<Team, $this>
      */
+    /**
+     * @return BelongsTo<Team, $this>
+     */
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
@@ -48,6 +51,9 @@ class Membership extends Pivot
     /**
      * Get the user that belongs to this membership.
      *
+     * @return BelongsTo<User, $this>
+     */
+    /**
      * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo

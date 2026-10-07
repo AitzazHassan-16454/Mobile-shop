@@ -538,13 +538,22 @@ const transferItemsLabel = (transfer: StockTransferRow) => {
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ transfers.data.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ transfers.data.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ transfers.total }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ transfers.total }}</span
+                    >
                     transfers
                 </div>
 
-                <div v-if="transfers.links && transfers.links.length > 3" class="flex items-center gap-1.5">
+                <div
+                    v-if="transfers.links && transfers.links.length > 3"
+                    class="flex items-center gap-1.5"
+                >
                     <template v-for="(link, idx) in transfers.links" :key="idx">
                         <Button
                             v-if="link.url"
@@ -556,7 +565,16 @@ const transferItemsLabel = (transfer: StockTransferRow) => {
                                     ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
                                     : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
                             ]"
-                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            @click="
+                                router.get(
+                                    link.url,
+                                    {},
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                )
+                            "
                             v-html="link.label"
                         />
                         <span

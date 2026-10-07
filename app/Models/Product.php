@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
+    /** @use HasFactory<ProductFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -33,21 +35,33 @@ class Product extends Model
         ];
     }
 
+    /**
+     * @return HasMany<ProductImei, $this>
+     */
     public function imeis(): HasMany
     {
         return $this->hasMany(ProductImei::class);
     }
 
+    /**
+     * @return HasMany<ProductImei, $this>
+     */
     public function inStockImeis(): HasMany
     {
         return $this->hasMany(ProductImei::class)->where('status', 'in_stock');
     }
 
+    /**
+     * @return HasMany<ProductImei, $this>
+     */
     public function availableImeis(): HasMany
     {
         return $this->hasMany(ProductImei::class)->where('status', 'in_stock');
     }
 
+    /**
+     * @return HasMany<SaleItem, $this>
+     */
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);

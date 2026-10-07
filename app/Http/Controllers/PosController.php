@@ -3,16 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ImeiStatus;
+use App\Enums\LedgerType;
+use App\Enums\TradeInStatus;
 use App\Models\AppSetting;
 use App\Models\Customer;
 use App\Models\CustomerLedger;
 use App\Models\Product;
 use App\Models\ProductImei;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\UsedPhonePurchase;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -33,7 +38,7 @@ class PosController extends Controller
             ->get();
 
         $usedPhonePurchases = UsedPhonePurchase::query()
-            ->whereNull('applied_at')
+            ->redeemable()
             ->latest()
             ->get(['id', 'voucher_no', 'seller_name', 'device_model', 'imei_1', 'purchase_amount', 'created_at']);
 
@@ -44,6 +49,7 @@ class PosController extends Controller
             'shop_phone_secondary' => AppSetting::get('shop_phone_secondary', ''),
             'address' => AppSetting::get('shop_address', 'Main Mobile Market, Shop #12, Lahore'),
             'ntn' => AppSetting::get('shop_ntn', ''),
+            'invoice_style' => AppSetting::get('invoice_style', 'classic'),
             'invoice_header_title' => AppSetting::get('invoice_header_title', 'CASH RECEIPT'),
             'paperWidth' => AppSetting::get('invoice_paper_size', '80mm'),
             'showBarcode' => AppSetting::get('show_barcode_on_invoice', '1') === '1',
@@ -98,7 +104,7 @@ class PosController extends Controller
         return response()->json($query->orderBy('name', 'asc')->get());
     }
 
-    public function storeCustomer(Request $request, string $currentTeam): RedirectResponse
+    public function storeCustomer(Request $request, string $currentTeam): \Illuminate\Http\JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -107,7 +113,14 @@ class PosController extends Controller
         ]);
 
         $validated['current_balance'] = 0.00;
-        Customer::create($validated);
+        $customer = Customer::create($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Customer added successfully.',
+                'customer' => $customer,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Customer added successfully.');
     }
@@ -235,9 +248,12 @@ class PosController extends Controller
             if (! empty($validated['trade_in_purchase_id'])) {
                 $purchase = UsedPhonePurchase::lockForUpdate()->findOrFail($validated['trade_in_purchase_id']);
 
-                if ($purchase->applied_at !== null) {
+                if (! $purchase->isRedeemable()) {
                     throw ValidationException::withMessages([
-                        'trade_in_purchase_id' => ['This trade-in credit has already been applied to another sale.'],
+                        'trade_in_purchase_id' => [match (true) {
+                            $purchase->status !== TradeInStatus::Approved => 'This trade-in credit has not been approved yet. Ask an admin to approve it first.',
+                            default => 'This trade-in credit has already been applied to another sale.',
+                        }],
                     ]);
                 }
 
@@ -274,7 +290,7 @@ class PosController extends Controller
             ];
 
             if (! empty($validated['sale_date'])) {
-                $saleData['created_at'] = \Illuminate\Support\Carbon::parse($validated['sale_date']);
+                $saleData['created_at'] = Carbon::parse($validated['sale_date']);
             }
 
             $sale = Sale::create($saleData);
@@ -298,7 +314,7 @@ class PosController extends Controller
                             CustomerLedger::create([
                                 'customer_id' => $customer->id,
                                 'user_id' => $cashierId,
-                                'type' => \App\Enums\LedgerType::Sale,
+                                'type' => LedgerType::Sale,
                                 'amount' => $unpaidPortion,
                                 'payment_method' => $paymentMethod,
                                 'balance_after' => $newBalance,
@@ -315,7 +331,7 @@ class PosController extends Controller
                         CustomerLedger::create([
                             'customer_id' => $customer->id,
                             'user_id' => $cashierId,
-                            'type' => \App\Enums\LedgerType::Payment,
+                            'type' => LedgerType::Payment,
                             'amount' => $debtSettled,
                             'payment_method' => $paymentMethod,
                             'balance_after' => $newBalance,
@@ -336,6 +352,152 @@ class PosController extends Controller
         });
 
         return redirect()->back()->with('latest_sale', $completedSale);
+    }
+
+    public function refundAdvance(Request $request, string $currentTeam, Customer $customer): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $requestedAmount = round((float) $validated['amount'], 2);
+        $paymentMethod = $validated['payment_method'];
+        $cashierId = $request->user()->id;
+
+        $result = DB::transaction(function () use ($customer, $validated, $requestedAmount, $paymentMethod, $cashierId): array {
+            $customer->lockForUpdate();
+            $oldBalance = round((float) $customer->current_balance, 2);
+
+            $availableAdvance = $oldBalance < 0 ? round(abs($oldBalance), 2) : 0.00;
+            $fromAdvance = min($requestedAmount, $availableAdvance);
+            $extraAsDue = round($requestedAmount - $fromAdvance, 2);
+
+            // Negative balance = advance. Paying back always moves the balance up.
+            $newBalance = round($oldBalance + $requestedAmount, 2);
+            $customer->update(['current_balance' => $newBalance]);
+
+            $refNo = 'ADVP-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 6, '0', STR_PAD_LEFT);
+            $customNotes = $validated['notes'] ?? null;
+
+            if ($fromAdvance > 0) {
+                CustomerLedger::create([
+                    'customer_id' => $customer->id,
+                    'user_id' => $cashierId,
+                    'type' => LedgerType::AdvanceReturn,
+                    'amount' => $fromAdvance,
+                    'payment_method' => $paymentMethod,
+                    'balance_after' => round($oldBalance + $fromAdvance, 2),
+                    'reference_id' => $refNo,
+                    'notes' => $customNotes ?? 'Advance paid back to customer from POS ('.ucfirst($paymentMethod).')',
+                ]);
+            }
+
+            if ($extraAsDue > 0) {
+                CustomerLedger::create([
+                    'customer_id' => $customer->id,
+                    'user_id' => $cashierId,
+                    'type' => LedgerType::Sale,
+                    'amount' => $extraAsDue,
+                    'payment_method' => $paymentMethod,
+                    'balance_after' => $newBalance,
+                    'reference_id' => $refNo,
+                    'notes' => 'Amount over available advance added as Udhaar (Due) from POS',
+                ]);
+            }
+
+            return [
+                'advance_returned' => $fromAdvance,
+                'due_added' => $extraAsDue,
+                'previous_balance' => $oldBalance,
+                'new_balance' => $newBalance,
+            ];
+        });
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance paid back successfully.',
+                'result' => $result,
+                'customer' => $customer->fresh(),
+            ]);
+        }
+
+        return back()->with('success', 'Advance paid back successfully.');
+    }
+
+    public function recordDuePayment(Request $request, string $currentTeam, Customer $customer): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'amount' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+            'payment_method' => ['required', 'string', 'in:cash,jazzcash,easypaisa,bank,card'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $requestedAmount = round((float) $validated['amount'], 2);
+        $paymentMethod = $validated['payment_method'];
+        $cashierId = $request->user()->id;
+
+        $result = DB::transaction(function () use ($customer, $validated, $requestedAmount, $paymentMethod, $cashierId): array {
+            $customer->lockForUpdate();
+            $oldBalance = round((float) $customer->current_balance, 2);
+
+            $outstandingDue = $oldBalance > 0 ? $oldBalance : 0.00;
+            $towardDue = min($requestedAmount, $outstandingDue);
+            $extraAsAdvance = round($requestedAmount - $towardDue, 2);
+
+            // Positive balance = udhaar. A due payment always moves the balance down.
+            $newBalance = round($oldBalance - $requestedAmount, 2);
+            $customer->update(['current_balance' => $newBalance]);
+
+            $refNo = 'DUEP-'.str_pad((string) ((CustomerLedger::max('id') ?? 0) + 1), 6, '0', STR_PAD_LEFT);
+            $customNotes = $validated['notes'] ?? null;
+
+            if ($towardDue > 0) {
+                CustomerLedger::create([
+                    'customer_id' => $customer->id,
+                    'user_id' => $cashierId,
+                    'type' => LedgerType::Payment,
+                    'amount' => $towardDue,
+                    'payment_method' => $paymentMethod,
+                    'balance_after' => round($oldBalance - $towardDue, 2),
+                    'reference_id' => $refNo,
+                    'notes' => $customNotes ?? 'Udhaar (Due) payment received at POS ('.ucfirst($paymentMethod).')',
+                ]);
+            }
+
+            if ($extraAsAdvance > 0) {
+                CustomerLedger::create([
+                    'customer_id' => $customer->id,
+                    'user_id' => $cashierId,
+                    'type' => LedgerType::Advance,
+                    'amount' => $extraAsAdvance,
+                    'payment_method' => $paymentMethod,
+                    'balance_after' => $newBalance,
+                    'reference_id' => $refNo,
+                    'notes' => 'Amount over outstanding due kept as customer advance',
+                ]);
+            }
+
+            return [
+                'due_settled' => $towardDue,
+                'advance_added' => $extraAsAdvance,
+                'previous_balance' => $oldBalance,
+                'new_balance' => $newBalance,
+            ];
+        });
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Due payment recorded successfully.',
+                'result' => $result,
+                'customer' => $customer->fresh(),
+            ]);
+        }
+
+        return back()->with('success', 'Due payment recorded successfully.');
     }
 
     public function getRecentSalesApi(Request $request, string $currentTeam)
@@ -506,7 +668,7 @@ class PosController extends Controller
         }
 
         $sales = $query->take(30)->get()->map(function (Sale $sale) {
-            $items = $sale->items->map(function (\App\Models\SaleItem $item) {
+            $items = $sale->items->map(function (SaleItem $item) {
                 $returnedQty = (float) $item->returnItems->sum('quantity');
                 $purchasedQty = (float) $item->quantity;
                 $remainingQty = max(0.00, round($purchasedQty - $returnedQty, 2));
