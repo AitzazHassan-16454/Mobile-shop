@@ -5,10 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SaleItem extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'sale_id',
@@ -30,22 +30,34 @@ class SaleItem extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Sale, $this>
+     */
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
     }
 
+    /**
+     * @return BelongsTo<Product, $this>
+     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * @return BelongsTo<ProductImei, $this>
+     */
     public function productImei(): BelongsTo
     {
         return $this->belongsTo(ProductImei::class, 'product_imei_id');
     }
 
-    public function returnItems(): \Illuminate\Database\Eloquent\Relations\HasMany
+    /**
+     * @return HasMany<SaleReturnItem, $this>
+     */
+    public function returnItems(): HasMany
     {
         return $this->hasMany(SaleReturnItem::class);
     }

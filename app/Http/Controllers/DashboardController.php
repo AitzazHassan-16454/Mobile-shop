@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LedgerType;
 use App\Enums\PaymentMethod;
 use App\Models\Customer;
 use App\Models\CustomerLedger;
+use App\Models\InstallmentPayment;
 use App\Models\InstallmentPlan;
 use App\Models\Product;
 use App\Models\ProductImei;
 use App\Models\RegisterShift;
+use App\Models\RepairSale;
 use App\Models\RepairTicket;
 use App\Models\Sale;
+use App\Models\SaleReturn;
 use App\Models\ShopExpense;
 use App\Models\Supplier;
+use App\Models\SupplierLedger;
 use App\Models\TeamInvitation;
 use App\Models\UsedPhonePurchase;
 use Carbon\Carbon;
@@ -55,30 +60,39 @@ class DashboardController extends Controller
             ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
             ->get();
 
+        $saleReturns = SaleReturn::query()
+            ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
+            ->get();
+
+        $repairSales = RepairSale::query()
+            ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
+            ->get();
+
+        $deliveredRepairTickets = RepairTicket::query()
+            ->where('status', 'delivered')
+            ->when($start && $end, fn ($query) => $query->whereBetween('delivered_at', [$start, $end]))
+            ->get();
+
+        $usedPhonePurchases = UsedPhonePurchase::query()
+            ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
+            ->get();
+
+        $supplierLedgers = SupplierLedger::query()
+            ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
+            ->get();
+
+        $customerLedgers = CustomerLedger::query()
+            ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
+            ->get();
+
+        $installmentPayments = InstallmentPayment::query()
+            ->when($start && $end, fn ($query) => $query->whereBetween('paid_at', [$start->toDateString(), $end->toDateString()]))
+            ->get();
+
         $expenses = ShopExpense::query()
             ->when($start && $end, fn ($query) => $query->whereBetween('created_at', [$start, $end]))
             ->orderBy('created_at')
             ->get();
-
-        $posStats = $this->posStats($sales, $expenses, $start, $end);
-
-        $paymentMethods = $this->paymentMethodStats($sales);
-
-        $expenseCategories = $expenses
-            ->groupBy('category')
-            ->map(fn (Collection $rows) => round((float) $rows->sum('amount'), 2))
-            ->sortDesc()
-            ->map(fn (float $amount, string $category) => [
-                'name' => $category,
-                'amount' => $amount,
-            ])
-            ->values();
-
-        $graph = $this->buildGraphData($sales, $expenses, $start, $end);
-
-        $reminders = $this->reminderStats();
-
-        $alerts = $this->alerts($reminders);
 
         // Inventory Overview
         $inStockPhonesCount = ProductImei::query()->where('status', 'in_stock')->count();
@@ -91,6 +105,51 @@ class DashboardController extends Controller
         $phoneValuation = (float) ProductImei::query()->where('status', 'in_stock')->sum('purchase_cost');
         $accessoryValuation = (float) Product::query()->where('is_serialized', false)->selectRaw('SUM(cost_price * stock_quantity) as total')->value('total');
         $totalValuation = round($phoneValuation + $accessoryValuation, 2);
+
+        $posStats = $this->posStats(
+            $sales,
+            $saleReturns,
+            $repairSales,
+            $deliveredRepairTickets,
+            $usedPhonePurchases,
+            $supplierLedgers,
+            $customerLedgers,
+            $installmentPayments,
+            $expenses,
+            $totalValuation,
+            $start,
+            $end
+        );
+
+        $paymentMethods = $this->paymentMethodStats(
+            $sales,
+            $customerLedgers,
+            $repairSales,
+            $installmentPayments,
+            $saleReturns
+        );
+
+        $expenseCategories = $expenses
+            ->groupBy('category')
+            ->map(fn (Collection $rows) => round((float) $rows->sum('amount'), 2))
+            ->sortDesc()
+            ->map(fn (float $amount, string $category) => [
+                'name' => $category,
+                'amount' => $amount,
+            ])
+            ->values();
+
+        $graph = $this->buildGraphData(
+            $sales,
+            $saleReturns,
+            $repairSales,
+            $deliveredRepairTickets,
+            $expenses,
+            $customerLedgers,
+            $installmentPayments,
+            $start,
+            $end
+        );
 
         // Active Shift Status
         $activeShift = RegisterShift::query()
@@ -112,6 +171,9 @@ class DashboardController extends Controller
                 'payment_method' => $s->payment_method->value,
                 'created_at' => $s->created_at->format('H:i'),
             ]);
+
+        $reminders = $this->reminderStats();
+        $alerts = $this->alerts($reminders);
 
         return Inertia::render('Dashboard', [
             'pendingInvitations' => $pendingInvitations,
@@ -180,7 +242,10 @@ class DashboardController extends Controller
     /**
      * @return array{
      *     total_sale: float,
+     *     gross_sale: float,
      *     sales_count: int,
+     *     total_returns: float,
+     *     total_refunds: float,
      *     total_expense: float,
      *     gross_profit: float,
      *     net_profit: float,
@@ -193,72 +258,111 @@ class DashboardController extends Controller
      *     purchase_due: float,
      *     total_due: float,
      *     used_phone_buying: float,
+     *     total_purchase: float,
+     *     total_purchase_payment: float,
+     *     total_purchase_returned: float,
+     *     opening_balance_dues: float,
+     *     stock_valuation: float,
      *     repair_revenue: float,
      *     repair_profit: float,
      * }
      */
-    private function posStats(Collection $sales, Collection $expenses, ?CarbonInterface $start, ?CarbonInterface $end): array
-    {
-        $totalSale = 0.00;
-        $paymentReceived = 0.00;
+    private function posStats(
+        Collection $sales,
+        Collection $saleReturns,
+        Collection $repairSales,
+        Collection $repairTickets,
+        Collection $usedPhonePurchases,
+        Collection $supplierLedgers,
+        Collection $customerLedgers,
+        Collection $installmentPayments,
+        Collection $expenses,
+        float $totalValuation,
+        ?CarbonInterface $start,
+        ?CarbonInterface $end
+    ): array {
+        $posGrossSale = 0.00;
+        $posPaidReceived = 0.00;
         $totalDiscount = 0.00;
-        $totalCost = 0.00;
+        $posCost = 0.00;
 
         foreach ($sales as $sale) {
-            $totalSale += (float) $sale->net_amount;
-            $paymentReceived += min((float) $sale->paid_amount, (float) $sale->net_amount);
+            $posGrossSale += (float) $sale->net_amount;
+            $posPaidReceived += min((float) $sale->paid_amount, (float) $sale->net_amount);
             $totalDiscount += (float) $sale->discount_amount;
-            $totalCost += $sale->items->sum(fn ($item) => (float) $item->unit_cost * (float) $item->quantity);
+            $posCost += $sale->items->sum(fn ($item) => (float) $item->unit_cost * (float) $item->quantity);
         }
 
-        $returnsQuery = \App\Models\SaleReturn::query();
-        if ($start && $end) {
-            $returnsQuery->whereBetween('created_at', [$start, $end]);
-        }
-        $returnsTotal = (float) $returnsQuery->sum('total_return_amount');
-        $refundsTotal = (float) $returnsQuery->sum('refund_amount');
+        $returnsTotal = round((float) $saleReturns->sum('total_return_amount'), 2);
+        $refundsTotal = round((float) $saleReturns->sum('refund_amount'), 2);
+        $posNetSale = max(0.00, round($posGrossSale - $returnsTotal, 2));
 
-        $effectiveTotalSale = max(0.00, round($totalSale - $returnsTotal, 2));
-        $grossProfit = round($effectiveTotalSale - $totalCost, 2);
+        $repairSaleRevenue = round((float) $repairSales->sum('total_amount'), 2);
+        $repairSaleCost = round((float) $repairSales->sum(fn ($s) => (float) $s->cost_price * (float) $s->quantity), 2);
+        $repairSaleProfit = round($repairSaleRevenue - $repairSaleCost, 2);
+
+        $repairTicketRevenue = round((float) $repairTickets->sum('estimated_cost'), 2);
+        $repairTicketCost = round((float) $repairTickets->sum('spare_parts_cost'), 2);
+        $repairTicketProfit = round($repairTicketRevenue - $repairTicketCost, 2);
+
+        $totalRepairRevenue = round($repairSaleRevenue + $repairTicketRevenue, 2);
+        $totalRepairProfit = round($repairSaleProfit + $repairTicketProfit, 2);
+        $totalRepairCost = round($repairSaleCost + $repairTicketCost, 2);
+
+        $totalSale = round($posNetSale + $totalRepairRevenue, 2);
+        $grossSale = round($posGrossSale + $totalRepairRevenue, 2);
+
+        $totalCogs = round($posCost + $totalRepairCost, 2);
+        $grossProfit = round($totalSale - $totalCogs, 2);
         $totalExpense = round((float) $expenses->sum('amount'), 2);
+        $netProfit = round($grossProfit - $totalExpense, 2);
 
-        $repairQuery = RepairTicket::query()->where('status', 'delivered');
-        if ($start && $end) {
-            $repairQuery->whereBetween('delivered_at', [$start, $end]);
-        }
-        $repairRevenue = round((float) $repairQuery->sum('estimated_cost'), 2);
-        $repairProfit = round((float) $repairQuery->get()->sum(fn ($ticket) => (float) $ticket->estimated_cost - (float) $ticket->spare_parts_cost), 2);
+        $udhaarCreated = round((float) $customerLedgers->filter(fn ($l) => ($l->type instanceof LedgerType ? $l->type->value : (string) $l->type) === 'sale')->sum('amount'), 2);
+        $wasooliCollected = round((float) $customerLedgers->filter(fn ($l) => ($l->type instanceof LedgerType ? $l->type->value : (string) $l->type) === 'payment')->sum('amount'), 2);
+        $advancesReceived = round((float) $customerLedgers->filter(fn ($l) => ($l->type instanceof LedgerType ? $l->type->value : (string) $l->type) === 'advance')->sum('amount'), 2);
+        $advancesRefunded = round((float) $customerLedgers->filter(fn ($l) => ($l->type instanceof LedgerType ? $l->type->value : (string) $l->type) === 'advance_return')->sum('amount'), 2);
+        $installmentCollected = round((float) $installmentPayments->sum('amount'), 2);
 
-        $netProfit = round($grossProfit + $repairProfit - $totalExpense, 2);
+        $paymentReceived = max(0.00, round(
+            $posPaidReceived + $wasooliCollected + $advancesReceived + $installmentCollected + $totalRepairRevenue - $advancesRefunded - $refundsTotal,
+            2
+        ));
 
-        $ledgerQuery = CustomerLedger::query();
-        if ($start && $end) {
-            $ledgerQuery->whereBetween('created_at', [$start, $end]);
-        }
-        $udhaarCreated = round((float) (clone $ledgerQuery)->where('type', 'sale')->sum('amount'), 2);
-        $wasooliCollected = round((float) (clone $ledgerQuery)->where('type', 'payment')->sum('amount'), 2);
-        $advancesReceived = round((float) (clone $ledgerQuery)->where('type', 'advance')->sum('amount'), 2);
-        $advancesRefunded = round((float) (clone $ledgerQuery)->where('type', 'advance_return')->sum('amount'), 2);
+        $usedPhoneBuying = round((float) $usedPhonePurchases->sum('purchase_amount'), 2);
+        $supplierPurchases = round((float) $supplierLedgers->where('type', 'purchase')->sum('amount'), 2);
+        $supplierPayments = round((float) $supplierLedgers->where('type', 'payment')->sum('amount'), 2);
+        $supplierReturns = round((float) $supplierLedgers->where('type', 'return')->sum('amount'), 2);
 
-        $usedPhoneBuyingQuery = UsedPhonePurchase::query();
-        if ($start && $end) {
-            $usedPhoneBuyingQuery->whereBetween('created_at', [$start, $end]);
-        }
-        $usedPhoneBuying = round((float) $usedPhoneBuyingQuery->sum('purchase_amount'), 2);
+        $totalPurchase = round($usedPhoneBuying + $supplierPurchases, 2);
+        $totalPurchasePayment = round($usedPhoneBuying + $supplierPayments, 2);
+        $totalPurchaseReturned = round($supplierReturns, 2);
 
         $saleDue = round((float) Customer::query()->where('current_balance', '>', 0)->sum('current_balance'), 2);
         $purchaseDue = round((float) Supplier::query()->where('current_balance', '>', 0)->sum('current_balance'), 2);
         $totalAdvance = round((float) abs(Customer::query()->where('current_balance', '<', 0)->sum('current_balance')), 2);
 
+        $customerOpeningDuesQuery = CustomerLedger::query()
+            ->where('type', 'adjustment')
+            ->where('balance_after', '>', 0);
+        $supplierOpeningDuesQuery = SupplierLedger::query()
+            ->where('type', 'adjustment')
+            ->where('balance_after', '>', 0);
+        if ($start && $end) {
+            $customerOpeningDuesQuery->whereBetween('created_at', [$start, $end]);
+            $supplierOpeningDuesQuery->whereBetween('created_at', [$start, $end]);
+        }
+        $openingBalanceDues = round((float) $customerOpeningDuesQuery->sum('amount') + (float) $supplierOpeningDuesQuery->sum('amount'), 2);
+
         return [
-            'total_sale' => $effectiveTotalSale,
-            'sales_count' => $sales->count(),
+            'total_sale' => $totalSale,
+            'gross_sale' => $grossSale,
+            'sales_count' => $sales->count() + $repairSales->count() + $repairTickets->count(),
             'total_returns' => $returnsTotal,
             'total_refunds' => $refundsTotal,
             'total_expense' => $totalExpense,
             'gross_profit' => $grossProfit,
             'net_profit' => $netProfit,
-            'payment_received' => round($paymentReceived, 2),
+            'payment_received' => $paymentReceived,
             'total_discount' => round($totalDiscount, 2),
             'total_advance' => $totalAdvance,
             'udhaar_created' => $udhaarCreated,
@@ -267,16 +371,26 @@ class DashboardController extends Controller
             'purchase_due' => $purchaseDue,
             'total_due' => round($saleDue + $purchaseDue, 2),
             'used_phone_buying' => $usedPhoneBuying,
-            'repair_revenue' => $repairRevenue,
-            'repair_profit' => $repairProfit,
+            'total_purchase' => $totalPurchase,
+            'total_purchase_payment' => $totalPurchasePayment,
+            'total_purchase_returned' => $totalPurchaseReturned,
+            'opening_balance_dues' => $openingBalanceDues,
+            'stock_valuation' => $totalValuation,
+            'repair_revenue' => $totalRepairRevenue,
+            'repair_profit' => $totalRepairProfit,
         ];
     }
 
     /**
      * @return list<array{method: string, label: string, amount: float}>
      */
-    private function paymentMethodStats(Collection $sales): array
-    {
+    private function paymentMethodStats(
+        Collection $sales,
+        Collection $customerLedgers,
+        Collection $repairSales,
+        Collection $installmentPayments,
+        Collection $saleReturns
+    ): array {
         $totals = array_fill_keys(self::PAYMENT_METHODS, 0.0);
 
         foreach ($sales as $sale) {
@@ -303,11 +417,48 @@ class DashboardController extends Controller
             }
         }
 
+        foreach ($customerLedgers as $ledger) {
+            $type = $ledger->type instanceof LedgerType ? $ledger->type->value : (string) $ledger->type;
+            $method = strtolower($ledger->payment_method ?? '');
+            if (in_array($method, self::PAYMENT_METHODS, true)) {
+                if ($type === 'payment' || $type === 'advance') {
+                    $totals[$method] += (float) $ledger->amount;
+                } elseif ($type === 'advance_return') {
+                    $totals[$method] -= (float) $ledger->amount;
+                }
+            }
+        }
+
+        foreach ($repairSales as $repair) {
+            $method = strtolower($repair->payment_method ?? 'cash');
+            if (in_array($method, self::PAYMENT_METHODS, true)) {
+                $totals[$method] += (float) $repair->total_amount;
+            } else {
+                $totals['cash'] += (float) $repair->total_amount;
+            }
+        }
+
+        foreach ($installmentPayments as $inst) {
+            $method = strtolower($inst->payment_method ?? 'cash');
+            if (in_array($method, self::PAYMENT_METHODS, true)) {
+                $totals[$method] += (float) $inst->amount;
+            } else {
+                $totals['cash'] += (float) $inst->amount;
+            }
+        }
+
+        foreach ($saleReturns as $return) {
+            $method = strtolower($return->refund_payment_method ?? 'cash');
+            if (in_array($method, self::PAYMENT_METHODS, true)) {
+                $totals[$method] -= (float) $return->refund_amount;
+            }
+        }
+
         return collect(self::PAYMENT_METHODS)
             ->map(fn (string $method) => [
                 'method' => $method,
                 'label' => PaymentMethod::from($method)->label(),
-                'amount' => round($totals[$method], 2),
+                'amount' => max(0.00, round($totals[$method], 2)),
             ])
             ->values()
             ->all();
@@ -316,10 +467,26 @@ class DashboardController extends Controller
     /**
      * @return array{labels: list<string>, sales: list<float>, payments: list<float>, profit: list<float>, expenses: list<float>}
      */
-    private function buildGraphData(Collection $sales, Collection $expenses, ?CarbonInterface $start, ?CarbonInterface $end): array
-    {
+    private function buildGraphData(
+        Collection $sales,
+        Collection $saleReturns,
+        Collection $repairSales,
+        Collection $repairTickets,
+        Collection $expenses,
+        Collection $customerLedgers,
+        Collection $installmentPayments,
+        ?CarbonInterface $start,
+        ?CarbonInterface $end
+    ): array {
         $end ??= now();
-        $earliest = collect([$sales->min('created_at'), $expenses->min('created_at')])->filter()->min();
+        $earliest = collect([
+            $sales->min('created_at'),
+            $saleReturns->min('created_at'),
+            $repairSales->min('created_at'),
+            $repairTickets->min('delivered_at'),
+            $expenses->min('created_at'),
+            $customerLedgers->min('created_at'),
+        ])->filter()->min();
         $start ??= $earliest ?? $end->copy()->startOfMonth();
 
         $step = 'day';
@@ -356,22 +523,74 @@ class DashboardController extends Controller
             $cost = (float) $sale->items->sum(fn ($item) => (float) $item->unit_cost * (float) $item->quantity);
             $salesData[$key] += (float) $sale->net_amount;
             $paymentsData[$key] += min((float) $sale->paid_amount, (float) $sale->net_amount);
-            $profitData[$key] += (float) $sale->net_amount - $cost;
+            $profitData[$key] += ((float) $sale->net_amount - $cost);
+        }
+
+        foreach ($saleReturns as $return) {
+            $key = $return->created_at->format($bucketFormat);
+            if (array_key_exists($key, $salesData)) {
+                $salesData[$key] -= (float) $return->total_return_amount;
+                $paymentsData[$key] -= (float) $return->refund_amount;
+                $profitData[$key] -= (float) $return->total_return_amount;
+            }
+        }
+
+        foreach ($repairSales as $repair) {
+            $key = $repair->created_at->format($bucketFormat);
+            if (array_key_exists($key, $salesData)) {
+                $cost = (float) $repair->cost_price * (float) $repair->quantity;
+                $rev = (float) $repair->total_amount;
+                $salesData[$key] += $rev;
+                $paymentsData[$key] += $rev;
+                $profitData[$key] += ($rev - $cost);
+            }
+        }
+
+        foreach ($repairTickets as $ticket) {
+            $key = $ticket->delivered_at?->format($bucketFormat);
+            if ($key && array_key_exists($key, $salesData)) {
+                $rev = (float) $ticket->estimated_cost;
+                $cost = (float) $ticket->spare_parts_cost;
+                $salesData[$key] += $rev;
+                $paymentsData[$key] += $rev;
+                $profitData[$key] += ($rev - $cost);
+            }
+        }
+
+        foreach ($customerLedgers as $ledger) {
+            $key = $ledger->created_at->format($bucketFormat);
+            if (array_key_exists($key, $paymentsData)) {
+                $type = $ledger->type instanceof LedgerType ? $ledger->type->value : (string) $ledger->type;
+                if ($type === 'payment' || $type === 'advance') {
+                    $paymentsData[$key] += (float) $ledger->amount;
+                } elseif ($type === 'advance_return') {
+                    $paymentsData[$key] -= (float) $ledger->amount;
+                }
+            }
+        }
+
+        foreach ($installmentPayments as $inst) {
+            $key = Carbon::parse($inst->paid_at)->format($bucketFormat);
+            if (array_key_exists($key, $paymentsData)) {
+                $paymentsData[$key] += (float) $inst->amount;
+            }
         }
 
         foreach ($expenses as $expense) {
             $key = $expense->created_at->format($bucketFormat);
             if (array_key_exists($key, $expensesData)) {
-                $expensesData[$key] += (float) $expense->amount;
+                $amt = (float) $expense->amount;
+                $expensesData[$key] += $amt;
+                $profitData[$key] -= $amt;
             }
         }
 
         return [
             'labels' => $labels,
-            'sales' => array_values($salesData),
-            'payments' => array_values($paymentsData),
-            'profit' => array_values($profitData),
-            'expenses' => array_values($expensesData),
+            'sales' => array_values(array_map(fn ($v) => max(0.00, round($v, 2)), $salesData)),
+            'payments' => array_values(array_map(fn ($v) => max(0.00, round($v, 2)), $paymentsData)),
+            'profit' => array_values(array_map(fn ($v) => round($v, 2), $profitData)),
+            'expenses' => array_values(array_map(fn ($v) => max(0.00, round($v, 2)), $expensesData)),
         ];
     }
 

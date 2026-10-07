@@ -5,9 +5,13 @@ const name = usePage().props.name || 'Horizon Studio';
 </script>
 
 <template>
-    <div class="flex w-full items-center gap-3 px-1 py-1 group-data-[collapsible=icon]:justify-center">
+    <div
+        class="flex w-full items-center gap-3 px-1 py-1 group-data-[collapsible=icon]:justify-center"
+    >
         <!-- Modern Ribbon Loop Brand Icon matching the reference image -->
-        <div class="flex size-9 shrink-0 items-center justify-center transition-transform duration-200 group-hover:scale-105">
+        <div
+            class="flex size-9 shrink-0 items-center justify-center transition-transform duration-200 group-hover:scale-105"
+        >
             <svg
                 viewBox="0 0 36 36"
                 fill="none"
@@ -25,8 +29,12 @@ const name = usePage().props.name || 'Horizon Studio';
         </div>
 
         <!-- Clean Bold Brand Typography -->
-        <div class="flex min-w-0 items-center text-left group-data-[collapsible=icon]:hidden">
-            <span class="truncate text-lg font-black tracking-tight text-white font-sans">
+        <div
+            class="flex min-w-0 items-center text-left group-data-[collapsible=icon]:hidden"
+        >
+            <span
+                class="truncate font-sans text-lg font-black tracking-tight text-white"
+            >
                 Horizon<span class="font-semibold text-white/95">Studio</span>
             </span>
         </div>

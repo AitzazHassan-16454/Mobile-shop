@@ -13,5 +13,5 @@ test('authenticated user can download 1-click local sqlite database backup', fun
 
     $response->assertOk();
     $response->assertHeader('content-type', 'application/x-sqlite3');
-    expect($response->headers->get('content-disposition'))->toContain('attachment; filename=faizan_mobile_pos_backup_');
+    expect($response->headers->get('content-disposition'))->toContain('attachment; filename=horizon_studio_backup_');
 });

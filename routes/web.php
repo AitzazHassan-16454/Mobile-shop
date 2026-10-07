@@ -97,6 +97,56 @@ Route::middleware(['auth'])->group(function () {
         return redirect("/{$team->slug}/used-phones");
     });
 
+    Route::get('shifts', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/shifts");
+    });
+
+    Route::get('installments', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/installments");
+    });
+
+    Route::get('yearly-dues', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/yearly-dues");
+    });
+
+    Route::get('suppliers', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/suppliers");
+    });
+
+    Route::get('expenses', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/expenses");
+    });
+
+    Route::get('categories', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/categories");
+    });
+
+    Route::get('units', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/units");
+    });
+
+    Route::get('discounts', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/discounts");
+    });
+
+    Route::get('stock-adjustments', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/stock-adjustments");
+    });
+
+    Route::get('stock-transfers', function (Request $request) {
+        $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
+        return redirect("/{$team->slug}/stock-transfers");
+    });
+
     Route::get('admin', function (Request $request) {
         $team = $request->user()->currentTeam ?? $request->user()->personalTeam();
         $role = $request->user()->teamRole($team);
@@ -118,6 +168,10 @@ Route::prefix('{current_team}')
         Route::post('pos/sales', [PosController::class, 'storeSale'])->name('pos.sales.store');
         Route::put('pos/sales/{sale}', [PosController::class, 'updateSaleApi'])->name('pos.sales.update');
         Route::post('pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
+        Route::post('pos/customers/{customer}/pay-due', [PosController::class, 'recordDuePayment'])
+            ->name('pos.customers.pay-due');
+        Route::post('pos/customers/{customer}/refund-advance', [PosController::class, 'refundAdvance'])
+            ->name('pos.customers.refund-advance');
         Route::post('pos/returns', [SaleReturnController::class, 'store'])->name('pos.returns.store');
 
         // Mobile Repairing Lab & Ticketing Routes
@@ -142,6 +196,9 @@ Route::prefix('{current_team}')
         // Used Phone Purchases (Legal Log)
         Route::get('used-phones', [UsedPhonePurchaseController::class, 'index'])->name('used-phones.index');
         Route::post('used-phones', [UsedPhonePurchaseController::class, 'store'])->name('used-phones.store');
+        Route::put('used-phones/{purchase}/status', [UsedPhonePurchaseController::class, 'updateStatus'])
+            ->middleware(EnsureTeamMembership::class.':admin')
+            ->name('used-phones.status.update');
         Route::delete('used-phones/{purchase}', [UsedPhonePurchaseController::class, 'destroy'])
             ->middleware(EnsureTeamMembership::class.':admin')
             ->name('used-phones.destroy');
@@ -176,10 +233,13 @@ Route::prefix('{current_team}')
         Route::post('installments', [InstallmentController::class, 'store'])->name('installments.store');
         Route::post('installments/{plan}/payments', [InstallmentController::class, 'recordPayment'])->name('installments.payments.store');
 
-        // Mobile Phones & Devices Management Routes
-        Route::get('mobile-phones', [MobilePhonesController::class, 'index'])->name('mobile-phones.index');
+        // Handset Stock Write Routes
+        // The handset stock *page* now lives inside MobileSales/Index (Stock tab),
+        // so the old /mobile-phones URL just redirects there.
+        Route::get('mobile-phones', function (Request $request, string $currentTeam) {
+            return redirect()->route('mobile-sales.index', $currentTeam);
+        });
         Route::post('mobile-phones', [MobilePhonesController::class, 'store'])->name('mobile-phones.store');
-        Route::post('mobile-phones/used-purchase', [MobilePhonesController::class, 'storeUsedPurchase'])->name('mobile-phones.used-purchase.store');
 
         // Inventory & Product Routes
         Route::get('inventory', [ProductController::class, 'index'])->name('inventory.index');
@@ -201,6 +261,7 @@ Route::prefix('{current_team}')
         // Import Templates & Bulk Upload Routes
         Route::get('products/import/template', [ImportController::class, 'productTemplate'])->name('products.imports.template');
         Route::post('products/import', [ImportController::class, 'importProducts'])->name('products.imports.store');
+        Route::get('products/export', [ImportController::class, 'productExport'])->name('products.export');
         Route::get('customers/import/template', [ImportController::class, 'customerTemplate'])->name('customers.imports.template');
         Route::post('customers/import', [ImportController::class, 'importCustomers'])->name('customers.imports.store');
         Route::get('suppliers/import/template', [ImportController::class, 'supplierTemplate'])->name('suppliers.imports.template');

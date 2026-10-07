@@ -198,7 +198,12 @@ const deletingSupplier = ref<SupplierItem | null>(null);
 const supplierLedgerPage = ref(1);
 const supplierLedgerPerPage = ref(15);
 const totalSupplierLedgerPages = computed(() => {
-    return Math.ceil((viewingSupplierModal.value?.ledgers?.length || 0) / supplierLedgerPerPage.value) || 1;
+    return (
+        Math.ceil(
+            (viewingSupplierModal.value?.ledgers?.length || 0) /
+                supplierLedgerPerPage.value,
+        ) || 1
+    );
 });
 const paginatedSupplierLedgers = computed(() => {
     const list = viewingSupplierModal.value?.ledgers || [];
@@ -585,7 +590,7 @@ defineOptions({
                                         class="flex-1 rounded-lg border py-1.5 text-[11px] font-bold transition-all"
                                         :class="
                                             createForm.balance_type === 'due'
-                                                ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 shadow-2xs'
+                                                ? 'border-amber-500 bg-amber-50 text-amber-800 shadow-2xs dark:bg-amber-950/40 dark:text-amber-300'
                                                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
                                         "
                                         @click="createForm.balance_type = 'due'"
@@ -642,7 +647,9 @@ defineOptions({
                 </p>
             </div>
             <div class="glass-card p-4">
-                <p class="eyebrow text-amber-600 dark:text-amber-400">Total Outstanding Payables</p>
+                <p class="eyebrow text-amber-600 dark:text-amber-400">
+                    Total Outstanding Payables
+                </p>
                 <p
                     class="tnum mt-1.5 text-2xl font-black text-amber-600 dark:text-amber-400"
                 >
@@ -1018,14 +1025,29 @@ defineOptions({
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ supplierList.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ supplierList.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ props.suppliers.total }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ props.suppliers.total }}</span
+                    >
                     suppliers
                 </div>
 
-                <div v-if="props.suppliers.links && props.suppliers.links.length > 3" class="flex items-center gap-1.5">
-                    <template v-for="(link, idx) in props.suppliers.links" :key="idx">
+                <div
+                    v-if="
+                        props.suppliers.links &&
+                        props.suppliers.links.length > 3
+                    "
+                    class="flex items-center gap-1.5"
+                >
+                    <template
+                        v-for="(link, idx) in props.suppliers.links"
+                        :key="idx"
+                    >
                         <Button
                             v-if="link.url"
                             variant="outline"
@@ -1036,7 +1058,16 @@ defineOptions({
                                     ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
                                     : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
                             ]"
-                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            @click="
+                                router.get(
+                                    link.url,
+                                    {},
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                )
+                            "
                             v-html="link.label"
                         />
                         <span
@@ -1690,30 +1721,56 @@ defineOptions({
 
                         <!-- Supplier Ledger Pagination Controls -->
                         <div
-                            v-if="(viewingSupplierModal.ledgers?.length || 0) > supplierLedgerPerPage"
+                            v-if="
+                                (viewingSupplierModal.ledgers?.length || 0) >
+                                supplierLedgerPerPage
+                            "
                             class="flex items-center justify-between border-t border-slate-200 pt-3 text-xs dark:border-slate-800"
                         >
-                            <span class="text-slate-500 font-medium">
-                                Showing {{ (supplierLedgerPage - 1) * supplierLedgerPerPage + 1 }} to {{ Math.min(supplierLedgerPage * supplierLedgerPerPage, viewingSupplierModal.ledgers?.length || 0) }} of {{ viewingSupplierModal.ledgers?.length || 0 }} records
+                            <span class="font-medium text-slate-500">
+                                Showing
+                                {{
+                                    (supplierLedgerPage - 1) *
+                                        supplierLedgerPerPage +
+                                    1
+                                }}
+                                to
+                                {{
+                                    Math.min(
+                                        supplierLedgerPage *
+                                            supplierLedgerPerPage,
+                                        viewingSupplierModal.ledgers?.length ||
+                                            0,
+                                    )
+                                }}
+                                of
+                                {{ viewingSupplierModal.ledgers?.length || 0 }}
+                                records
                             </span>
                             <div class="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    class="h-7 text-xs font-bold rounded-lg"
+                                    class="h-7 rounded-lg text-xs font-bold"
                                     :disabled="supplierLedgerPage <= 1"
                                     @click="supplierLedgerPage--"
                                 >
                                     Previous
                                 </Button>
-                                <span class="px-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                                    Page {{ supplierLedgerPage }} of {{ totalSupplierLedgerPages }}
+                                <span
+                                    class="px-2 text-xs font-bold text-slate-700 dark:text-slate-300"
+                                >
+                                    Page {{ supplierLedgerPage }} of
+                                    {{ totalSupplierLedgerPages }}
                                 </span>
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    class="h-7 text-xs font-bold rounded-lg"
-                                    :disabled="supplierLedgerPage >= totalSupplierLedgerPages"
+                                    class="h-7 rounded-lg text-xs font-bold"
+                                    :disabled="
+                                        supplierLedgerPage >=
+                                        totalSupplierLedgerPages
+                                    "
                                     @click="supplierLedgerPage++"
                                 >
                                     Next

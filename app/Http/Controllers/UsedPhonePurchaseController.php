@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TradeInStatus;
 use App\Models\AppSetting;
 use App\Models\Product;
 use App\Models\ProductImei;
@@ -10,6 +11,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,9 +21,14 @@ class UsedPhonePurchaseController extends Controller
     public function index(Request $request, string $currentTeam): Response
     {
         $search = trim($request->input('search', ''));
+        $statusFilter = $request->input('status', 'all');
         $perPage = (int) $request->input('per_page', 15);
         if (! in_array($perPage, [10, 15, 25, 50, 100, 250, 500], true)) {
             $perPage = 15;
+        }
+
+        if ($statusFilter !== 'all' && $statusFilter !== '' && ! TradeInStatus::tryFrom($statusFilter)) {
+            $statusFilter = 'all';
         }
 
         $query = UsedPhonePurchase::query();
@@ -37,17 +45,29 @@ class UsedPhonePurchaseController extends Controller
             });
         }
 
+        if ($statusFilter !== 'all' && $statusFilter !== '') {
+            $query->where('status', $statusFilter);
+        }
+
         $purchases = $query->latest()->paginate($perPage)->withQueryString();
 
         $shopInfo = [
-            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
-            'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
-            'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
+            'name' => AppSetting::get('shop_name', 'Horizon Studio'),
+            'tagline' => AppSetting::get('shop_tagline', 'Smartphones • Accessories • Repairing'),
+            'phone' => AppSetting::get('shop_phone', '+92 300 1234567'),
+            'shop_phone_secondary' => AppSetting::get('shop_phone_secondary', ''),
+            'address' => AppSetting::get('shop_address', 'Main Mobile Market, Shop #12'),
+            'ntn' => AppSetting::get('shop_ntn', ''),
         ];
 
         $summary = [
             'total_purchases' => UsedPhonePurchase::count(),
             'total_payout' => (float) UsedPhonePurchase::sum('purchase_amount'),
+            'pending_count' => UsedPhonePurchase::pending()->count(),
+            'pending_amount' => (float) UsedPhonePurchase::pending()->sum('purchase_amount'),
+            'approved_count' => UsedPhonePurchase::approved()->count(),
+            'approved_amount' => (float) UsedPhonePurchase::approved()->unapplied()->sum('purchase_amount'),
+            'rejected_count' => UsedPhonePurchase::where('status', TradeInStatus::Rejected->value)->count(),
         ];
 
         return Inertia::render('UsedPhones/Index', [
@@ -55,6 +75,7 @@ class UsedPhonePurchaseController extends Controller
             'shopInfo' => $shopInfo,
             'filters' => [
                 'search' => $search,
+                'status' => $statusFilter,
                 'per_page' => $perPage,
             ],
             'summary' => $summary,
@@ -115,6 +136,7 @@ class UsedPhonePurchaseController extends Controller
                 'purchase_amount' => $validated['purchase_amount'],
                 'payment_method' => $validated['payment_method'],
                 'agreement_signed' => true,
+                'status' => TradeInStatus::Pending,
             ]);
 
             $autoAdd = $validated['auto_add_stock'] ?? true;
@@ -147,12 +169,51 @@ class UsedPhonePurchaseController extends Controller
                     'warranty_days' => 7,
                     'status' => 'in_stock',
                 ]);
+
+                $product->update([
+                    'stock_quantity' => $product->inStockImeis()->count(),
+                ]);
             }
 
             return $purchaseRecord;
         });
 
         return redirect()->back()->with('latest_purchase', $purchase);
+    }
+
+    public function updateStatus(Request $request, string $currentTeam, UsedPhonePurchase $purchase): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', 'string', Rule::in(array_column(TradeInStatus::cases(), 'value'))],
+            'rejection_reason' => ['nullable', 'string', 'max:1000', Rule::requiredIf(
+                fn (): bool => $request->input('status') === TradeInStatus::Rejected->value
+            )],
+        ], [
+            'rejection_reason.required' => 'A reason is required when rejecting a trade-in credit / رد کرنے کی وجہ درج کرنا لازمی ہے۔',
+        ]);
+
+        $newStatus = TradeInStatus::from($validated['status']);
+
+        if ($purchase->applied_at !== null) {
+            throw ValidationException::withMessages([
+                'status' => ['This trade-in credit has already been applied to a sale and can no longer be reviewed.'],
+            ]);
+        }
+
+        if ($purchase->status === $newStatus) {
+            return redirect()->back()->with('success', "Trade-in credit is already marked {$newStatus->label()}.");
+        }
+
+        $purchase->update([
+            'status' => $newStatus,
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => $newStatus === TradeInStatus::Rejected
+                ? $validated['rejection_reason']
+                : null,
+        ]);
+
+        return redirect()->back()->with('success', "Trade-in credit marked as {$newStatus->label()}.");
     }
 
     public function destroy(Request $request, string $currentTeam, UsedPhonePurchase $purchase): RedirectResponse

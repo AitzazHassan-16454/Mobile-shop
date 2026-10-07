@@ -254,11 +254,12 @@ test('split sale below total with customer debits unpaid balance to ledger', fun
 });
 
 test('pos terminal exposes unused trade-in purchases', function () {
-    UsedPhonePurchase::factory()->create(['purchase_amount' => 30000]);
-    UsedPhonePurchase::factory()->create([
+    UsedPhonePurchase::factory()->approved()->create(['purchase_amount' => 30000]);
+    UsedPhonePurchase::factory()->approved()->applied()->create([
         'purchase_amount' => 25000,
-        'applied_at' => now()->subDay(),
     ]);
+    UsedPhonePurchase::factory()->pending()->create(['purchase_amount' => 40000]);
+    UsedPhonePurchase::factory()->rejected()->create(['purchase_amount' => 45000]);
 
     $response = $this->actingAs($this->user)
         ->get(route('pos.index', $this->team->slug));
@@ -273,7 +274,7 @@ test('pos terminal exposes unused trade-in purchases', function () {
 
 test('can apply unapplied trade-in credit to a cash sale', function () {
     $accessory = Product::factory()->accessory()->create(['stock_quantity' => 10, 'sale_price' => 100000]);
-    $tradeIn = UsedPhonePurchase::factory()->create(['purchase_amount' => 30000]);
+    $tradeIn = UsedPhonePurchase::factory()->approved()->create(['purchase_amount' => 30000]);
 
     $response = $this->actingAs($this->user)
         ->post(route('pos.sales.store', $this->team->slug), [
@@ -306,9 +307,8 @@ test('can apply unapplied trade-in credit to a cash sale', function () {
 
 test('trade-in credit cannot be applied more than once', function () {
     $accessory = Product::factory()->accessory()->create(['stock_quantity' => 10, 'sale_price' => 10000]);
-    $tradeIn = UsedPhonePurchase::factory()->create([
+    $tradeIn = UsedPhonePurchase::factory()->approved()->applied()->create([
         'purchase_amount' => 5000,
-        'applied_at' => now()->subDay(),
     ]);
 
     $response = $this->actingAs($this->user)
@@ -331,7 +331,7 @@ test('trade-in credit cannot be applied more than once', function () {
 
 test('trade-in credit never drops net amount below zero', function () {
     $accessory = Product::factory()->accessory()->create(['stock_quantity' => 10, 'sale_price' => 10000]);
-    $tradeIn = UsedPhonePurchase::factory()->create(['purchase_amount' => 20000]);
+    $tradeIn = UsedPhonePurchase::factory()->approved()->create(['purchase_amount' => 20000]);
 
     $response = $this->actingAs($this->user)
         ->post(route('pos.sales.store', $this->team->slug), [

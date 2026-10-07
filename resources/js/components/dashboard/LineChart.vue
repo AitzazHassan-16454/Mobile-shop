@@ -162,20 +162,44 @@ const collectionRate = computed(() => {
     );
 });
 
-const dailyAverageSales = computed(() => {
+const currentActiveSeries = computed(() => {
+    if (activeView.value === 'all') {
+        return (
+            props.series.find((s) => s.name.toLowerCase() === 'sales') ??
+            props.series[0]
+        );
+    }
+    const target =
+        activeView.value === 'payments'
+            ? 'payments'
+            : activeView.value === 'profit'
+              ? 'profit'
+              : activeView.value === 'expenses'
+                ? 'expenses'
+                : 'sales';
+    return (
+        props.series.find((s) => s.name.toLowerCase() === target) ??
+        props.series[0]
+    );
+});
+
+const dailyAverageValue = computed(() => {
     const days = Math.max(props.labels.length, 1);
-    return Math.round(totalSales.value / days);
+    const series = currentActiveSeries.value;
+    if (!series) return 0;
+    const sum = series.data.reduce((acc, v) => acc + (v || 0), 0);
+    return Math.round(sum / days);
 });
 
 // Best Performing Day
 const bestDay = computed(() => {
-    const sales = props.series.find((s) => s.name.toLowerCase() === 'sales');
-    if (!sales || !sales.data.length || !props.labels.length) return null;
+    const series = currentActiveSeries.value;
+    if (!series || !series.data.length || !props.labels.length) return null;
     let maxIdx = 0;
-    let maxVal = sales.data[0] ?? 0;
-    for (let i = 1; i < sales.data.length; i++) {
-        if ((sales.data[i] ?? 0) > maxVal) {
-            maxVal = sales.data[i] ?? 0;
+    let maxVal = series.data[0] ?? 0;
+    for (let i = 1; i < series.data.length; i++) {
+        if ((series.data[i] ?? 0) > maxVal) {
+            maxVal = series.data[i] ?? 0;
             maxIdx = i;
         }
     }
@@ -231,11 +255,11 @@ const heroDisplay = computed(() => {
 
     // Default: Sales
     return {
-        title: 'Gross Sales Revenue',
+        title: 'Sales Revenue',
         amount: formatValueWithRs(totalSales.value),
-        badge: `Avg ${formatValueWithRs(dailyAverageSales.value)}/day`,
+        badge: `Avg ${formatValueWithRs(dailyAverageValue.value)}/day`,
         badgeColor: 'text-[#003B7D] bg-blue-50 border-blue-200/80',
-        subtext: `Total billing generated across selected date range`,
+        subtext: `Net revenue generated across selected date range`,
     };
 });
 
@@ -323,9 +347,7 @@ function getCubicBezierPath(points: { x: number; y: number }[]): string {
     if (points.length === 2) {
         return (
             'M ' +
-            points
-                .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-                .join(' L ')
+            points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')
         );
     }
 
@@ -339,9 +361,14 @@ function getCubicBezierPath(points: { x: number; y: number }[]): string {
         const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
 
         const cp1x = p1.x + (p2.x - p0.x) * tension;
-        const cp1y = p1.y + (p2.y - p0.y) * tension;
+        let cp1y = p1.y + (p2.y - p0.y) * tension;
         const cp2x = p2.x - (p3.x - p1.x) * tension;
-        const cp2y = p2.y - (p3.y - p1.y) * tension;
+        let cp2y = p2.y - (p3.y - p1.y) * tension;
+
+        if (domain.value.min >= 0) {
+            cp1y = Math.min(cp1y, baseY.value);
+            cp2y = Math.min(cp2y, baseY.value);
+        }
 
         d += ` C ${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
     }
@@ -419,8 +446,13 @@ const visibleLabelIndexes = computed(() => {
     for (let i = 0; i < total; i += step) {
         indices.push(i);
     }
-    if (indices[indices.length - 1] !== total - 1) {
-        indices.push(total - 1);
+    const lastIndex = indices[indices.length - 1];
+    if (lastIndex !== undefined && lastIndex !== total - 1) {
+        if (total - 1 - lastIndex <= 1) {
+            indices[indices.length - 1] = total - 1;
+        } else {
+            indices.push(total - 1);
+        }
     }
     return indices;
 });
@@ -494,13 +526,13 @@ const currentHoverDate = computed(() => {
 const hoverDaySales = computed(() => {
     if (hoverIndex.value === null) return 0;
     const s = props.series.find((i) => i.name.toLowerCase() === 'sales');
-    return s ? s.data[hoverIndex.value] ?? 0 : 0;
+    return s ? (s.data[hoverIndex.value] ?? 0) : 0;
 });
 
 const hoverDayProfit = computed(() => {
     if (hoverIndex.value === null) return 0;
     const p = props.series.find((i) => i.name.toLowerCase() === 'profit');
-    return p ? p.data[hoverIndex.value] ?? 0 : 0;
+    return p ? (p.data[hoverIndex.value] ?? 0) : 0;
 });
 
 const hoverDayMargin = computed(() => {
@@ -519,7 +551,7 @@ const hoverDayMargin = computed(() => {
             <div>
                 <div class="flex items-center gap-2">
                     <span
-                        class="flex h-2 w-2 rounded-full bg-[#003B7D] ring-4 ring-blue-100 animate-pulse"
+                        class="flex h-2 w-2 animate-pulse rounded-full bg-[#003B7D] ring-4 ring-blue-100"
                     />
                     <span
                         class="text-[11px] font-extrabold tracking-[0.16em] text-slate-400 uppercase"
@@ -561,7 +593,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="activeView = 'sales'"
                         :class="[
-                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
+                            'inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
                             activeView === 'sales'
                                 ? 'bg-white text-[#003B7D] shadow-xs'
                                 : 'text-slate-500 hover:text-slate-900',
@@ -582,7 +614,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="activeView = 'profit'"
                         :class="[
-                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
+                            'inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
                             activeView === 'profit'
                                 ? 'bg-white text-emerald-700 shadow-xs'
                                 : 'text-slate-500 hover:text-slate-900',
@@ -603,7 +635,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="activeView = 'payments'"
                         :class="[
-                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
+                            'inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
                             activeView === 'payments'
                                 ? 'bg-white text-sky-700 shadow-xs'
                                 : 'text-slate-500 hover:text-slate-900',
@@ -624,7 +656,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="activeView = 'expenses'"
                         :class="[
-                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
+                            'inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
                             activeView === 'expenses'
                                 ? 'bg-white text-rose-700 shadow-xs'
                                 : 'text-slate-500 hover:text-slate-900',
@@ -645,7 +677,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="activeView = 'all'"
                         :class="[
-                            'inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer',
+                            'inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all',
                             activeView === 'all'
                                 ? 'bg-[#003B7D] text-white shadow-xs'
                                 : 'text-slate-500 hover:text-slate-900',
@@ -664,7 +696,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="chartStyle = 'area'"
                         :class="[
-                            'flex h-7 w-7 items-center justify-center rounded-xl transition cursor-pointer',
+                            'flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl transition',
                             chartStyle === 'area'
                                 ? 'bg-white text-[#003B7D] shadow-xs'
                                 : 'text-slate-400 hover:text-slate-800',
@@ -678,7 +710,7 @@ const hoverDayMargin = computed(() => {
                         type="button"
                         @click="chartStyle = 'bar'"
                         :class="[
-                            'flex h-7 w-7 items-center justify-center rounded-xl transition cursor-pointer',
+                            'flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl transition',
                             chartStyle === 'bar'
                                 ? 'bg-white text-[#003B7D] shadow-xs'
                                 : 'text-slate-400 hover:text-slate-800',
@@ -937,7 +969,7 @@ const hoverDayMargin = computed(() => {
                         stroke-width="3.25"
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        class="transition-all duration-300 drop-shadow-[0_4px_10px_rgba(0,59,125,0.18)]"
+                        class="drop-shadow-[0_4px_10px_rgba(0,59,125,0.18)] transition-all duration-300"
                     />
 
                     <!-- Peak Point Badge on the curve -->
@@ -955,6 +987,10 @@ const hoverDayMargin = computed(() => {
                             :fill="peakPoint.color"
                             fill-opacity="0.22"
                             class="animate-ping"
+                            style="
+                                transform-box: fill-box;
+                                transform-origin: center;
+                            "
                         />
                         <circle
                             :cx="peakPoint.x"
@@ -986,7 +1022,7 @@ const hoverDayMargin = computed(() => {
                             :class="[
                                 'transition-all duration-150',
                                 hoverIndex === slotIdx
-                                    ? 'filter drop-shadow-[0_6px_14px_rgba(0,59,125,0.25)] opacity-100'
+                                    ? 'opacity-100 drop-shadow-[0_6px_14px_rgba(0,59,125,0.25)] filter'
                                     : hoverIndex !== null
                                       ? 'opacity-65'
                                       : 'opacity-95 hover:opacity-100',
@@ -1070,7 +1106,7 @@ const hoverDayMargin = computed(() => {
                     </div>
                     <span
                         v-if="hoverDayMargin !== null"
-                        class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/60"
+                        class="rounded-full border border-emerald-200/60 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700"
                     >
                         {{ hoverDayMargin }}% Margin
                     </span>
@@ -1115,7 +1151,9 @@ const hoverDayMargin = computed(() => {
                     <Flame class="h-3.5 w-3.5" />
                 </div>
                 <div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span
+                        class="text-[10px] font-bold tracking-wider text-slate-400 uppercase"
+                    >
                         Peak Day:
                     </span>
                     <span class="ml-1 font-extrabold text-slate-800">
@@ -1128,7 +1166,7 @@ const hoverDayMargin = computed(() => {
                 </div>
             </div>
 
-            <div class="hidden sm:block h-4 w-px bg-slate-200" />
+            <div class="hidden h-4 w-px bg-slate-200 sm:block" />
 
             <div class="flex items-center gap-2.5">
                 <div
@@ -1137,16 +1175,18 @@ const hoverDayMargin = computed(() => {
                     <Activity class="h-3.5 w-3.5" />
                 </div>
                 <div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span
+                        class="text-[10px] font-bold tracking-wider text-slate-400 uppercase"
+                    >
                         Daily Avg:
                     </span>
                     <span class="ml-1 font-extrabold text-slate-800">
-                        {{ formatValue(dailyAverageSales) }} / day
+                        {{ formatValue(dailyAverageValue) }} / day
                     </span>
                 </div>
             </div>
 
-            <div class="hidden sm:block h-4 w-px bg-slate-200" />
+            <div class="hidden h-4 w-px bg-slate-200 sm:block" />
 
             <div class="flex items-center gap-2.5">
                 <div
@@ -1155,7 +1195,9 @@ const hoverDayMargin = computed(() => {
                     <Award class="h-3.5 w-3.5" />
                 </div>
                 <div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span
+                        class="text-[10px] font-bold tracking-wider text-slate-400 uppercase"
+                    >
                         Profit Margin:
                     </span>
                     <span class="ml-1 font-extrabold text-emerald-600">
@@ -1164,7 +1206,7 @@ const hoverDayMargin = computed(() => {
                 </div>
             </div>
 
-            <div class="hidden sm:block h-4 w-px bg-slate-200" />
+            <div class="hidden h-4 w-px bg-slate-200 sm:block" />
 
             <div class="flex items-center gap-2.5">
                 <div
@@ -1173,7 +1215,9 @@ const hoverDayMargin = computed(() => {
                     <Banknote class="h-3.5 w-3.5" />
                 </div>
                 <div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <span
+                        class="text-[10px] font-bold tracking-wider text-slate-400 uppercase"
+                    >
                         Collections:
                     </span>
                     <span class="ml-1 font-extrabold text-sky-700">

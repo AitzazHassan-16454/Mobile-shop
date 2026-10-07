@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property \App\Enums\PaymentMethod $payment_method
+ */
 class Sale extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'invoice_no',
@@ -41,26 +43,41 @@ class Sale extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function cashier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cashier_id');
     }
 
+    /**
+     * @return BelongsTo<UsedPhonePurchase, $this>
+     */
     public function usedPhonePurchase(): BelongsTo
     {
         return $this->belongsTo(UsedPhonePurchase::class);
     }
 
+    /**
+     * @return HasMany<SaleItem, $this>
+     */
     public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
     }
 
+    /**
+     * @return HasMany<SaleReturn, $this>
+     */
     public function returns(): HasMany
     {
         return $this->hasMany(SaleReturn::class);

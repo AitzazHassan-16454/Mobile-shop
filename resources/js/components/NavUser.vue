@@ -31,11 +31,13 @@ const currentTeam = computed(() => page.props.currentTeam as Team | null);
                 <DropdownMenuTrigger as-child>
                     <SidebarMenuButton
                         size="lg"
-                        class="rounded-xl border border-white/10 bg-white/5 p-2 text-white shadow-xs backdrop-blur-md transition-all duration-150 hover:border-white/20 hover:bg-white/10 data-[state=open]:bg-white/15 data-[state=open]:text-white group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+                        class="rounded-xl border border-white/10 bg-white/5 p-2 text-white shadow-xs backdrop-blur-md transition-all duration-150 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 hover:border-white/20 hover:bg-white/10 data-[state=open]:bg-white/15 data-[state=open]:text-white"
                         data-test="sidebar-menu-button"
                     >
                         <UserInfo :user="user" :team="currentTeam" on-dark />
-                        <ChevronsUpDown class="ml-auto size-4 shrink-0 group-data-[collapsible=icon]:hidden" />
+                        <ChevronsUpDown
+                            class="ml-auto size-4 shrink-0 group-data-[collapsible=icon]:hidden"
+                        />
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent

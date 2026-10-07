@@ -81,7 +81,7 @@ class StockAdjustmentController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request): void {
-            $product = Product::findOrFail($validated['product_id']);
+            $product = Product::findOrFail((int) $validated['product_id']);
 
             if (! $product->is_serialized) {
                 if ($validated['type'] === 'addition') {
@@ -90,7 +90,7 @@ class StockAdjustmentController extends Controller
                     $product->decrement('stock_quantity', min($product->stock_quantity, $validated['quantity']));
                 }
             } elseif (! empty($validated['product_imei_id'])) {
-                $imei = ProductImei::find($validated['product_imei_id']);
+                $imei = ProductImei::find((int) $validated['product_imei_id']);
                 if ($imei && $validated['type'] === 'subtraction') {
                     if ($validated['reason'] === 'damaged') {
                         $imei->update(['status' => 'repairing']);

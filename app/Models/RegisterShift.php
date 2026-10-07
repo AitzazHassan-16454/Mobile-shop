@@ -7,9 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property \Illuminate\Support\Carbon $opened_at
+ * @property \Illuminate\Support\Carbon $closed_at
+ */
 class RegisterShift extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'user_id',
@@ -49,11 +52,17 @@ class RegisterShift extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return HasMany<ShopExpense, $this>
+     */
     public function expenses(): HasMany
     {
         return $this->hasMany(ShopExpense::class);

@@ -50,6 +50,9 @@ class TeamInvitation extends Model
      *
      * @return BelongsTo<Team, $this>
      */
+    /**
+     * @return BelongsTo<Team, $this>
+     */
     public function team(): BelongsTo
     {
         return $this->belongsTo(Team::class);
@@ -58,6 +61,9 @@ class TeamInvitation extends Model
     /**
      * Get the user who sent the invitation.
      *
+     * @return BelongsTo<User, $this>
+     */
+    /**
      * @return BelongsTo<User, $this>
      */
     public function inviter(): BelongsTo

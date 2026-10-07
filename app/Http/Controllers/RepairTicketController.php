@@ -49,9 +49,12 @@ class RepairTicketController extends Controller
             ->get();
 
         $shopInfo = [
-            'name' => AppSetting::where('key', 'shop_name')->value('value') ?? 'Horizon Studio',
-            'phone' => AppSetting::where('key', 'shop_phone')->value('value') ?? '+92 300 1234567',
-            'address' => AppSetting::where('key', 'shop_address')->value('value') ?? 'Main Mobile Market, Shop #12',
+            'name' => AppSetting::get('shop_name', 'Horizon Studio'),
+            'tagline' => AppSetting::get('shop_tagline', 'Smartphones • Accessories • Repairing'),
+            'phone' => AppSetting::get('shop_phone', '+92 300 1234567'),
+            'shop_phone_secondary' => AppSetting::get('shop_phone_secondary', ''),
+            'address' => AppSetting::get('shop_address', 'Main Mobile Market, Shop #12'),
+            'ntn' => AppSetting::get('shop_ntn', ''),
         ];
 
         $summary = [

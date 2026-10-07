@@ -34,6 +34,7 @@ class ProductImeiController extends Controller
 
         $validated['status'] = 'in_stock';
         $product->imeis()->create($validated);
+        $product->update(['stock_quantity' => $product->inStockImeis()->count()]);
 
         return redirect()->back()->with('success', 'IMEI added successfully.');
     }
@@ -74,6 +75,7 @@ class ProductImeiController extends Controller
                     'status' => 'in_stock',
                 ]);
             }
+            $product->update(['stock_quantity' => $product->inStockImeis()->count()]);
         });
 
         $count = count($common['imeis']);
@@ -98,13 +100,16 @@ class ProductImeiController extends Controller
         ]);
 
         $imei->update($validated);
+        $imei->product?->update(['stock_quantity' => $imei->product->inStockImeis()->count()]);
 
         return redirect()->back()->with('success', 'IMEI record updated successfully.');
     }
 
     public function destroy(Request $request, string $currentTeam, ProductImei $imei): RedirectResponse
     {
+        $product = $imei->product;
         $imei->delete();
+        $product?->update(['stock_quantity' => $product->inStockImeis()->count()]);
 
         return redirect()->back()->with('success', 'IMEI record deleted successfully.');
     }

@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
+    Coins,
     Edit3,
+    FileSpreadsheet,
+    Layers,
     MoreVertical,
+    Package,
+    PackagePlus,
     Plus,
     Search,
+    ShoppingBag,
     SlidersHorizontal,
+    Sparkles,
     Tag,
     Trash2,
 } from '@lucide/vue';
@@ -37,6 +44,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useConfirm } from '@/composables/useConfirm';
+import ProductImportExportDialog from '@/components/ProductImportExportDialog.vue';
 import products from '@/routes/products';
 import type { Team } from '@/types';
 import { toast } from 'vue-sonner';
@@ -89,6 +97,15 @@ const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
 );
+
+const isImportDialogOpen = ref(false);
+const importTemplateUrl = computed(
+    () => `/${currentTeamSlug.value}/products/import/template`,
+);
+const importActionUrl = computed(
+    () => `/${currentTeamSlug.value}/products/import`,
+);
+const exportUrl = computed(() => products.export(currentTeamSlug.value).url);
 
 defineOptions({
     layout: (layoutProps: { currentTeam?: Team | null }) => ({
@@ -182,7 +199,9 @@ if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('accessories_visible_columns');
         if (saved) {
             const parsed = JSON.parse(saved);
-            for (const col of Object.keys(DEFAULT_VISIBLE_COLUMNS) as ProductColumn[]) {
+            for (const col of Object.keys(
+                DEFAULT_VISIBLE_COLUMNS,
+            ) as ProductColumn[]) {
                 if (typeof parsed[col] === 'boolean') {
                     visibleColumns.value[col] = parsed[col];
                 }
@@ -272,17 +291,25 @@ const submitProductForm = () => {
     productForm.is_serialized = false;
 
     if (Number(productForm.sale_price) > 1000000) {
-        productForm.setError('sale_price', 'قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sale price cannot exceed Rs 1,000,000.');
+        productForm.setError(
+            'sale_price',
+            'قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sale price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'پراڈکٹ کی فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'پراڈکٹ کی فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
 
     if (productForm.cost_price && Number(productForm.cost_price) > 1000000) {
-        productForm.setError('cost_price', 'خریداری لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Cost price cannot exceed Rs 1,000,000.');
+        productForm.setError(
+            'cost_price',
+            'خریداری لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Cost price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'پراڈکٹ کی خریداری لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'پراڈکٹ کی خریداری لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -330,17 +357,28 @@ const submitQuickEditForm = () => {
     quickEditForm.clearErrors();
 
     if (Number(quickEditForm.sale_price) > 1000000) {
-        quickEditForm.setError('sale_price', 'قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sale price cannot exceed Rs 1,000,000.');
+        quickEditForm.setError(
+            'sale_price',
+            'قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sale price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'پراڈکٹ کی فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'پراڈکٹ کی فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
 
-    if (quickEditForm.cost_price && Number(quickEditForm.cost_price) > 1000000) {
-        quickEditForm.setError('cost_price', 'خریداری لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Cost price cannot exceed Rs 1,000,000.');
+    if (
+        quickEditForm.cost_price &&
+        Number(quickEditForm.cost_price) > 1000000
+    ) {
+        quickEditForm.setError(
+            'cost_price',
+            'خریداری لاگت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Cost price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'پراڈکٹ کی خریداری لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'پراڈکٹ کی خریداری لاگت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -393,12 +431,22 @@ const formatCurrency = (val: number | string) =>
                 </p>
             </div>
 
-            <Button
-                @click="openCreateAccessoryModal"
-                class="gap-1.5 bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
-            >
-                <Plus class="h-4 w-4" /> Add Accessories
-            </Button>
+            <div class="flex flex-wrap items-center gap-2">
+                <Button
+                    @click="openCreateAccessoryModal"
+                    class="gap-1.5 bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                >
+                    <Plus class="h-4 w-4" /> Add Accessories
+                </Button>
+                <Button
+                    @click="isImportDialogOpen = true"
+                    variant="outline"
+                    class="gap-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                    <FileSpreadsheet class="h-4 w-4 text-[#003B7D]" /> Import /
+                    Export
+                </Button>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -527,7 +575,9 @@ const formatCurrency = (val: number | string) =>
                             <span
                                 class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
                             >
-                                {{ activeColumnCount }}/{{ columnOptions.length }}
+                                {{ activeColumnCount }}/{{
+                                    columnOptions.length
+                                }}
                             </span>
                         </Button>
                     </DropdownMenuTrigger>
@@ -809,152 +859,238 @@ const formatCurrency = (val: number | string) =>
 
         <Dialog v-model:open="isProductModalOpen">
             <DialogContent class="max-h-[90vh] max-w-xl overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle class="text-base font-bold">
-                        {{
-                            editingProduct
-                                ? 'Edit Accessory'
-                                : 'Add Accessories'
-                        }}
-                    </DialogTitle>
-                    <DialogDescription class="text-xs text-gray-500">
-                        Create an accessory with standard quantity stock.
-                    </DialogDescription>
+                <DialogHeader class="pb-1">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] shadow-xs dark:bg-blue-500/20 dark:text-blue-400"
+                        >
+                            <PackagePlus
+                                v-if="!editingProduct"
+                                class="h-5 w-5"
+                            />
+                            <Edit3 v-else class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-bold text-slate-900 dark:text-white"
+                            >
+                                {{
+                                    editingProduct
+                                        ? 'Edit Accessory'
+                                        : 'Add New Accessory'
+                                }}
+                            </DialogTitle>
+                            <DialogDescription
+                                class="text-xs text-slate-500 dark:text-slate-400"
+                            >
+                                {{
+                                    editingProduct
+                                        ? 'Update specifications, pricing and stock thresholds.'
+                                        : 'Create an accessory item with stock and low inventory alerts.'
+                                }}
+                            </DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
 
                 <form
-                    class="space-y-3 py-2 text-xs"
+                    class="space-y-4 py-2 text-xs"
                     @submit.prevent="submitProductForm"
                 >
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1">
-                            <Label for="accessory-name" class="font-medium"
-                                >Accessory Name *</Label
-                            >
-                            <Input
-                                id="accessory-name"
-                                v-model="productForm.name"
-                                required
-                                placeholder="e.g. Fast Charger 20W"
-                                class="h-9 text-xs"
-                            />
-                        </div>
-                        <div class="space-y-1">
-                            <Label for="accessory-brand" class="font-medium"
-                                >Brand *</Label
-                            >
-                            <Input
-                                id="accessory-brand"
-                                v-model="productForm.brand"
-                                required
-                                placeholder="e.g. Anker"
-                                class="h-9 text-xs"
-                            />
-                        </div>
-                    </div>
-
-                    <div class="space-y-1">
-                        <Label for="accessory-category" class="font-medium"
-                            >Category *</Label
-                        >
-                        <Input
-                            id="accessory-category"
-                            v-model="productForm.category"
-                            required
-                            placeholder="e.g. Chargers"
-                            class="h-9 text-xs"
-                        />
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="space-y-1">
-                            <Label
-                                for="accessory-sale-price"
-                                class="font-medium"
-                                >Sale Price (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
-                            >
-                            <Input
-                                id="accessory-sale-price"
-                                v-model="productForm.sale_price"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="1000000"
-                                required
-                                placeholder="0"
-                                class="h-9 text-xs font-bold"
-                            />
-                            <p v-if="productForm.errors.sale_price" class="text-[11px] font-bold text-red-500 mt-1">
-                                {{ productForm.errors.sale_price }}
-                            </p>
-                        </div>
-                        <div class="space-y-1">
-                            <Label for="accessory-alert-qty" class="font-medium"
-                                >Low Stock Alert Qty *</Label
-                            >
-                            <Input
-                                id="accessory-alert-qty"
-                                v-model.number="productForm.alert_quantity"
-                                type="number"
-                                min="0"
-                                required
-                                placeholder="5"
-                                class="h-9 text-xs"
-                            />
-                        </div>
-                    </div>
-
+                    <!-- General Details -->
                     <div
-                        class="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50 p-2.5 dark:border-gray-800 dark:bg-gray-800/40"
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
                     >
-                        <div class="space-y-1">
-                            <Label
-                                for="accessory-cost-price"
-                                class="font-medium"
-                                >Cost Price (PKR) <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
-                            >
-                            <Input
-                                id="accessory-cost-price"
-                                v-model="productForm.cost_price"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="1000000"
-                                placeholder="0"
-                                class="h-9 bg-white text-xs dark:bg-gray-900"
+                        <div
+                            class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                        >
+                            <ShoppingBag
+                                class="h-3.5 w-3.5 text-[#003B7D] dark:text-blue-400"
                             />
-                            <p v-if="productForm.errors.cost_price" class="text-[11px] font-bold text-red-500 mt-1">
-                                {{ productForm.errors.cost_price }}
-                            </p>
+                            <span>Product Information</span>
                         </div>
-                        <div class="space-y-1">
-                            <Label for="accessory-stock-qty" class="font-medium"
-                                >Initial Stock Qty</Label
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="space-y-1.5">
+                                <Label
+                                    for="accessory-name"
+                                    class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                    >Accessory Name *</Label
+                                >
+                                <Input
+                                    id="accessory-name"
+                                    v-model="productForm.name"
+                                    required
+                                    placeholder="e.g. Fast Charger 20W"
+                                    class="h-10 rounded-xl text-xs"
+                                />
+                            </div>
+                            <div class="space-y-1.5">
+                                <Label
+                                    for="accessory-brand"
+                                    class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                    >Brand *</Label
+                                >
+                                <Input
+                                    id="accessory-brand"
+                                    v-model="productForm.brand"
+                                    required
+                                    placeholder="e.g. Anker"
+                                    class="h-10 rounded-xl text-xs"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <Label
+                                for="accessory-category"
+                                class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                >Category *</Label
                             >
                             <Input
-                                id="accessory-stock-qty"
-                                v-model.number="productForm.stock_quantity"
-                                type="number"
-                                min="0"
-                                placeholder="0"
-                                class="h-9 bg-white text-xs dark:bg-gray-900"
+                                id="accessory-category"
+                                v-model="productForm.category"
+                                required
+                                placeholder="e.g. Chargers, Cables, Audio"
+                                class="h-10 rounded-xl text-xs"
                             />
                         </div>
                     </div>
 
-                    <DialogFooter class="pt-3">
+                    <!-- Pricing & Alerts -->
+                    <div
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                        >
+                            <Coins
+                                class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                            />
+                            <span>Pricing & Alert Threshold</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="space-y-1.5">
+                                <Label
+                                    for="accessory-sale-price"
+                                    class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                >
+                                    Sale Price (PKR) *
+                                    <span
+                                        class="text-[10px] font-normal text-slate-400"
+                                        >(Max: 10 Lakh)</span
+                                    >
+                                </Label>
+                                <Input
+                                    id="accessory-sale-price"
+                                    v-model="productForm.sale_price"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="1000000"
+                                    required
+                                    placeholder="0"
+                                    class="h-10 rounded-xl text-xs font-bold"
+                                />
+                                <p
+                                    v-if="productForm.errors.sale_price"
+                                    class="mt-1 text-[11px] font-bold text-red-500"
+                                >
+                                    {{ productForm.errors.sale_price }}
+                                </p>
+                            </div>
+                            <div class="space-y-1.5">
+                                <Label
+                                    for="accessory-alert-qty"
+                                    class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                    >Low Stock Alert Qty *</Label
+                                >
+                                <Input
+                                    id="accessory-alert-qty"
+                                    v-model.number="productForm.alert_quantity"
+                                    type="number"
+                                    min="0"
+                                    required
+                                    placeholder="5"
+                                    class="h-10 rounded-xl text-xs"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acquisition & Inventory -->
+                    <div
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
+                        >
+                            <Layers
+                                class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+                            />
+                            <span>Acquisition & Initial Inventory</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="space-y-1.5">
+                                <Label
+                                    for="accessory-cost-price"
+                                    class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                >
+                                    Cost Price (PKR)
+                                    <span
+                                        class="text-[10px] font-normal text-slate-400"
+                                        >(Max: 10 Lakh)</span
+                                    >
+                                </Label>
+                                <Input
+                                    id="accessory-cost-price"
+                                    v-model="productForm.cost_price"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="1000000"
+                                    placeholder="0"
+                                    class="h-10 rounded-xl bg-white text-xs dark:bg-slate-900"
+                                />
+                                <p
+                                    v-if="productForm.errors.cost_price"
+                                    class="mt-1 text-[11px] font-bold text-red-500"
+                                >
+                                    {{ productForm.errors.cost_price }}
+                                </p>
+                            </div>
+                            <div class="space-y-1.5">
+                                <Label
+                                    for="accessory-stock-qty"
+                                    class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                    >Initial Stock Qty (Pcs)</Label
+                                >
+                                <Input
+                                    id="accessory-stock-qty"
+                                    v-model.number="productForm.stock_quantity"
+                                    type="number"
+                                    min="0"
+                                    placeholder="0"
+                                    class="h-10 rounded-xl bg-white text-xs font-semibold dark:bg-slate-900"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter
+                        class="flex flex-col-reverse gap-2 pt-2 sm:flex-row"
+                    >
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             @click="isProductModalOpen = false"
-                            class="text-xs"
+                            class="h-10 rounded-xl text-xs font-medium"
                         >
                             Cancel
                         </Button>
                         <Button
                             size="sm"
-                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            class="h-10 rounded-xl bg-[#003B7D] text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#002b5c] active:scale-95"
                             :disabled="productForm.processing"
                         >
                             {{
@@ -970,64 +1106,109 @@ const formatCurrency = (val: number | string) =>
 
         <Dialog v-model:open="isQuickEditModalOpen">
             <DialogContent class="max-w-md">
-                <DialogHeader>
-                    <DialogTitle class="text-base font-bold">
-                        Quick Edit &bull; {{ quickEditTarget?.name }}
-                    </DialogTitle>
-                    <DialogDescription class="text-xs">
-                        Adjust sale price, cost price, and stock directly.
-                    </DialogDescription>
+                <DialogHeader class="pb-1">
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 shadow-xs dark:bg-amber-500/20 dark:text-amber-400"
+                        >
+                            <Sparkles class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-bold text-slate-900 dark:text-white"
+                            >
+                                Quick Edit &bull; {{ quickEditTarget?.name }}
+                            </DialogTitle>
+                            <DialogDescription
+                                class="text-xs text-slate-500 dark:text-slate-400"
+                            >
+                                Adjust sale price, cost price, and current stock
+                                count directly.
+                            </DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
 
                 <form
                     @submit.prevent="submitQuickEditForm"
-                    class="space-y-3 py-2 text-xs"
+                    class="space-y-4 py-2 text-xs"
                 >
-                    <div class="space-y-1">
-                        <Label class="font-medium">Sale Price (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
-                        <Input
-                            v-model="quickEditForm.sale_price"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="1000000"
-                            class="h-9 text-xs font-bold"
-                            required
-                        />
-                        <p v-if="quickEditForm.errors.sale_price" class="text-[11px] font-bold text-red-500 mt-1">
-                            {{ quickEditForm.errors.sale_price }}
-                        </p>
-                    </div>
-                    <div class="space-y-1">
-                        <Label class="font-medium">Cost Price (PKR) <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
-                        <Input
-                            v-model="quickEditForm.cost_price"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="1000000"
-                            class="h-9 text-xs"
-                        />
-                        <p v-if="quickEditForm.errors.cost_price" class="text-[11px] font-bold text-red-500 mt-1">
-                            {{ quickEditForm.errors.cost_price }}
-                        </p>
-                    </div>
-                    <div class="space-y-1">
-                        <Label class="font-medium">Stock Quantity (Pcs)</Label>
-                        <Input
-                            v-model.number="quickEditForm.stock_quantity"
-                            type="number"
-                            class="h-9 text-xs font-bold"
-                        />
+                    <div
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div class="space-y-1.5">
+                            <Label
+                                class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                            >
+                                Sale Price (PKR) *
+                                <span
+                                    class="text-[10px] font-normal text-slate-400"
+                                    >(Max: 10 Lakh)</span
+                                >
+                            </Label>
+                            <Input
+                                v-model="quickEditForm.sale_price"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1000000"
+                                class="h-10 rounded-xl bg-white text-xs font-bold dark:bg-slate-900"
+                                required
+                            />
+                            <p
+                                v-if="quickEditForm.errors.sale_price"
+                                class="mt-1 text-[11px] font-bold text-red-500"
+                            >
+                                {{ quickEditForm.errors.sale_price }}
+                            </p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label
+                                class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                            >
+                                Cost Price (PKR)
+                                <span
+                                    class="text-[10px] font-normal text-slate-400"
+                                    >(Max: 10 Lakh)</span
+                                >
+                            </Label>
+                            <Input
+                                v-model="quickEditForm.cost_price"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1000000"
+                                class="h-10 rounded-xl bg-white text-xs dark:bg-slate-900"
+                            />
+                            <p
+                                v-if="quickEditForm.errors.cost_price"
+                                class="mt-1 text-[11px] font-bold text-red-500"
+                            >
+                                {{ quickEditForm.errors.cost_price }}
+                            </p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label
+                                class="text-xs font-medium text-slate-700 dark:text-slate-300"
+                                >Stock Quantity (Pcs)</Label
+                            >
+                            <Input
+                                v-model.number="quickEditForm.stock_quantity"
+                                type="number"
+                                class="h-10 rounded-xl bg-white text-xs font-bold dark:bg-slate-900"
+                            />
+                        </div>
                     </div>
 
-                    <DialogFooter class="pt-3">
+                    <DialogFooter
+                        class="flex flex-col-reverse gap-2 pt-2 sm:flex-row"
+                    >
                         <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             @click="isQuickEditModalOpen = false"
-                            class="text-xs"
+                            class="h-10 rounded-xl text-xs font-medium"
                         >
                             Cancel
                         </Button>
@@ -1035,7 +1216,7 @@ const formatCurrency = (val: number | string) =>
                             type="submit"
                             size="sm"
                             :disabled="quickEditForm.processing"
-                            class="bg-[#003B7D] text-xs font-semibold text-white hover:bg-[#002b5c]"
+                            class="h-10 rounded-xl bg-[#003B7D] text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#002b5c] active:scale-95"
                         >
                             Update Accessory
                         </Button>
@@ -1043,5 +1224,15 @@ const formatCurrency = (val: number | string) =>
                 </form>
             </DialogContent>
         </Dialog>
+
+        <ProductImportExportDialog
+            v-model:open="isImportDialogOpen"
+            :template-url="importTemplateUrl"
+            :action-url="importActionUrl"
+            :export-url="exportUrl"
+            title="Products Import / Export"
+            description="Export the product list, or download the blank template, fill it in and upload it back to bulk add products."
+            entity-label="products"
+        />
     </div>
 </template>

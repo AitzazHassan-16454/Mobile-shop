@@ -21,7 +21,10 @@ const { t } = useTranslation();
 </script>
 
 <template>
-    <SidebarGroup v-if="leading" class="px-2 py-1 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-0.5">
+    <SidebarGroup
+        v-if="leading"
+        class="px-2 py-1 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-0.5"
+    >
         <SidebarMenu class="gap-1.5">
             <SidebarMenuItem class="flex justify-center">
                 <SidebarMenuButton
@@ -43,7 +46,7 @@ const { t } = useTranslation();
                             class="size-5 shrink-0 transition-transform duration-150 group-hover/menu-button:scale-105"
                         />
                         <span
-                            class="truncate text-xs font-bold tracking-wide lg:text-sm group-data-[collapsible=icon]:hidden"
+                            class="truncate text-xs font-bold tracking-wide group-data-[collapsible=icon]:hidden lg:text-sm"
                             >{{ t(leading.title) }}</span
                         >
                     </Link>
@@ -58,7 +61,11 @@ const { t } = useTranslation();
         class="px-2 py-1 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-0.5"
     >
         <SidebarMenu class="gap-1.5">
-            <SidebarMenuItem v-for="item in group.items" :key="item.title" class="flex justify-center">
+            <SidebarMenuItem
+                v-for="item in group.items"
+                :key="item.title"
+                class="flex justify-center"
+            >
                 <SidebarMenuButton
                     as-child
                     :tooltip="t(item.title)"
@@ -70,7 +77,12 @@ const { t } = useTranslation();
                     ]"
                 >
                     <component
-                        :is="item.external || String(item.href).includes('/backup/download') ? 'a' : Link"
+                        :is="
+                            item.external ||
+                            String(item.href).includes('/backup/download')
+                                ? 'a'
+                                : Link
+                        "
                         :href="item.href"
                         class="flex w-full items-center gap-3 px-3.5 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
                     >
@@ -79,7 +91,7 @@ const { t } = useTranslation();
                             class="size-5 shrink-0 transition-transform duration-150 group-hover/menu-button:scale-105"
                         />
                         <span
-                            class="truncate text-xs font-bold tracking-wide lg:text-sm group-data-[collapsible=icon]:hidden"
+                            class="truncate text-xs font-bold tracking-wide group-data-[collapsible=icon]:hidden lg:text-sm"
                             >{{ t(item.title) }}</span
                         >
                     </component>

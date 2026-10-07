@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\SupplierLedgerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SupplierLedger extends Model
 {
+    /** @use HasFactory<SupplierLedgerFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -27,6 +29,9 @@ class SupplierLedger extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Supplier, $this>
+     */
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
