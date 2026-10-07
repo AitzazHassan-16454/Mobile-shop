@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SaleReturnItem extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'sale_return_id',
@@ -29,21 +28,33 @@ class SaleReturnItem extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<SaleReturn, $this>
+     */
     public function saleReturn(): BelongsTo
     {
         return $this->belongsTo(SaleReturn::class);
     }
 
+    /**
+     * @return BelongsTo<SaleItem, $this>
+     */
     public function saleItem(): BelongsTo
     {
         return $this->belongsTo(SaleItem::class);
     }
 
+    /**
+     * @return BelongsTo<Product, $this>
+     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * @return BelongsTo<ProductImei, $this>
+     */
     public function productImei(): BelongsTo
     {
         return $this->belongsTo(ProductImei::class, 'product_imei_id');

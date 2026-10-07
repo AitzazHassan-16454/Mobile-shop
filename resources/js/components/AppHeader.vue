@@ -356,7 +356,14 @@ const isMobileMenuOpen = ref(false);
                                 :as-child="true"
                             >
                                 <component
-                                    :is="subItem.external || String(subItem.href).includes('/backup/download') ? 'a' : Link"
+                                    :is="
+                                        subItem.external ||
+                                        String(subItem.href).includes(
+                                            '/backup/download',
+                                        )
+                                            ? 'a'
+                                            : Link
+                                    "
                                     :href="subItem.href"
                                     :class="[
                                         'flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs font-bold transition',

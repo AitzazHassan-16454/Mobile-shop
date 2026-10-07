@@ -45,7 +45,7 @@ const formattedValue = computed(() => {
         amount % 1 === 0
             ? amount.toLocaleString()
             : amount.toLocaleString(undefined, {
-                  minimumFractionDigits: 1,
+                  minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
               });
 
@@ -56,13 +56,13 @@ const formattedValue = computed(() => {
 
 <template>
     <div
-        class="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs flex items-center gap-3.5 transition-all duration-150 hover:shadow-md"
+        class="flex items-center gap-3.5 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs transition-all duration-150 hover:shadow-md"
     >
         <!-- Circular Icon Badge (Matches reference image) -->
         <div
             :class="
                 cn(
-                    'h-11 w-11 shrink-0 rounded-full flex items-center justify-center shadow-xs transition-transform duration-150',
+                    'flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-xs transition-transform duration-150',
                     iconToneClasses[iconTone],
                 )
             "
@@ -72,17 +72,17 @@ const formattedValue = computed(() => {
 
         <!-- Text Area -->
         <div class="min-w-0">
-            <h3 class="text-sm font-bold text-slate-900 leading-tight truncate">
+            <h3 class="truncate text-sm leading-tight font-bold text-slate-900">
                 {{ label }}
             </h3>
             <p
                 v-if="sublabel"
-                class="text-[11px] font-normal text-slate-500 mt-0.5 truncate"
+                class="mt-0.5 truncate text-[11px] font-normal text-slate-500"
             >
                 {{ sublabel }}
             </p>
             <p
-                class="tnum text-base sm:text-lg font-black tracking-tight mt-0.5"
+                class="tnum mt-0.5 text-base font-black tracking-tight sm:text-lg"
                 :class="valueColorClasses[valueColor]"
             >
                 {{ formattedValue }}

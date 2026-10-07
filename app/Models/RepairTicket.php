@@ -6,9 +6,12 @@ use App\Enums\RepairStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $delivered_at
+ * @property \App\Enums\RepairStatus $status
+ */
 class RepairTicket extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
         'ticket_no',

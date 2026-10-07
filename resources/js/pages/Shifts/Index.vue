@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     ArrowDownRight,
@@ -134,7 +134,11 @@ const props = defineProps<{
     pastShifts:
         | {
               data: PastShiftData[];
-              links?: Array<{ url: string | null; label: string; active: boolean }>;
+              links?: Array<{
+                  url: string | null;
+                  label: string;
+                  active: boolean;
+              }>;
               total?: number;
               current_page?: number;
               last_page?: number;
@@ -415,7 +419,8 @@ const printShiftSlip = () => {
                     <span class="text-xs text-slate-500"
                         >Udhaar (Khata) Sales:</span
                     >
-                    <span class="tnum ml-1 text-sm font-semibold text-amber-600 dark:text-amber-400"
+                    <span
+                        class="tnum ml-1 text-sm font-semibold text-amber-600 dark:text-amber-400"
                         >Rs
                         {{ activeShift.udhaar_sales.toLocaleString() }}</span
                     >
@@ -450,7 +455,8 @@ const printShiftSlip = () => {
                             >
                         </div>
                         <div class="flex items-center gap-4">
-                            <span class="tnum font-bold text-rose-600 dark:text-rose-400"
+                            <span
+                                class="tnum font-bold text-rose-600 dark:text-rose-400"
                                 >- Rs {{ exp.amount.toLocaleString() }}</span
                             >
                             <span class="text-xs text-slate-500">{{
@@ -745,13 +751,22 @@ const printShiftSlip = () => {
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ pastShiftList.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ pastShiftList.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ pastShiftTotal }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ pastShiftTotal }}</span
+                    >
                     shifts
                 </div>
 
-                <div v-if="pastShiftLinks && pastShiftLinks.length > 3" class="flex items-center gap-1.5">
+                <div
+                    v-if="pastShiftLinks && pastShiftLinks.length > 3"
+                    class="flex items-center gap-1.5"
+                >
                     <template v-for="(link, idx) in pastShiftLinks" :key="idx">
                         <Button
                             v-if="link.url"
@@ -763,7 +778,16 @@ const printShiftSlip = () => {
                                     ? 'border-[#003B7D] bg-[#003B7D] font-semibold text-white hover:bg-[#002b5c]'
                                     : 'border-slate-200 text-slate-700 dark:border-slate-800 dark:text-slate-300',
                             ]"
-                            @click="router.get(link.url, {}, { preserveState: true, preserveScroll: true })"
+                            @click="
+                                router.get(
+                                    link.url,
+                                    {},
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                )
+                            "
                             v-html="link.label"
                         />
                         <span
@@ -912,7 +936,8 @@ const printShiftSlip = () => {
                 </div>
                 <div class="flex justify-between text-xs text-slate-500">
                     <span>Shop Expenses:</span>
-                    <span class="tnum font-medium text-rose-600 dark:text-rose-400"
+                    <span
+                        class="tnum font-medium text-rose-600 dark:text-rose-400"
                         >- Rs
                         {{ activeShift.expenses_amount.toLocaleString() }}</span
                     >

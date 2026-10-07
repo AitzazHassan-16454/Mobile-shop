@@ -158,16 +158,24 @@ const submitSale = () => {
     form.clearErrors();
 
     if (Number(form.cost_price) > 1000000) {
-        form.setError('cost_price', 'لاگت قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Cost price cannot exceed Rs 1,000,000.');
+        form.setError(
+            'cost_price',
+            'لاگت قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Cost price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'لاگت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'لاگت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
     if (Number(form.sell_price) > 1000000) {
-        form.setError('sell_price', 'فروخت قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sell price cannot exceed Rs 1,000,000.');
+        form.setError(
+            'sell_price',
+            'فروخت قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Sell price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -327,7 +335,13 @@ const formatCurrency = (val: number | string) => {
                         </div>
 
                         <div class="space-y-1">
-                            <Label for="cost_price">Cost Price (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
+                            <Label for="cost_price"
+                                >Cost Price (PKR) *
+                                <span
+                                    class="text-[10px] font-normal text-slate-400"
+                                    >(Max: 10 Lakh)</span
+                                ></Label
+                            >
                             <Input
                                 id="cost_price"
                                 v-model="form.cost_price"
@@ -339,13 +353,19 @@ const formatCurrency = (val: number | string) => {
                             />
                             <span
                                 v-if="form.errors.cost_price"
-                                class="text-xs text-rose-600 font-bold block mt-1"
+                                class="mt-1 block text-xs font-bold text-rose-600"
                                 >{{ form.errors.cost_price }}</span
                             >
                         </div>
 
                         <div class="space-y-1">
-                            <Label for="sell_price">Sell Price (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label>
+                            <Label for="sell_price"
+                                >Sell Price (PKR) *
+                                <span
+                                    class="text-[10px] font-normal text-slate-400"
+                                    >(Max: 10 Lakh)</span
+                                ></Label
+                            >
                             <Input
                                 id="sell_price"
                                 v-model="form.sell_price"
@@ -358,7 +378,7 @@ const formatCurrency = (val: number | string) => {
                             />
                             <span
                                 v-if="form.errors.sell_price"
-                                class="text-xs text-rose-600 font-bold block mt-1"
+                                class="mt-1 block text-xs font-bold text-rose-600"
                                 >{{ form.errors.sell_price }}</span
                             >
                         </div>

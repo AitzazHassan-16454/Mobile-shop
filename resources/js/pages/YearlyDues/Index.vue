@@ -182,8 +182,12 @@ const saveTarget = () => {
                 </p>
             </div>
             <div class="glass-card p-4">
-                <p class="eyebrow text-sky-600 dark:text-sky-400">Installment Outstanding</p>
-                <p class="mt-1 text-2xl font-black text-sky-600 dark:text-sky-400">
+                <p class="eyebrow text-sky-600 dark:text-sky-400">
+                    Installment Outstanding
+                </p>
+                <p
+                    class="mt-1 text-2xl font-black text-sky-600 dark:text-sky-400"
+                >
                     {{ currency(installments.outstanding) }}
                 </p>
                 <p class="mt-0.5 text-[10px] font-semibold text-slate-400">

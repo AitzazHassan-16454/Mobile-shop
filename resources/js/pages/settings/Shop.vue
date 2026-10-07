@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/shop-settings';
 
+import { ref } from 'vue';
+
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -27,6 +29,7 @@ const settings = page.props.settings as {
     shop_phone_secondary: string;
     shop_address: string;
     shop_ntn: string;
+    invoice_style: string;
     invoice_header_title: string;
     invoice_paper_size: string;
     show_barcode_on_invoice: string;
@@ -36,6 +39,8 @@ const settings = page.props.settings as {
     default_payment_method: string;
     enable_sound_effects: string;
 };
+
+const selectedStyle = ref(settings.invoice_style || 'classic');
 </script>
 
 <template>
@@ -56,15 +61,25 @@ const settings = page.props.settings as {
             v-slot="{ errors, processing }"
         >
             <!-- SECTION 1: Shop Branding & Information -->
-            <div class="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div
+                class="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+            >
                 <div class="border-b border-gray-100 pb-3">
-                    <h2 class="text-base font-semibold text-gray-900">Shop Profile & Info</h2>
-                    <p class="text-xs text-gray-500">Business identity printed at the top of receipts and invoices.</p>
+                    <h2 class="text-base font-semibold text-gray-900">
+                        Shop Profile & Info
+                    </h2>
+                    <p class="text-xs text-gray-500">
+                        Business identity printed at the top of receipts and
+                        invoices.
+                    </p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label for="shop_name">Shop Name <span class="text-red-500">*</span></Label>
+                        <Label for="shop_name"
+                            >Shop Name
+                            <span class="text-red-500">*</span></Label
+                        >
                         <Input
                             id="shop_name"
                             name="shop_name"
@@ -87,7 +102,10 @@ const settings = page.props.settings as {
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="shop_phone">Primary Phone / WhatsApp <span class="text-red-500">*</span></Label>
+                        <Label for="shop_phone"
+                            >Primary Phone / WhatsApp
+                            <span class="text-red-500">*</span></Label
+                        >
                         <Input
                             id="shop_phone"
                             name="shop_phone"
@@ -99,7 +117,9 @@ const settings = page.props.settings as {
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="shop_phone_secondary">Secondary Phone (Optional)</Label>
+                        <Label for="shop_phone_secondary"
+                            >Secondary Phone (Optional)</Label
+                        >
                         <Input
                             id="shop_phone_secondary"
                             name="shop_phone_secondary"
@@ -121,7 +141,9 @@ const settings = page.props.settings as {
                     </div>
 
                     <div class="grid gap-2 sm:col-span-2">
-                        <Label for="shop_ntn">NTN / Sales Tax Reg No. (Optional)</Label>
+                        <Label for="shop_ntn"
+                            >NTN / Sales Tax Reg No. (Optional)</Label
+                        >
                         <Input
                             id="shop_ntn"
                             name="shop_ntn"
@@ -134,15 +156,92 @@ const settings = page.props.settings as {
             </div>
 
             <!-- SECTION 2: Invoice & Receipt Printing Setup -->
-            <div class="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div
+                class="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+            >
                 <div class="border-b border-gray-100 pb-3">
-                    <h2 class="text-base font-semibold text-gray-900">Invoice & Thermal Receipt Setup</h2>
-                    <p class="text-xs text-gray-500">Configure header title, paper dimensions, warranty conditions, and barcodes.</p>
+                    <h2 class="text-base font-semibold text-gray-900">
+                        Invoice & Thermal Receipt Setup
+                    </h2>
+                    <p class="text-xs text-gray-500">
+                        Configure header title, paper dimensions, warranty
+                        conditions, and barcodes.
+                    </p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <!-- Invoice Template Style Selector Cards -->
+                    <div class="grid gap-2 sm:col-span-2">
+                        <Label>Select Invoice / Receipt Template Style</Label>
+                        <p class="text-xs text-slate-500">Choose from 4 professionally styled receipt designs for your thermal printer.</p>
+
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 mt-1">
+                            <!-- Style 1: Classic -->
+                            <label
+                                class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none"
+                                :class="selectedStyle === 'classic' ? 'border-[#003B7D] ring-2 ring-[#003B7D] bg-blue-50/20' : 'border-gray-200 bg-white hover:border-gray-300'"
+                            >
+                                <input type="radio" name="invoice_style" value="classic" v-model="selectedStyle" class="sr-only" />
+                                <div class="flex flex-col w-full">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-gray-900">1. Modern Classic</span>
+                                        <span v-if="selectedStyle === 'classic'" class="rounded bg-[#003B7D] px-2 py-0.5 text-[10px] font-bold text-white">Active</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500 mt-1">Standard thermal design with dashed dividers, dot shop logo, clean list layout.</span>
+                                </div>
+                            </label>
+
+                            <!-- Style 2: Bold Banner -->
+                            <label
+                                class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none"
+                                :class="selectedStyle === 'bold_banner' ? 'border-[#003B7D] ring-2 ring-[#003B7D] bg-blue-50/20' : 'border-gray-200 bg-white hover:border-gray-300'"
+                            >
+                                <input type="radio" name="invoice_style" value="bold_banner" v-model="selectedStyle" class="sr-only" />
+                                <div class="flex flex-col w-full">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-gray-900">2. Bold Banner</span>
+                                        <span v-if="selectedStyle === 'bold_banner'" class="rounded bg-[#003B7D] px-2 py-0.5 text-[10px] font-bold text-white">Active</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500 mt-1">High contrast dark header block, inverted total box, prominent payment badges.</span>
+                                </div>
+                            </label>
+
+                            <!-- Style 3: Formal Retail -->
+                            <label
+                                class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none"
+                                :class="selectedStyle === 'formal_retail' ? 'border-[#003B7D] ring-2 ring-[#003B7D] bg-blue-50/20' : 'border-gray-200 bg-white hover:border-gray-300'"
+                            >
+                                <input type="radio" name="invoice_style" value="formal_retail" v-model="selectedStyle" class="sr-only" />
+                                <div class="flex flex-col w-full">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-gray-900">3. Formal Retail Grid</span>
+                                        <span v-if="selectedStyle === 'formal_retail'" class="rounded bg-[#003B7D] px-2 py-0.5 text-[10px] font-bold text-white">Active</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500 mt-1">Full table grid borders, double outer border, formal shop bill layout.</span>
+                                </div>
+                            </label>
+
+                            <!-- Style 4: Minimal Line -->
+                            <label
+                                class="relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none"
+                                :class="selectedStyle === 'minimal_line' ? 'border-[#003B7D] ring-2 ring-[#003B7D] bg-blue-50/20' : 'border-gray-200 bg-white hover:border-gray-300'"
+                            >
+                                <input type="radio" name="invoice_style" value="minimal_line" v-model="selectedStyle" class="sr-only" />
+                                <div class="flex flex-col w-full">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-sm text-gray-900">4. Minimalist Line</span>
+                                        <span v-if="selectedStyle === 'minimal_line'" class="rounded bg-[#003B7D] px-2 py-0.5 text-[10px] font-bold text-white">Active</span>
+                                    </div>
+                                    <span class="text-xs text-gray-500 mt-1">Sleek thin line dividers, tight paper packing, ultra-clean aesthetic.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <InputError :message="errors.invoice_style" />
+                    </div>
                     <div class="grid gap-2">
-                        <Label for="invoice_header_title">Receipt Header Title</Label>
+                        <Label for="invoice_header_title"
+                            >Receipt Header Title</Label
+                        >
                         <Input
                             id="invoice_header_title"
                             name="invoice_header_title"
@@ -153,68 +252,86 @@ const settings = page.props.settings as {
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="invoice_paper_size">Receipt Paper Size</Label>
+                        <Label for="invoice_paper_size"
+                            >Receipt Paper Size</Label
+                        >
                         <select
                             id="invoice_paper_size"
                             name="invoice_paper_size"
                             :value="settings.invoice_paper_size"
-                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                         >
-                            <option value="80mm">Standard 80mm Thermal Paper</option>
-                            <option value="58mm">Compact 58mm Thermal Paper</option>
+                            <option value="80mm">
+                                Standard 80mm Thermal Paper
+                            </option>
+                            <option value="58mm">
+                                Compact 58mm Thermal Paper
+                            </option>
                         </select>
                         <InputError :message="errors.invoice_paper_size" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="show_barcode_on_invoice">Print Barcode on Receipt</Label>
+                        <Label for="show_barcode_on_invoice"
+                            >Print Barcode on Receipt</Label
+                        >
                         <select
                             id="show_barcode_on_invoice"
                             name="show_barcode_on_invoice"
                             :value="settings.show_barcode_on_invoice"
-                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                         >
-                            <option value="1">Enabled (Print invoice barcode)</option>
+                            <option value="1">
+                                Enabled (Print invoice barcode)
+                            </option>
                             <option value="0">Disabled</option>
                         </select>
                         <InputError :message="errors.show_barcode_on_invoice" />
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="show_cashier_name">Print Cashier / Salesman Name</Label>
+                        <Label for="show_cashier_name"
+                            >Print Cashier / Salesman Name</Label
+                        >
                         <select
                             id="show_cashier_name"
                             name="show_cashier_name"
                             :value="settings.show_cashier_name"
-                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                         >
-                            <option value="1">Enabled (Show cashier name)</option>
+                            <option value="1">
+                                Enabled (Show cashier name)
+                            </option>
                             <option value="0">Disabled</option>
                         </select>
                         <InputError :message="errors.show_cashier_name" />
                     </div>
 
                     <div class="grid gap-2 sm:col-span-2">
-                        <Label for="return_policy">Return & Warranty Policy</Label>
+                        <Label for="return_policy"
+                            >Return & Warranty Policy</Label
+                        >
                         <textarea
                             id="return_policy"
                             name="return_policy"
                             rows="3"
                             :default-value="settings.return_policy"
-                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                             placeholder="Printed under Terms & Conditions on the printed bill"
                         />
                         <InputError :message="errors.return_policy" />
                     </div>
 
                     <div class="grid gap-2 sm:col-span-2">
-                        <Label for="invoice_footer">Invoice Footer Note / Thank You Greeting</Label>
+                        <Label for="invoice_footer"
+                            >Invoice Footer Note / Thank You Greeting</Label
+                        >
                         <textarea
                             id="invoice_footer"
                             name="invoice_footer"
                             rows="2"
                             :default-value="settings.invoice_footer"
-                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                             placeholder="e.g. Shukriya for shopping with us! Please visit again."
                         />
                         <InputError :message="errors.invoice_footer" />
@@ -223,20 +340,28 @@ const settings = page.props.settings as {
             </div>
 
             <!-- SECTION 3: POS Terminal Preferences -->
-            <div class="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div
+                class="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+            >
                 <div class="border-b border-gray-100 pb-3">
-                    <h2 class="text-base font-semibold text-gray-900">POS Terminal Defaults</h2>
-                    <p class="text-xs text-gray-500">Default options for fast checkout at the register.</p>
+                    <h2 class="text-base font-semibold text-gray-900">
+                        POS Terminal Defaults
+                    </h2>
+                    <p class="text-xs text-gray-500">
+                        Default options for fast checkout at the register.
+                    </p>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
-                        <Label for="default_payment_method">Default Checkout Payment Method</Label>
+                        <Label for="default_payment_method"
+                            >Default Checkout Payment Method</Label
+                        >
                         <select
                             id="default_payment_method"
                             name="default_payment_method"
                             :value="settings.default_payment_method"
-                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                         >
                             <option value="Cash">Cash</option>
                             <option value="Card">Card</option>
@@ -247,14 +372,18 @@ const settings = page.props.settings as {
                     </div>
 
                     <div class="grid gap-2">
-                        <Label for="enable_sound_effects">Barcode Scan Beep Sound</Label>
+                        <Label for="enable_sound_effects"
+                            >Barcode Scan Beep Sound</Label
+                        >
                         <select
                             id="enable_sound_effects"
                             name="enable_sound_effects"
                             :value="settings.enable_sound_effects"
-                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D]"
+                            class="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
                         >
-                            <option value="1">Enabled (Play sound on scan)</option>
+                            <option value="1">
+                                Enabled (Play sound on scan)
+                            </option>
                             <option value="0">Disabled (Silent scan)</option>
                         </select>
                         <InputError :message="errors.enable_sound_effects" />

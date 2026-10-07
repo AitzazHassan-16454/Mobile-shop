@@ -36,14 +36,14 @@ const { currentLanguage, setLanguage, t } = useTranslation();
 
 <template>
     <header
-        class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-end border-b border-white/15 bg-gradient-to-r from-[#00366b] via-[#003B7D] to-[#002f61] px-4 sm:px-6 shadow-[0_4px_16px_rgba(0,35,80,0.15)] backdrop-blur-xl transition-[height] ease-linear"
+        class="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-end border-b border-white/15 bg-gradient-to-r from-[#00366b] via-[#003B7D] to-[#002f61] px-4 shadow-[0_4px_16px_rgba(0,35,80,0.15)] backdrop-blur-xl transition-[height] ease-linear sm:px-6"
     >
         <!-- Right Side: POS | EN | (A) Admin (matching reference layout) -->
         <div class="flex items-center gap-5 sm:gap-7">
             <!-- POS Text Link (Larger & Bolder) -->
             <Link
                 :href="posUrl"
-                class="text-base sm:text-lg font-black uppercase tracking-widest text-white transition hover:text-blue-200 active:scale-95"
+                class="text-base font-black tracking-widest text-white uppercase transition hover:text-blue-200 active:scale-95 sm:text-lg"
             >
                 {{ t('POS') }}
             </Link>
@@ -51,35 +51,44 @@ const { currentLanguage, setLanguage, t } = useTranslation();
             <!-- Language Switcher Dropdown (EN / UR) -->
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    class="flex items-center gap-1 text-sm font-extrabold uppercase tracking-wider text-white transition hover:text-blue-200 focus:outline-none"
+                    class="flex items-center gap-1 text-sm font-extrabold tracking-wider text-white uppercase transition hover:text-blue-200 focus:outline-none"
                 >
                     <span>{{ currentLanguage.toUpperCase() }}</span>
                     <ChevronDown class="size-3.5 text-white/80" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-36 rounded-xl p-1 shadow-xl">
+                <DropdownMenuContent
+                    align="end"
+                    class="w-36 rounded-xl p-1 shadow-xl"
+                >
                     <DropdownMenuItem
                         @click="setLanguage('en')"
                         class="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs font-bold transition"
                         :class="
                             currentLanguage === 'en'
-                                ? 'bg-[#003B7D] text-white font-black'
+                                ? 'bg-[#003B7D] font-black text-white'
                                 : 'text-slate-700 hover:bg-slate-100'
                         "
                     >
                         <span>EN (English)</span>
-                        <Check v-if="currentLanguage === 'en'" class="size-3.5" />
+                        <Check
+                            v-if="currentLanguage === 'en'"
+                            class="size-3.5"
+                        />
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         @click="setLanguage('ur')"
                         class="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-xs font-bold transition"
                         :class="
                             currentLanguage === 'ur'
-                                ? 'bg-[#003B7D] text-white font-black'
+                                ? 'bg-[#003B7D] font-black text-white'
                                 : 'text-slate-700 hover:bg-slate-100'
                         "
                     >
                         <span>UR (اردو)</span>
-                        <Check v-if="currentLanguage === 'ur'" class="size-3.5" />
+                        <Check
+                            v-if="currentLanguage === 'ur'"
+                            class="size-3.5"
+                        />
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
@@ -107,4 +116,3 @@ const { currentLanguage, setLanguage, t } = useTranslation();
         </div>
     </header>
 </template>
-

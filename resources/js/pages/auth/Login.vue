@@ -135,7 +135,10 @@ defineProps<{
 
         <div class="text-center text-xs text-slate-600">
             Don't have an account?
-            <a href="/register" class="font-bold text-[#003B7D] hover:underline">
+            <a
+                href="/register"
+                class="font-bold text-[#003B7D] hover:underline"
+            >
                 Create account
             </a>
         </div>

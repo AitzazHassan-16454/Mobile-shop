@@ -2,6 +2,8 @@
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     CheckCircle,
+    CircleSlash,
+    Clock,
     DollarSign,
     FileCheck,
     FileText,
@@ -54,6 +56,7 @@ const defaultVisibleColumns = {
     device: true,
     cost: true,
     legal: true,
+    credit: true,
     actions: true,
 };
 
@@ -68,6 +71,7 @@ const usedPhoneColumnLabels: Record<
     device: 'Device & IMEIs',
     cost: 'Purchase Cost',
     legal: 'Legal Status',
+    credit: 'Credit Status',
     actions: 'Actions',
 };
 
@@ -118,6 +122,8 @@ const activeColumnCount = computed(() => {
 
 const { confirm } = useConfirm();
 
+type CreditStatus = 'pending' | 'approved' | 'rejected';
+
 interface UsedPurchaseItem {
     id: number;
     voucher_no: string;
@@ -134,6 +140,11 @@ interface UsedPurchaseItem {
     purchase_amount: number | string;
     payment_method: string;
     agreement_signed: boolean;
+    status: CreditStatus;
+    rejection_reason?: string | null;
+    reviewed_at?: string | null;
+    reviewer?: { name: string } | null;
+    applied_at?: string | null;
     created_at: string;
 }
 
@@ -146,6 +157,11 @@ interface ShopInfo {
 interface SummaryStats {
     total_purchases: number;
     total_payout: number;
+    pending_count: number;
+    pending_amount: number;
+    approved_count: number;
+    approved_amount: number;
+    rejected_count: number;
 }
 
 const props = defineProps<{
@@ -159,6 +175,7 @@ const props = defineProps<{
     shopInfo: ShopInfo;
     filters: {
         search: string;
+        status?: string;
         per_page?: number;
     };
     summary: SummaryStats;
@@ -169,6 +186,7 @@ const page = usePage();
 const currentTeamSlug = computed(
     () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
 );
+const canApprove = computed(() => page.props.auth?.isAdmin !== false);
 
 defineOptions({
     layout: (layoutProps: { currentTeam?: Team | null }) => ({
@@ -188,6 +206,7 @@ defineOptions({
 });
 
 const search = ref(props.filters.search || '');
+const statusFilter = ref(props.filters.status || 'all');
 const perPage = ref(props.filters.per_page || 15);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -201,6 +220,8 @@ const applyFilters = () => {
         usedPhones.index(currentTeamSlug.value).url,
         {
             search: search.value || undefined,
+            status:
+                statusFilter.value === 'all' ? undefined : statusFilter.value,
             per_page: perPage.value,
         },
         { preserveState: true, replace: true },
@@ -208,6 +229,10 @@ const applyFilters = () => {
 };
 
 watch(perPage, () => {
+    applyFilters();
+});
+
+watch(statusFilter, () => {
     applyFilters();
 });
 
@@ -250,9 +275,13 @@ const submitPurchaseForm = () => {
     purchaseForm.clearErrors();
 
     if (Number(purchaseForm.purchase_amount) > 1000000) {
-        purchaseForm.setError('purchase_amount', 'خریداری رقم 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase amount cannot exceed Rs 1,000,000.');
+        purchaseForm.setError(
+            'purchase_amount',
+            'خریداری رقم 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase amount cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'فون کی خریداری رقم زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'فون کی خریداری رقم زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -285,6 +314,108 @@ watch(
     },
     { immediate: true },
 );
+
+// Trade-in Credit Approval
+const isReviewing = ref<number | null>(null);
+
+const statusLabel = (status: CreditStatus) =>
+    ({
+        pending: 'Pending Approval',
+        approved: 'Approved',
+        rejected: 'Rejected',
+    })[status];
+
+const statusBadgeClass = (status: CreditStatus) =>
+    ({
+        pending:
+            'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400',
+        approved:
+            'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400',
+        rejected:
+            'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400',
+    })[status];
+
+const submitReview = (
+    purchase: UsedPurchaseItem,
+    status: CreditStatus,
+    rejectionReason?: string,
+) => {
+    isReviewing.value = purchase.id;
+
+    router.put(
+        usedPhones.status.update([currentTeamSlug.value, purchase.id]).url,
+        {
+            status,
+            rejection_reason: rejectionReason ?? undefined,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                isReviewing.value = null;
+                isRejectModalOpen.value = false;
+                rejectReason.value = '';
+            },
+            onError: () => {
+                isReviewing.value = null;
+            },
+        },
+    );
+};
+
+const approvePurchase = async (purchase: UsedPurchaseItem) => {
+    const ok = await confirm({
+        title: 'Approve Trade-in Credit',
+        message: `Approve ${formatCurrency(purchase.purchase_amount)} credit for voucher "${purchase.voucher_no}"? It will become usable as a trade-in discount on new sales.`,
+        confirmText: 'Yes, Approve',
+        cancelText: 'Cancel',
+    });
+
+    if (ok) {
+        submitReview(purchase, 'approved');
+    }
+};
+
+const reopenPurchase = async (purchase: UsedPurchaseItem) => {
+    const ok = await confirm({
+        title: 'Move Back To Pending',
+        message: `Move voucher "${purchase.voucher_no}" back to pending approval?`,
+        confirmText: 'Yes, Reset',
+        cancelText: 'Cancel',
+    });
+
+    if (ok) {
+        submitReview(purchase, 'pending');
+    }
+};
+
+const isRejectModalOpen = ref(false);
+const rejectReason = ref('');
+const activeRejectPurchase = ref<UsedPurchaseItem | null>(null);
+
+const openRejectModal = (purchase: UsedPurchaseItem) => {
+    activeRejectPurchase.value = purchase;
+    rejectReason.value = '';
+    isRejectModalOpen.value = true;
+};
+
+const confirmReject = () => {
+    if (!activeRejectPurchase.value) return;
+
+    if (!rejectReason.value.trim()) {
+        toast.error('Reason is required', {
+            description:
+                'Please tell the team why this credit is being rejected.',
+        });
+        return;
+    }
+
+    submitReview(
+        activeRejectPurchase.value,
+        'rejected',
+        rejectReason.value.trim(),
+    );
+};
 
 const deletePurchase = async (purchase: UsedPurchaseItem) => {
     const ok = await confirm({
@@ -346,7 +477,7 @@ const formatCurrency = (val: number | string) => {
         </div>
 
         <!-- Summary Metrics -->
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div
                 class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
@@ -411,11 +542,68 @@ const formatCurrency = (val: number | string) => {
                         class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
                         >Stock Auto-Inflow</span
                     >
-                    <CheckCircle class="h-5 w-5 text-sky-600 dark:text-sky-400" />
+                    <CheckCircle
+                        class="h-5 w-5 text-sky-600 dark:text-sky-400"
+                    />
                 </div>
                 <div class="mt-2 text-2xl font-bold text-gray-900">Active</div>
                 <div class="mt-1 text-xs text-slate-500">
                     Synced to Used Inventory
+                </div>
+            </div>
+
+            <div
+                class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+            >
+                <div class="flex items-center justify-between">
+                    <span
+                        class="text-xs font-semibold tracking-wider text-amber-700 uppercase"
+                        >Pending Approval</span
+                    >
+                    <Clock class="h-5 w-5 text-amber-600" />
+                </div>
+                <div class="tnum mt-2 text-2xl font-bold text-amber-700">
+                    {{ summary.pending_count }}
+                </div>
+                <div class="tnum mt-1 text-xs text-amber-700/80">
+                    {{ formatCurrency(summary.pending_amount) }} awaiting review
+                </div>
+            </div>
+
+            <div
+                class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+            >
+                <div class="flex items-center justify-between">
+                    <span
+                        class="text-xs font-semibold tracking-wider text-emerald-700 uppercase"
+                        >Approved &amp; Unapplied</span
+                    >
+                    <CheckCircle class="h-5 w-5 text-emerald-600" />
+                </div>
+                <div class="mt-2 text-2xl font-bold text-emerald-700">
+                    {{ summary.approved_count }}
+                </div>
+                <div class="tnum mt-1 text-xs text-emerald-700/80">
+                    {{ formatCurrency(summary.approved_amount) }} usable on new
+                    sales
+                </div>
+            </div>
+
+            <div
+                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+            >
+                <div class="flex items-center justify-between">
+                    <span
+                        class="text-xs font-semibold tracking-wider text-slate-500 uppercase"
+                        >Rejected</span
+                    >
+                    <CircleSlash class="h-5 w-5 text-rose-500" />
+                </div>
+                <div class="mt-2 text-2xl font-bold text-gray-900">
+                    {{ summary.rejected_count }}
+                </div>
+                <div class="mt-1 text-xs text-slate-500">
+                    Credits not allowed as trade-in
                 </div>
             </div>
         </div>
@@ -448,7 +636,9 @@ const formatCurrency = (val: number | string) => {
                         <span
                             class="ml-1 rounded-full bg-[#003B7D]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#003B7D]"
                         >
-                            {{ activeColumnCount }}/6
+                            {{ activeColumnCount }}/{{
+                                Object.keys(visibleColumns).length
+                            }}
                         </span>
                     </Button>
                 </DropdownMenuTrigger>
@@ -487,6 +677,20 @@ const formatCurrency = (val: number | string) => {
                     </div>
                 </DropdownMenuContent>
             </DropdownMenu>
+
+            <!-- Credit Status Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-medium text-slate-500">Status:</span>
+                <select
+                    v-model="statusFilter"
+                    class="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 shadow-2xs focus:border-[#003B7D] focus:outline-none dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"
+                >
+                    <option value="all">All</option>
+                    <option value="pending">Pending Approval</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
 
             <!-- Per-Page Selection -->
             <div class="flex items-center gap-2">
@@ -530,6 +734,9 @@ const formatCurrency = (val: number | string) => {
                             <th v-if="visibleColumns.legal" class="px-4 py-3">
                                 Legal Status
                             </th>
+                            <th v-if="visibleColumns.credit" class="px-4 py-3">
+                                Credit Status
+                            </th>
                             <th
                                 v-if="visibleColumns.actions"
                                 class="px-4 py-3 text-right"
@@ -541,7 +748,14 @@ const formatCurrency = (val: number | string) => {
                     <tbody class="divide-y divide-gray-200">
                         <tr v-if="purchases.data.length === 0">
                             <td
-                                colspan="6"
+                                :colspan="
+                                    Object.keys(usedPhoneColumnLabels).filter(
+                                        (key) =>
+                                            visibleColumns[
+                                                key as keyof typeof visibleColumns
+                                            ],
+                                    ).length
+                                "
                                 class="text-muted-foreground px-4 py-8 text-center"
                             >
                                 No used phone purchases found.
@@ -627,6 +841,80 @@ const formatCurrency = (val: number | string) => {
                                 </span>
                             </td>
 
+                            <td v-if="visibleColumns.credit" class="px-4 py-3">
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase"
+                                    :class="statusBadgeClass(item.status)"
+                                >
+                                    {{ statusLabel(item.status) }}
+                                </span>
+
+                                <div
+                                    v-if="item.applied_at"
+                                    class="mt-1 text-[10px] font-semibold text-sky-600 dark:text-sky-400"
+                                >
+                                    Applied to a sale
+                                </div>
+                                <div
+                                    v-else-if="item.rejection_reason"
+                                    class="text-muted-foreground mt-1 max-w-[220px] text-[10px] leading-tight"
+                                >
+                                    {{ item.rejection_reason }}
+                                </div>
+                                <div
+                                    v-else-if="
+                                        item.reviewed_at && item.reviewer
+                                    "
+                                    class="text-muted-foreground mt-1 text-[10px]"
+                                >
+                                    by {{ item.reviewer.name }}
+                                </div>
+
+                                <div
+                                    v-if="
+                                        canApprove &&
+                                        !item.applied_at &&
+                                        isReviewing !== item.id
+                                    "
+                                    class="mt-1.5 flex items-center gap-1"
+                                >
+                                    <Button
+                                        v-if="item.status !== 'approved'"
+                                        size="sm"
+                                        @click="approvePurchase(item)"
+                                        class="h-7 gap-1 bg-emerald-600 px-2 text-[11px] font-semibold text-white hover:bg-emerald-700"
+                                    >
+                                        <CheckCircle class="h-3 w-3" />
+                                        Approve
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        @click="
+                                            item.status === 'pending'
+                                                ? openRejectModal(item)
+                                                : reopenPurchase(item)
+                                        "
+                                        class="h-7 px-2 text-[11px] font-semibold"
+                                    >
+                                        {{
+                                            item.status === 'pending'
+                                                ? 'Reject'
+                                                : 'Reset'
+                                        }}
+                                    </Button>
+                                </div>
+
+                                <div
+                                    v-else-if="
+                                        canApprove && isReviewing === item.id
+                                    "
+                                    class="text-muted-foreground mt-1.5 text-[10px]"
+                                >
+                                    Saving...
+                                </div>
+                            </td>
+
                             <td
                                 v-if="visibleColumns.actions"
                                 class="px-4 py-3 text-right"
@@ -697,97 +985,125 @@ const formatCurrency = (val: number | string) => {
 
         <!-- MODAL 1: Create Purchase & Affidavit Intake Modal -->
         <Dialog v-model:open="isCreateModalOpen">
-            <DialogContent class="max-h-[85vh] max-w-2xl overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle class="flex items-center gap-2">
-                        <ShieldCheck class="h-5 w-5 text-[#003B7D]" />
-                        Used Phone Purchase & Legal Affidavit Intake
-                    </DialogTitle>
-                    <DialogDescription>
-                        Collect seller CNIC details and device specifications
-                        for legal protection affidavit.
-                    </DialogDescription>
+            <DialogContent
+                class="max-w-2xl rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] shadow-xs dark:bg-blue-500/20 dark:text-blue-400"
+                        >
+                            <ShieldCheck class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Used Phone Purchase & Legal Affidavit Intake
+                            </DialogTitle>
+                            <DialogDescription
+                                class="mt-0.5 text-xs text-slate-500"
+                            >
+                                Collect seller CNIC details and device
+                                specifications for legal protection affidavit.
+                            </DialogDescription>
+                        </div>
+                    </div>
                 </DialogHeader>
 
                 <form
                     @submit.prevent="submitPurchaseForm"
-                    class="space-y-4 py-2 text-xs"
+                    class="space-y-4 py-1 text-xs"
                 >
                     <!-- Seller Details Section -->
                     <div
-                        class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                        class="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/50 p-3.5 dark:border-amber-900/50 dark:bg-amber-950/20"
                     >
                         <div
-                            class="flex items-center gap-1.5 font-bold text-[#003B7D]"
+                            class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-amber-900 uppercase dark:text-amber-300"
                         >
-                            <User class="h-4 w-4" /> Seller Identification
-                            Details
+                            <User class="h-3.5 w-3.5" />
+                            <span
+                                >1. Seller Identification & CNIC
+                                Verification</span
+                            >
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
-                                <Label for="seller_name"
-                                    >Seller Full Name *</Label
+                                <Label
+                                    for="seller_name"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Seller Full Name
+                                    <span class="text-rose-500">*</span></Label
                                 >
                                 <Input
                                     id="seller_name"
                                     v-model="purchaseForm.seller_name"
                                     placeholder="Name as per CNIC"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.seller_name"
-                                    class="text-xs text-rose-600"
+                                    class="block text-xs font-bold text-rose-600"
                                     >{{ purchaseForm.errors.seller_name }}</span
                                 >
                             </div>
 
                             <div class="space-y-1">
-                                <Label for="seller_father"
+                                <Label
+                                    for="seller_father"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
                                     >Father / Husband Name</Label
                                 >
                                 <Input
                                     id="seller_father"
                                     v-model="purchaseForm.seller_father_name"
                                     placeholder="Father Name"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
-                                <Label for="seller_cnic"
-                                    >CNIC / National ID # *</Label
+                                <Label
+                                    for="seller_cnic"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >CNIC / National ID #
+                                    <span class="text-rose-500">*</span></Label
                                 >
                                 <Input
                                     id="seller_cnic"
                                     v-model="purchaseForm.seller_cnic"
                                     placeholder="e.g. 35201-1234567-1"
-                                    font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs font-bold dark:border-slate-700 dark:bg-slate-800"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.seller_cnic"
-                                    class="text-xs text-rose-600"
+                                    class="block text-xs font-bold text-rose-600"
                                     >{{ purchaseForm.errors.seller_cnic }}</span
                                 >
                             </div>
 
                             <div class="space-y-1">
-                                <Label for="seller_phone"
-                                    >Mobile Number *</Label
+                                <Label
+                                    for="seller_phone"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Mobile Number
+                                    <span class="text-rose-500">*</span></Label
                                 >
                                 <Input
                                     id="seller_phone"
                                     v-model="purchaseForm.seller_phone"
                                     placeholder="03001234567"
-                                    font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.seller_phone"
-                                    class="text-xs text-rose-600"
+                                    class="block text-xs font-bold text-rose-600"
                                     >{{
                                         purchaseForm.errors.seller_phone
                                     }}</span
@@ -796,41 +1112,48 @@ const formatCurrency = (val: number | string) => {
                         </div>
 
                         <div class="space-y-1">
-                            <Label for="seller_address"
+                            <Label
+                                for="seller_address"
+                                class="font-bold text-slate-700 dark:text-slate-300"
                                 >Residential Address</Label
                             >
                             <Input
                                 id="seller_address"
                                 v-model="purchaseForm.seller_address"
                                 placeholder="Full Home Address"
-                                class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                class="h-9 rounded-xl border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
                             />
                         </div>
                     </div>
 
                     <!-- Device Specifications Section -->
                     <div
-                        class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                        class="space-y-3 rounded-2xl border border-blue-200 bg-blue-50/50 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20"
                     >
                         <div
-                            class="flex items-center gap-1.5 font-bold text-[#003B7D]"
+                            class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-[#003B7D] uppercase dark:text-blue-300"
                         >
-                            <Smartphone class="h-4 w-4" /> Device & IMEI
-                            Specifications
+                            <Smartphone class="h-3.5 w-3.5" />
+                            <span>2. Device & IMEI Specifications</span>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
-                                <Label for="dev_model">Device Model *</Label>
+                                <Label
+                                    for="dev_model"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Device Model
+                                    <span class="text-rose-500">*</span></Label
+                                >
                                 <Input
                                     id="dev_model"
                                     v-model="purchaseForm.device_model"
                                     placeholder="e.g. Samsung Galaxy S21 Ultra"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold dark:border-slate-700 dark:bg-slate-800"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.device_model"
-                                    class="text-xs text-rose-600"
+                                    class="block text-xs font-bold text-rose-600"
                                     >{{
                                         purchaseForm.errors.device_model
                                     }}</span
@@ -838,69 +1161,90 @@ const formatCurrency = (val: number | string) => {
                             </div>
 
                             <div class="space-y-1">
-                                <Label for="dev_brand">Brand</Label>
+                                <Label
+                                    for="dev_brand"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Brand</Label
+                                >
                                 <Input
                                     id="dev_brand"
                                     v-model="purchaseForm.brand"
                                     placeholder="e.g. Samsung"
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div class="space-y-1">
-                                <Label for="imei_1">IMEI 1 Number *</Label>
+                                <Label
+                                    for="imei_1"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >IMEI 1 Number
+                                    <span class="text-rose-500">*</span></Label
+                                >
                                 <Input
                                     id="imei_1"
                                     v-model="purchaseForm.imei_1"
                                     placeholder="15-digit IMEI"
-                                    font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs font-bold dark:border-slate-700 dark:bg-slate-800"
                                 />
                                 <span
                                     v-if="purchaseForm.errors.imei_1"
-                                    class="text-xs text-rose-600"
+                                    class="block text-xs font-bold text-rose-600"
                                     >{{ purchaseForm.errors.imei_1 }}</span
                                 >
                             </div>
 
                             <div class="space-y-1">
-                                <Label for="imei_2">IMEI 2 (SIM 2)</Label>
+                                <Label
+                                    for="imei_2"
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >IMEI 2 (SIM 2)</Label
+                                >
                                 <Input
                                     id="imei_2"
                                     v-model="purchaseForm.imei_2"
                                     placeholder="Optional IMEI 2"
-                                    font-mono
-                                    class="border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white font-mono text-xs dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-3 gap-2">
-                            <div>
-                                <Label>Color</Label>
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                            <div class="space-y-1">
+                                <Label
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Color</Label
+                                >
                                 <Input
                                     v-model="purchaseForm.color"
                                     placeholder="e.g. Black"
-                                    class="h-8 border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
-                            <div>
-                                <Label>Storage</Label>
+                            <div class="space-y-1">
+                                <Label
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Storage</Label
+                                >
                                 <Input
                                     v-model="purchaseForm.storage"
                                     placeholder="e.g. 128GB"
-                                    class="h-8 border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
+                                    class="h-9 rounded-xl border-slate-200 bg-white text-xs dark:border-slate-700 dark:bg-slate-800"
                                 />
                             </div>
-                            <div>
-                                <Label>PTA Status</Label>
+                            <div class="space-y-1">
+                                <Label
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >PTA Status</Label
+                                >
                                 <Select v-model="purchaseForm.pta_status">
-                                    <SelectTrigger class="h-8 text-xs"
+                                    <SelectTrigger
+                                        class="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold dark:border-slate-700 dark:bg-slate-800"
                                         ><SelectValue
                                     /></SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent class="rounded-xl">
                                         <SelectItem value="approved"
                                             >PTA Approved</SelectItem
                                         >
@@ -923,76 +1267,110 @@ const formatCurrency = (val: number | string) => {
                     </div>
 
                     <!-- Financial & Agreement Section -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <Label for="purch_amt"
-                                >Agreed Purchase Amount (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
-                            >
-                            <Input
-                                id="purch_amt"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="1000000"
-                                v-model="purchaseForm.purchase_amount"
-                                placeholder="0.00"
-                                class="tnum border-gray-200 bg-gray-50 text-gray-900 placeholder:text-slate-500 focus-visible:border-[#003B7D]/70 focus-visible:ring-[#003B7D]/20"
-                            />
-                            <span
-                                v-if="purchaseForm.errors.purchase_amount"
-                                class="text-xs text-rose-600 font-bold block mt-1"
-                                >{{ purchaseForm.errors.purchase_amount }}</span
-                            >
-                        </div>
-
-                        <div class="space-y-1">
-                            <Label>Payment Method</Label>
-                            <Select v-model="purchaseForm.payment_method">
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="cash"
-                                        >Cash Payment</SelectItem
-                                    >
-                                    <SelectItem value="bank"
-                                        >Bank Transfer</SelectItem
-                                    >
-                                    <SelectItem value="jazzcash"
-                                        >JazzCash</SelectItem
-                                    >
-                                    <SelectItem value="easypaisa"
-                                        >EasyPaisa</SelectItem
-                                    >
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 border-t pt-2">
-                        <input
-                            id="auto_stock"
-                            type="checkbox"
-                            v-model="purchaseForm.auto_add_stock"
-                            class="rounded border-gray-200 bg-gray-50 accent-[#003B7D]"
-                        />
-                        <Label
-                            for="auto_stock"
-                            class="cursor-pointer text-xs font-semibold"
+                    <div
+                        class="space-y-3 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 text-[11px] font-black tracking-wider text-slate-700 uppercase dark:text-slate-300"
                         >
-                            Auto-add this handset to Shop Used Inventory Stock
-                        </Label>
+                            <ShieldCheck class="h-3.5 w-3.5 text-emerald-600" />
+                            <span>3. Agreed Amount & Payment Settlement</span>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div class="space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <Label
+                                        for="purch_amt"
+                                        class="font-bold text-slate-700 dark:text-slate-300"
+                                        >Agreed Purchase Amount (PKR)
+                                        <span class="text-rose-500"
+                                            >*</span
+                                        ></Label
+                                    >
+                                    <span class="text-[10px] text-slate-400"
+                                        >Max: 10 Lakh</span
+                                    >
+                                </div>
+                                <Input
+                                    id="purch_amt"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="1000000"
+                                    v-model="purchaseForm.purchase_amount"
+                                    placeholder="0.00"
+                                    class="h-10 rounded-xl border-slate-200 bg-white text-sm font-black dark:border-slate-700 dark:bg-slate-800"
+                                />
+                                <span
+                                    v-if="purchaseForm.errors.purchase_amount"
+                                    class="block text-xs font-bold text-rose-600"
+                                    >{{
+                                        purchaseForm.errors.purchase_amount
+                                    }}</span
+                                >
+                            </div>
+
+                            <div class="space-y-1">
+                                <Label
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    >Payment Payout Method</Label
+                                >
+                                <Select v-model="purchaseForm.payment_method">
+                                    <SelectTrigger
+                                        class="h-10 rounded-xl border-slate-200 bg-white text-xs font-bold dark:border-slate-700 dark:bg-slate-800"
+                                        ><SelectValue
+                                    /></SelectTrigger>
+                                    <SelectContent class="rounded-xl">
+                                        <SelectItem value="cash"
+                                            >Cash in Hand</SelectItem
+                                        >
+                                        <SelectItem value="bank"
+                                            >Bank Transfer</SelectItem
+                                        >
+                                        <SelectItem value="jazzcash"
+                                            >JazzCash</SelectItem
+                                        >
+                                        <SelectItem value="easypaisa"
+                                            >EasyPaisa</SelectItem
+                                        >
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div
+                            class="flex items-center gap-2 border-t border-slate-200/80 pt-2 dark:border-slate-700"
+                        >
+                            <input
+                                id="auto_stock"
+                                type="checkbox"
+                                v-model="purchaseForm.auto_add_stock"
+                                class="h-4 w-4 rounded border-gray-300 accent-[#003B7D]"
+                            />
+                            <Label
+                                for="auto_stock"
+                                class="cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300"
+                            >
+                                Automatically add this handset to Shop Used
+                                Inventory Stock
+                            </Label>
+                        </div>
                     </div>
 
-                    <DialogFooter class="pt-4">
+                    <DialogFooter
+                        class="gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
+                    >
                         <Button
                             type="button"
                             variant="outline"
                             @click="isCreateModalOpen = false"
+                            class="rounded-xl text-xs font-bold"
                             >Cancel</Button
                         >
                         <Button
                             type="submit"
                             :disabled="purchaseForm.processing"
-                            class="bg-[#003B7D] font-semibold text-white shadow-sm hover:bg-[#002b5c]"
+                            class="rounded-xl bg-[#003B7D] text-xs font-bold text-white shadow-sm transition hover:bg-[#002b5c] active:scale-95"
                         >
                             {{
                                 purchaseForm.processing
@@ -1005,11 +1383,89 @@ const formatCurrency = (val: number | string) => {
             </DialogContent>
         </Dialog>
 
-        <!-- MODAL 2: Legal Affidavit Purchase Agreement Print Slip (80mm / 58mm / A4) -->
+        <!-- MODAL 2: Reject Trade-in Credit -->
+        <Dialog v-model:open="isRejectModalOpen">
+            <DialogContent
+                class="max-w-md rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xl sm:p-6 dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
+                        >
+                            <CircleSlash class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Reject Trade-in Credit
+                            </DialogTitle>
+                            <DialogDescription
+                                class="mt-0.5 text-xs text-slate-500"
+                            >
+                                {{
+                                    activeRejectPurchase
+                                        ? `Voucher ${activeRejectPurchase.voucher_no} — ${formatCurrency(
+                                              activeRejectPurchase.purchase_amount,
+                                          )} will not be usable as a trade-in discount.`
+                                        : 'Void this trade-in voucher.'
+                                }}
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <div class="space-y-2 py-2">
+                    <Label
+                        for="rejection-reason"
+                        class="text-xs font-bold text-slate-700 dark:text-slate-300"
+                        >Reason for Rejection
+                        <span class="text-rose-500">*</span></Label
+                    >
+                    <textarea
+                        id="rejection-reason"
+                        v-model="rejectReason"
+                        rows="3"
+                        placeholder="e.g. IMEI 1 failed verification, seller CNIC invalid, device lock detected..."
+                        class="w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:border-rose-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    ></textarea>
+                </div>
+
+                <DialogFooter
+                    class="gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
+                >
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="isRejectModalOpen = false"
+                        class="rounded-xl text-xs font-bold"
+                        >Cancel</Button
+                    >
+                    <Button
+                        type="button"
+                        :disabled="isReviewing !== null"
+                        @click="confirmReject"
+                        class="rounded-xl bg-rose-600 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700 active:scale-95"
+                    >
+                        Reject Trade-in Voucher
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- MODAL 3: Legal Affidavit Purchase Agreement Print Slip (80mm / 58mm / A4) -->
         <Dialog v-model:open="isVoucherModalOpen">
-            <DialogContent class="max-w-md p-4">
-                <DialogHeader class="no-print">
-                    <DialogTitle class="text-center text-sm"
+            <DialogContent
+                class="max-w-md rounded-3xl border border-slate-200/90 bg-white p-5 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="no-print border-b border-slate-100 pb-2 dark:border-slate-800"
+                >
+                    <DialogTitle
+                        class="text-center text-sm font-black text-slate-900 dark:text-white"
                         >Legal Purchase Affidavit Voucher</DialogTitle
                     >
                 </DialogHeader>
@@ -1143,17 +1599,20 @@ const formatCurrency = (val: number | string) => {
                     </div>
                 </div>
 
-                <DialogFooter class="no-print flex justify-between pt-2">
+                <DialogFooter
+                    class="no-print flex justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
+                >
                     <Button
                         type="button"
                         variant="outline"
                         @click="isVoucherModalOpen = false"
+                        class="rounded-xl text-xs font-bold"
                         >Close</Button
                     >
                     <Button
                         type="button"
                         @click="printVoucher"
-                        class="gap-1 bg-[#003B7D] font-semibold text-white shadow-sm hover:bg-[#002b5c]"
+                        class="gap-1.5 rounded-xl bg-[#003B7D] text-xs font-bold text-white shadow-sm transition hover:bg-[#002b5c] active:scale-95"
                     >
                         <Printer class="h-4 w-4" /> Print Affidavit Voucher
                     </Button>

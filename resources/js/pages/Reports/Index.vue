@@ -16,7 +16,7 @@ import {
     TrendingUp,
     Wrench,
 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -100,13 +100,20 @@ const searchDeviceQuery = ref('');
 const startDateInput = ref(props.filters.start_date || '');
 const endDateInput = ref(props.filters.end_date || '');
 
+const page = usePage();
+const currentTeamSlug = computed(
+    () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
+);
+
+const reportQuery = computed(() => ({
+    start_date: startDateInput.value || undefined,
+    end_date: endDateInput.value || undefined,
+}));
+
 const applyFilters = () => {
     router.get(
-        '/reports',
-        {
-            start_date: startDateInput.value || undefined,
-            end_date: endDateInput.value || undefined,
-        },
+        reports.index(currentTeamSlug.value, { query: reportQuery.value }),
+        {},
         { preserveState: true },
     );
 };
@@ -155,8 +162,11 @@ const paginatedDeviceProfits = computed(() => {
         start + deviceProfitPerPage.value,
     );
 });
-const totalDeviceProfitPages = computed(() =>
-    Math.ceil(filteredDeviceProfits.value.length / deviceProfitPerPage.value) || 1,
+const totalDeviceProfitPages = computed(
+    () =>
+        Math.ceil(
+            filteredDeviceProfits.value.length / deviceProfitPerPage.value,
+        ) || 1,
 );
 
 const slowMovingPage = ref(1);
@@ -168,26 +178,20 @@ const paginatedSlowMoving = computed(() => {
         start + slowMovingPerPage.value,
     );
 });
-const totalSlowMovingPages = computed(() =>
-    Math.ceil((props.slowMovingStock?.length || 0) / slowMovingPerPage.value) || 1,
+const totalSlowMovingPages = computed(
+    () =>
+        Math.ceil(
+            (props.slowMovingStock?.length || 0) / slowMovingPerPage.value,
+        ) || 1,
 );
 
 watch(searchDeviceQuery, () => {
     deviceProfitPage.value = 1;
 });
 
-const page = usePage();
-const currentTeamSlug = computed(
-    () => (page.props.currentTeam as Team | undefined)?.slug || 'default',
-);
-
 const reportExportUrl = (format: 'csv' | 'xlsx') =>
     reports.export(currentTeamSlug.value, {
-        query: {
-            start_date: startDateInput.value || undefined,
-            end_date: endDateInput.value || undefined,
-            format,
-        },
+        query: { ...reportQuery.value, format },
     }).url;
 </script>
 
@@ -417,7 +421,8 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                 <span class="block text-xs text-slate-500"
                     >Repairing Revenue:</span
                 >
-                <span class="tnum text-lg font-bold text-sky-600 dark:text-sky-400"
+                <span
+                    class="tnum text-lg font-bold text-sky-600 dark:text-sky-400"
                     >Rs {{ summary.repair_revenue.toLocaleString() }}</span
                 >
             </div>
@@ -581,13 +586,22 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ paginatedDeviceProfits.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ paginatedDeviceProfits.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ filteredDeviceProfits.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ filteredDeviceProfits.length }}</span
+                    >
                     sold handsets
                 </div>
 
-                <div v-if="totalDeviceProfitPages > 1" class="flex items-center gap-1.5">
+                <div
+                    v-if="totalDeviceProfitPages > 1"
+                    class="flex items-center gap-1.5"
+                >
                     <Button
                         variant="outline"
                         size="sm"
@@ -597,8 +611,9 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                     >
                         Previous
                     </Button>
-                    <span class="text-xs font-semibold px-2">
-                        Page {{ deviceProfitPage }} of {{ totalDeviceProfitPages }}
+                    <span class="px-2 text-xs font-semibold">
+                        Page {{ deviceProfitPage }} of
+                        {{ totalDeviceProfitPages }}
                     </span>
                     <Button
                         variant="outline"
@@ -778,13 +793,22 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
             >
                 <div class="text-xs text-slate-500 dark:text-slate-400">
                     Showing
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ paginatedSlowMoving.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ paginatedSlowMoving.length }}</span
+                    >
                     of
-                    <span class="font-medium text-slate-900 dark:text-slate-200">{{ slowMovingStock.length }}</span>
+                    <span
+                        class="font-medium text-slate-900 dark:text-slate-200"
+                        >{{ slowMovingStock.length }}</span
+                    >
                     items
                 </div>
 
-                <div v-if="totalSlowMovingPages > 1" class="flex items-center gap-1.5">
+                <div
+                    v-if="totalSlowMovingPages > 1"
+                    class="flex items-center gap-1.5"
+                >
                     <Button
                         variant="outline"
                         size="sm"
@@ -794,7 +818,7 @@ const reportExportUrl = (format: 'csv' | 'xlsx') =>
                     >
                         Previous
                     </Button>
-                    <span class="text-xs font-semibold px-2">
+                    <span class="px-2 text-xs font-semibold">
                         Page {{ slowMovingPage }} of {{ totalSlowMovingPages }}
                     </span>
                     <Button

@@ -576,9 +576,7 @@ const getPaymentBadge = (method: string) => {
                         class="mt-1 text-[11px] text-gray-500 dark:text-gray-400"
                     >
                         {{ props.stats.today_count }}
-                        {{
-                            props.stats.today_count === 1 ? 'sale' : 'sales'
-                        }}
+                        {{ props.stats.today_count === 1 ? 'sale' : 'sales' }}
                         today
                     </p>
                 </div>
@@ -1075,7 +1073,10 @@ const getPaymentBadge = (method: string) => {
                         <label
                             class="text-xs font-semibold text-gray-700 dark:text-gray-300"
                         >
-                            Payment Method <span class="text-rose-500 dark:text-rose-400">*</span>
+                            Payment Method
+                            <span class="text-rose-500 dark:text-rose-400"
+                                >*</span
+                            >
                         </label>
                         <select
                             v-model="directSaleForm.payment_method"
@@ -1328,9 +1329,10 @@ const getPaymentBadge = (method: string) => {
                         class="flex items-center justify-between pt-1 text-xs"
                     >
                         <span class="text-gray-500">Change Return:</span>
-                        <span class="font-mono font-bold text-amber-600 dark:text-amber-400">{{
-                            formatMoney(cartChangeAmount)
-                        }}</span>
+                        <span
+                            class="font-mono font-bold text-amber-600 dark:text-amber-400"
+                            >{{ formatMoney(cartChangeAmount) }}</span
+                        >
                     </div>
                 </div>
 

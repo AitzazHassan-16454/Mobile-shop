@@ -115,7 +115,7 @@ const customDisplayString = computed(() => {
 </script>
 
 <template>
-    <div class="flex items-center gap-2 relative">
+    <div class="relative flex items-center gap-2">
         <!-- Custom Date Range Display Box (Image 3: 20-09-2026 to 26-09-2026 ✕) -->
         <div
             v-if="showCustomBox"
@@ -142,13 +142,19 @@ const customDisplayString = computed(() => {
             <select
                 :value="selectedPreset"
                 @change="onPresetChange"
-                class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 pr-8 text-xs font-bold text-slate-800 shadow-2xs hover:border-[#003B7D] focus:border-[#003B7D] focus:outline-none focus:ring-1 focus:ring-[#003B7D] cursor-pointer appearance-none min-w-[110px]"
+                class="min-w-[110px] cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white px-3 py-1.5 pr-8 text-xs font-bold text-slate-800 shadow-2xs hover:border-[#003B7D] focus:border-[#003B7D] focus:ring-1 focus:ring-[#003B7D] focus:outline-none"
             >
-                <option v-for="opt in presets" :key="opt.value" :value="opt.value">
+                <option
+                    v-for="opt in presets"
+                    :key="opt.value"
+                    :value="opt.value"
+                >
                     {{ opt.label }}
                 </option>
             </select>
-            <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+            <ChevronDown
+                class="pointer-events-none absolute top-1/2 right-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
+            />
         </div>
 
         <!-- Custom Date Range Picker Dropdown Modal -->
@@ -156,15 +162,25 @@ const customDisplayString = computed(() => {
             v-if="showCustomBox && showDatePickerModal"
             class="absolute top-full right-0 z-40 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xl"
         >
-            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
-                <span class="text-xs font-bold text-slate-800">Select Custom Dates</span>
-                <button @click="showDatePickerModal = false" class="text-slate-400 hover:text-slate-600">
+            <div
+                class="mb-2.5 flex items-center justify-between border-b border-slate-100 pb-2"
+            >
+                <span class="text-xs font-bold text-slate-800"
+                    >Select Custom Dates</span
+                >
+                <button
+                    @click="showDatePickerModal = false"
+                    class="text-slate-400 hover:text-slate-600"
+                >
                     <X class="h-3.5 w-3.5" />
                 </button>
             </div>
             <div class="space-y-3">
                 <div>
-                    <label class="text-[11px] font-bold text-slate-600 block mb-1">From Date:</label>
+                    <label
+                        class="mb-1 block text-[11px] font-bold text-slate-600"
+                        >From Date:</label
+                    >
                     <input
                         type="date"
                         v-model="from"
@@ -172,7 +188,10 @@ const customDisplayString = computed(() => {
                     />
                 </div>
                 <div>
-                    <label class="text-[11px] font-bold text-slate-600 block mb-1">To Date:</label>
+                    <label
+                        class="mb-1 block text-[11px] font-bold text-slate-600"
+                        >To Date:</label
+                    >
                     <input
                         type="date"
                         v-model="to"

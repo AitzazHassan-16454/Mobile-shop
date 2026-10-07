@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     Check,
     Copy,
+    Eye,
     FileText,
     HandCoins,
     Plus,
@@ -11,11 +12,21 @@ import {
     ShoppingCart,
     Smartphone,
     User,
+    UserPlus,
     Wallet,
 } from '@lucide/vue';
 import { toast } from 'vue-sonner';
 import { computed, onMounted, ref, watch } from 'vue';
+import HandsetStockTab from '@/components/handsets/HandsetStockTab.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -63,7 +74,8 @@ interface SaleInvoiceItem {
     id: number;
     unit_price: number | string;
     line_total: number | string;
-    product?: { id: number; name: string; brand?: string | null } | null;
+    quantity?: number | string;
+    product?: { id: number; name: string; brand?: string | null; is_serialized?: boolean } | null;
     productImei?: {
         id: number;
         imei_1: string;
@@ -71,12 +83,17 @@ interface SaleInvoiceItem {
         color?: string | null;
         storage?: string | null;
         condition?: string;
+        pta_status?: string;
+        warranty_days?: number;
     } | null;
 }
 
 interface SaleInvoice {
     id: number;
     invoice_no: string;
+    total_amount?: number | string;
+    discount_amount?: number | string;
+    trade_in_amount?: number | string;
     net_amount: number | string;
     paid_amount: number | string;
     change_amount?: number | string;
@@ -84,8 +101,11 @@ interface SaleInvoice {
     created_at: string;
     customer?: { id: number; name: string; phone?: string | null } | null;
     cashier?: { id: number; name: string } | null;
+    usedPhonePurchase?: { id: number; voucher_no: string; purchase_amount: number | string } | null;
     items?: SaleInvoiceItem[];
 }
+
+type CreditStatus = 'pending' | 'approved' | 'rejected';
 
 interface PurchaseInvoice {
     id: number;
@@ -98,6 +118,7 @@ interface PurchaseInvoice {
     imei_2?: string | null;
     purchase_amount: number | string;
     payment_method: string;
+    status?: CreditStatus;
     applied_at?: string | null;
     created_at: string;
 }
@@ -107,11 +128,57 @@ interface PaymentMethodOption {
     label: string;
 }
 
+interface StockProduct {
+    id: number;
+    name: string;
+    brand: string;
+    sale_price: number | string;
+}
+
+interface StockImeiItem {
+    id: number;
+    product_id: number;
+    imei_1: string;
+    imei_2?: string | null;
+    color?: string | null;
+    storage?: string | null;
+    condition: 'new' | 'used';
+    pta_status: 'approved' | 'non_pta' | 'jv' | 'cpid' | 'software';
+    purchase_cost: number | string;
+    warranty_days: number;
+    status: 'in_stock' | 'sold' | 'repairing' | 'returned';
+    sold_at?: string | null;
+    created_at: string;
+    product?: StockProduct;
+}
+
 const props = defineProps<{
     handsets: Handset[];
     customers: CustomerOption[];
     saleInvoices: SaleInvoice[];
     purchaseInvoices: PurchaseInvoice[];
+    stockImeis: {
+        data: StockImeiItem[];
+        links: { url: string | null; label: string; active: boolean }[];
+        current_page: number;
+        last_page: number;
+        total: number;
+    };
+    stockBrands: string[];
+    stockSummary: {
+        in_stock_count: number;
+        new_stock_count: number;
+        used_stock_count: number;
+        total_cost_value: number;
+    };
+    stockFilters: {
+        search: string;
+        condition: string;
+        status: string;
+        pta_status: string;
+        brand: string;
+        per_page: number;
+    };
     unappliedPurchases: Array<{
         id: number;
         voucher_no: string;
@@ -119,6 +186,8 @@ const props = defineProps<{
         device_model: string;
         imei_1: string;
         purchase_amount: number | string;
+        status: CreditStatus;
+        rejection_reason?: string | null;
         created_at: string;
     }>;
     shopInfo: { name: string; phone: string; address: string };
@@ -132,6 +201,10 @@ const props = defineProps<{
         today_total: number;
         purchase_total: number;
         purchase_count: number;
+        pending_credit_count: number;
+        pending_credit_amount: number;
+        approved_credit_count: number;
+        approved_credit_amount: number;
     };
     latestSale?: SaleInvoice | null;
     latestPurchase?: PurchaseInvoice | null;
@@ -150,7 +223,7 @@ defineOptions({
                 href: layoutProps.currentTeam ? '/dashboard' : '/',
             },
             {
-                title: 'Mobile Sales',
+                title: 'Mobile Handsets',
                 href: layoutProps.currentTeam
                     ? mobileSales.index(layoutProps.currentTeam.slug).url
                     : '/mobile-sales',
@@ -178,10 +251,16 @@ const sellableUnits = computed<SellableUnit[]>(() =>
 );
 
 // Tabs
-type TabKey = 'sell' | 'buy' | 'sale_invoices' | 'purchase_invoices';
-const activeTab = ref<TabKey>('sell');
+type TabKey = 'stock' | 'sell' | 'buy' | 'sale_invoices' | 'purchase_invoices';
+const activeTab = ref<TabKey>('stock');
 
 const tabs = computed(() => [
+    {
+        key: 'stock' as const,
+        label: 'Stock / Add Phone',
+        icon: Smartphone,
+        count: props.stockSummary.in_stock_count,
+    },
     { key: 'sell' as const, label: 'Sell Handset', icon: ShoppingCart },
     { key: 'buy' as const, label: 'Buy Phone', icon: HandCoins },
     {
@@ -234,8 +313,11 @@ const paginatedPurchases = computed(() => {
         start + purchasePerPage.value,
     );
 });
-const totalPurchasePages = computed(() =>
-    Math.ceil((props.purchaseInvoices?.length || 0) / purchasePerPage.value) || 1,
+const totalPurchasePages = computed(
+    () =>
+        Math.ceil(
+            (props.purchaseInvoices?.length || 0) / purchasePerPage.value,
+        ) || 1,
 );
 
 watch(invoiceSearch, () => {
@@ -246,18 +328,137 @@ watch(invoiceSearch, () => {
     }, 350);
 });
 
+// Modal States & Print Handlers
+const selectedSaleInvoiceModal = ref<SaleInvoice | null>(null);
+const isSaleInvoiceModalOpen = ref(false);
+
+const openSaleInvoiceModal = (invoice: SaleInvoice) => {
+    selectedSaleInvoiceModal.value = invoice;
+    isSaleInvoiceModalOpen.value = true;
+};
+
+const selectedPurchaseVoucherModal = ref<PurchaseInvoice | null>(null);
+const isPurchaseVoucherModalOpen = ref(false);
+
+const openPurchaseVoucherModal = (voucher: PurchaseInvoice) => {
+    selectedPurchaseVoucherModal.value = voucher;
+    isPurchaseVoucherModalOpen.value = true;
+};
+
+// Add Customer Modal
+const isAddCustomerModalOpen = ref(false);
+const addCustomerForm = useForm({
+    name: '',
+    phone: '',
+    address: '',
+});
+
+const submitAddCustomer = () => {
+    addCustomerForm.clearErrors();
+    addCustomerForm.post(pos.customers.store(currentTeamSlug.value).url, {
+        preserveScroll: true,
+        onSuccess: (pageProps) => {
+            isAddCustomerModalOpen.value = false;
+            toast.success('Customer added successfully!');
+            const customersList = pageProps.props.customers as CustomerOption[] | undefined;
+            if (customersList && customersList.length > 0) {
+                const newCust = customersList[customersList.length - 1];
+                if (newCust) {
+                    saleForm.customer_id = String(newCust.id);
+                }
+            }
+            addCustomerForm.reset();
+        },
+        onError: () => {
+            toast.error('Could not create customer');
+        },
+    });
+};
+
+const printHtmlContent = (elementId: string, title = 'Invoice Print') => {
+    const printEl = document.getElementById(elementId);
+    if (!printEl) {
+        toast.error('Print content element not found');
+        return;
+    }
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+        toast.error(
+            'Pop-up window blocked. Please enable pop-ups in your browser settings to print.',
+        );
+        return;
+    }
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${title}</title>
+            <style>
+                body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; color: #0f172a; background: #fff; }
+                .ticket { max-width: 440px; margin: 0 auto; background: #fff; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+                .text-center { text-align: center; }
+                .text-right { text-align: right; }
+                .font-bold { font-weight: 700; }
+                .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+                .border-b { border-bottom: 1px dashed #cbd5e1; }
+                .border-t { border-top: 1px dashed #cbd5e1; }
+                .py-1 { padding-top: 4px; padding-bottom: 4px; }
+                .py-2 { padding-top: 8px; padding-bottom: 8px; }
+                .my-2 { margin-top: 8px; margin-bottom: 8px; }
+                .flex { display: flex; justify-content: space-between; align-items: center; }
+                .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; background: #f1f5f9; border: 1px solid #e2e8f0; }
+                @media print {
+                    body { padding: 0; background: none; }
+                    .ticket { max-width: 100%; width: 100%; border: none; padding: 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="ticket">
+                ${printEl.innerHTML}
+            </div>
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() { window.close(); }, 500);
+                };
+            <\/script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
+
+watch(
+    () => props.latestSale,
+    (newSale) => {
+        if (newSale) {
+            activeTab.value = 'sale_invoices';
+            openSaleInvoiceModal(newSale);
+        }
+    },
+    { immediate: true },
+);
+
+watch(
+    () => props.latestPurchase,
+    (newPurchase) => {
+        if (newPurchase) {
+            activeTab.value = 'purchase_invoices';
+            openPurchaseVoucherModal(newPurchase);
+        }
+    },
+    { immediate: true },
+);
+
 onMounted(() => {
     if (props.latestSale) {
         activeTab.value = 'sale_invoices';
-        toast.success('Mobile sold successfully', {
-            description: `Invoice #${props.latestSale.invoice_no} created.`,
-        });
+        openSaleInvoiceModal(props.latestSale);
     }
     if (props.latestPurchase) {
         activeTab.value = 'purchase_invoices';
-        toast.success('Phone purchase recorded', {
-            description: `Voucher #${props.latestPurchase.voucher_no} created.`,
-        });
+        openPurchaseVoucherModal(props.latestPurchase);
     }
 });
 
@@ -309,9 +510,13 @@ const submitSale = () => {
     saleForm.clearErrors();
 
     if (Number(saleForm.unit_price) > 1000000) {
-        saleForm.setError('unit_price', 'قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Price cannot exceed Rs 1,000,000.');
+        saleForm.setError(
+            'unit_price',
+            'قیمت 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Price cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'موبائل کی فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'موبائل کی فروخت کی قیمت زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -333,9 +538,14 @@ const submitSale = () => {
 
     saleForm.post(pos.sales.store(currentTeamSlug.value).url, {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (pageProps) => {
             toast.success('Mobile sold successfully');
             clearSelection();
+            activeTab.value = 'sale_invoices';
+            const sale = pageProps.props.latestSale as SaleInvoice | undefined;
+            if (sale) {
+                openSaleInvoiceModal(sale);
+            }
         },
         onError: () => {
             toast.error('Could not complete the sale');
@@ -381,9 +591,13 @@ const submitPurchase = () => {
     buyForm.clearErrors();
 
     if (Number(buyForm.purchase_amount) > 1000000) {
-        buyForm.setError('purchase_amount', 'خریداری رقم 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase amount cannot exceed Rs 1,000,000.');
+        buyForm.setError(
+            'purchase_amount',
+            'خریداری رقم 10 لاکھ (Rs 1,000,000) سے زیادہ نہیں ہو سکتی / Purchase amount cannot exceed Rs 1,000,000.',
+        );
         toast.error('قیمت کی حد سے تجاوز', {
-            description: 'فون کی خریداری رقم زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
+            description:
+                'فون کی خریداری رقم زیادہ سے زیادہ 10 لاکھ (Rs 1,000,000) ہو سکتی ہے۔',
         });
         return;
     }
@@ -419,6 +633,49 @@ const printElement = (selector: string) => {
     window.print();
 };
 
+// ---------- Trade-in Credit Approval ----------
+const isReviewingCreditId = ref<number | null>(null);
+
+const canApproveCredits = computed(() => page.props.auth?.isAdmin !== false);
+
+const creditStatusBadgeClass = (status: CreditStatus) =>
+    ({
+        pending:
+            'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400',
+        approved:
+            'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-400',
+        rejected:
+            'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-400',
+    })[status];
+
+const approveCredit = (purchase: {
+    id: number;
+    voucher_no: string;
+    purchase_amount: number | string;
+}) => {
+    isReviewingCreditId.value = purchase.id;
+
+    router.put(
+        usedPhones.status.update([currentTeamSlug.value, purchase.id]).url,
+        { status: 'approved' },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                isReviewingCreditId.value = null;
+                toast.success('Trade-in credit approved', {
+                    description: `${purchase.voucher_no} can now be used at the POS terminal.`,
+                });
+            },
+            onError: (errors: Record<string, string>) => {
+                isReviewingCreditId.value = null;
+                toast.error('Could not approve credit', {
+                    description: Object.values(errors)[0],
+                });
+            },
+        },
+    );
+};
+
 const formatCurrency = (val: number | string) => {
     const num = Number(val) || 0;
     return new Intl.NumberFormat('en-PK', {
@@ -430,7 +687,7 @@ const formatCurrency = (val: number | string) => {
 </script>
 
 <template>
-    <Head title="Mobile Sales" />
+    <Head title="Mobile Handsets" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-6">
         <!-- Header -->
@@ -442,20 +699,13 @@ const formatCurrency = (val: number | string) => {
                     class="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900"
                 >
                     <Smartphone class="h-7 w-7 text-[#003B7D]" />
-                    Mobile Sales &amp; Buying
+                    Mobile Handsets — Stock, Sales &amp; Buying
                 </h1>
                 <p class="mt-1 text-sm text-slate-500">
-                    Single desk for handset selling, customer buy-ins, and all
-                    mobile invoices.
+                    One desk to add handsets, sell them, buy used phones, and
+                    review every mobile invoice.
                 </p>
             </div>
-            <Link
-                :href="`/${currentTeamSlug}/mobile-phones`"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-[#003B7D]/20 bg-white px-3 py-2 text-xs font-bold text-[#003B7D] shadow-xs transition hover:bg-[#003B7D]/5"
-            >
-                <Plus class="h-3.5 w-3.5" />
-                Manage Handset Stock
-            </Link>
         </div>
 
         <!-- Summary Stats -->
@@ -508,17 +758,34 @@ const formatCurrency = (val: number | string) => {
             </div>
 
             <div
-                class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+                class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
             >
                 <div class="flex items-center justify-between">
-                    <span class="eyebrow">Pending Credits</span>
-                    <FileText class="h-5 w-5 text-[#003B7D]" />
+                    <span class="eyebrow">Pending Approval</span>
+                    <FileText class="h-5 w-5 text-amber-600" />
                 </div>
-                <div class="tnum mt-2 text-2xl font-bold text-[#003B7D]">
-                    {{ unappliedPurchases.length }}
+                <div class="tnum mt-2 text-2xl font-bold text-amber-600">
+                    {{ summary.pending_credit_count }}
                 </div>
-                <div class="mt-1 text-xs text-slate-500">
-                    Unapplied trade-ins
+                <div class="tnum mt-1 text-xs text-amber-700/80">
+                    {{ formatCurrency(summary.pending_credit_amount) }} awaiting
+                    review
+                </div>
+            </div>
+
+            <div
+                class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] backdrop-blur-xl"
+            >
+                <div class="flex items-center justify-between">
+                    <span class="eyebrow">Approved Credits</span>
+                    <Check class="h-5 w-5 text-emerald-600" />
+                </div>
+                <div class="tnum mt-2 text-2xl font-bold text-emerald-600">
+                    {{ summary.approved_credit_count }}
+                </div>
+                <div class="tnum mt-1 text-xs text-emerald-700/80">
+                    {{ formatCurrency(summary.approved_credit_amount) }} usable
+                    at POS
                 </div>
             </div>
         </div>
@@ -554,6 +821,16 @@ const formatCurrency = (val: number | string) => {
                 </span>
             </button>
         </div>
+
+        <!-- ============ TAB: STOCK / ADD PHONE ============ -->
+        <HandsetStockTab
+            v-if="activeTab === 'stock'"
+            :current-team-slug="currentTeamSlug"
+            :stock-imeis="stockImeis"
+            :stock-brands="stockBrands"
+            :stock-summary="stockSummary"
+            :stock-filters="stockFilters"
+        />
 
         <!-- ============ TAB: SELL ============ -->
         <div
@@ -707,7 +984,19 @@ const formatCurrency = (val: number | string) => {
                         </div>
 
                         <div class="space-y-1">
-                            <Label>Customer</Label>
+                            <div class="flex items-center justify-between">
+                                <Label>Customer</Label>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="h-6 px-2 text-[11px] font-bold text-[#003B7D] hover:bg-[#003B7D]/10 hover:text-[#003B7D]"
+                                    @click="isAddCustomerModalOpen = true"
+                                >
+                                    <UserPlus class="mr-1 h-3.5 w-3.5" />
+                                    <span>Add Customer</span>
+                                </Button>
+                            </div>
                             <Select v-model="saleForm.customer_id">
                                 <SelectTrigger>
                                     <SelectValue
@@ -721,9 +1010,9 @@ const formatCurrency = (val: number | string) => {
                                     <SelectItem
                                         v-for="customer in customers"
                                         :key="customer.id"
-                                        :value="customer.id"
+                                        :value="String(customer.id)"
                                     >
-                                        {{ customer.name }}
+                                        {{ customer.name }} ({{ customer.phone }})
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -762,7 +1051,11 @@ const formatCurrency = (val: number | string) => {
                         <div class="grid grid-cols-2 gap-3">
                             <div class="space-y-1">
                                 <Label for="unit_price"
-                                    >Sale Price (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
+                                    >Sale Price (PKR) *
+                                    <span
+                                        class="text-[10px] font-normal text-slate-400"
+                                        >(Max: 10 Lakh)</span
+                                    ></Label
                                 >
                                 <Input
                                     id="unit_price"
@@ -775,7 +1068,7 @@ const formatCurrency = (val: number | string) => {
                                 />
                                 <span
                                     v-if="saleForm.errors.unit_price"
-                                    class="text-xs text-rose-600 font-bold block mt-1"
+                                    class="mt-1 block text-xs font-bold text-rose-600"
                                     >{{ saleForm.errors.unit_price }}</span
                                 >
                                 <span
@@ -1036,7 +1329,11 @@ const formatCurrency = (val: number | string) => {
 
                         <div class="space-y-1">
                             <Label for="purchase_amount"
-                                >Purchase Amount (PKR) * <span class="text-[10px] text-slate-400 font-normal">(Max: 10 Lakh)</span></Label
+                                >Purchase Amount (PKR) *
+                                <span
+                                    class="text-[10px] font-normal text-slate-400"
+                                    >(Max: 10 Lakh)</span
+                                ></Label
                             >
                             <Input
                                 id="purchase_amount"
@@ -1049,7 +1346,7 @@ const formatCurrency = (val: number | string) => {
                             />
                             <span
                                 v-if="buyForm.errors.purchase_amount"
-                                class="text-xs text-rose-600 font-bold block mt-1"
+                                class="mt-1 block text-xs font-bold text-rose-600"
                                 >{{ buyForm.errors.purchase_amount }}</span
                             >
                         </div>
@@ -1123,10 +1420,11 @@ const formatCurrency = (val: number | string) => {
                     class="flex items-center gap-2 text-base font-bold text-gray-900"
                 >
                     <Wallet class="h-4 w-4 text-[#003B7D]" />
-                    Unapplied Trade-in Credits
+                    Trade-in Credits
                 </h2>
                 <p class="mt-1 text-[11px] text-slate-500">
-                    Can be offset against a sale from the POS terminal.
+                    Approved credits can be offset against a sale from the POS
+                    terminal. Pending ones need admin approval first.
                 </p>
 
                 <div
@@ -1134,7 +1432,7 @@ const formatCurrency = (val: number | string) => {
                     class="mt-4 rounded-xl border border-dashed border-gray-300 py-8 text-center"
                 >
                     <p class="text-xs text-slate-500">
-                        No pending purchase credits.
+                        No unapplied purchase credits.
                     </p>
                 </div>
 
@@ -1142,7 +1440,14 @@ const formatCurrency = (val: number | string) => {
                     <div
                         v-for="purchase in unappliedPurchases"
                         :key="purchase.id"
-                        class="rounded-lg border border-gray-200 bg-white px-3 py-2"
+                        class="rounded-lg border px-3 py-2"
+                        :class="
+                            purchase.status === 'approved'
+                                ? 'border-emerald-200 bg-emerald-50/40'
+                                : purchase.status === 'rejected'
+                                  ? 'border-rose-200 bg-rose-50/40'
+                                  : 'border-gray-200 bg-white'
+                        "
                     >
                         <div class="flex items-center justify-between gap-2">
                             <span
@@ -1162,6 +1467,44 @@ const formatCurrency = (val: number | string) => {
                         >
                             {{ purchase.imei_1 }}
                         </div>
+
+                        <div
+                            class="mt-1.5 flex items-center justify-between gap-2"
+                        >
+                            <span
+                                class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase"
+                                :class="creditStatusBadgeClass(purchase.status)"
+                            >
+                                {{
+                                    purchase.status === 'pending'
+                                        ? 'Pending Approval'
+                                        : purchase.status === 'approved'
+                                          ? 'Approved'
+                                          : 'Rejected'
+                                }}
+                            </span>
+
+                            <Button
+                                v-if="
+                                    canApproveCredits &&
+                                    purchase.status !== 'approved'
+                                "
+                                size="sm"
+                                :disabled="isReviewingCreditId === purchase.id"
+                                @click="approveCredit(purchase)"
+                                class="h-6 gap-1 bg-emerald-600 px-2 text-[10px] font-semibold text-white hover:bg-emerald-700"
+                            >
+                                <Check class="h-3 w-3" />
+                                Approve
+                            </Button>
+                        </div>
+
+                        <div
+                            v-if="purchase.rejection_reason"
+                            class="mt-1 text-[10px] leading-tight text-rose-600 dark:text-rose-400"
+                        >
+                            {{ purchase.rejection_reason }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1178,7 +1521,7 @@ const formatCurrency = (val: number | string) => {
                     />
                     <Input
                         v-model="invoiceSearch"
-                        placeholder="Search by invoice #, customer, or IMEI..."
+                        placeholder="Search by invoice #, customer, model or IMEI..."
                         class="pl-9"
                     />
                 </div>
@@ -1204,7 +1547,8 @@ const formatCurrency = (val: number | string) => {
                 <div
                     v-for="invoice in saleInvoices"
                     :key="invoice.id"
-                    class="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)]"
+                    class="cursor-pointer rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-[0_16px_40px_-16px_rgba(7,28,61,0.35)] transition-all hover:border-[#003B7D]/40 hover:bg-white"
+                    @click="openSaleInvoiceModal(invoice)"
                 >
                     <div
                         class="flex flex-wrap items-start justify-between gap-3"
@@ -1252,11 +1596,13 @@ const formatCurrency = (val: number | string) => {
                             <Button
                                 size="sm"
                                 variant="outline"
-                                class="h-8 gap-1"
-                                title="Print invoice"
-                                @click="printElement('#sale-invoice-print')"
+                                class="h-8 gap-1.5 font-bold"
+                                title="View & Print Invoice"
+                                @click.stop="openSaleInvoiceModal(invoice)"
                             >
-                                <Printer class="h-3.5 w-3.5" />
+                                <Eye class="h-3.5 w-3.5 text-[#003B7D]" />
+                                <Printer class="h-3.5 w-3.5 text-slate-600" />
+                                <span>Invoice</span>
                             </Button>
                         </div>
                     </div>
@@ -1277,6 +1623,9 @@ const formatCurrency = (val: number | string) => {
                                     class="truncate font-mono text-[10px] text-slate-500"
                                 >
                                     {{ item.productImei?.imei_1 ?? 'No IMEI' }}
+                                    <span v-if="item.productImei?.imei_2">
+                                        &middot; {{ item.productImei.imei_2 }}
+                                    </span>
                                     <span v-if="item.productImei?.storage">
                                         &middot; {{ item.productImei.storage }}
                                     </span>
@@ -1289,43 +1638,6 @@ const formatCurrency = (val: number | string) => {
                             <div class="tnum shrink-0 text-xs font-bold">
                                 {{ formatCurrency(item.line_total) }}
                             </div>
-                        </div>
-                    </div>
-
-                    <div
-                        id="sale-invoice-print"
-                        class="mt-3 hidden space-y-1 rounded-lg bg-white p-4 font-mono text-[11px] text-black"
-                    >
-                        <div class="text-center text-sm font-bold uppercase">
-                            {{ shopInfo.name }}
-                        </div>
-                        <div class="text-center">{{ shopInfo.address }}</div>
-                        <div class="text-center">Ph: {{ shopInfo.phone }}</div>
-                        <div class="my-1 border-t pt-1">
-                            Invoice: {{ invoice.invoice_no }}
-                        </div>
-                        <div>
-                            Customer:
-                            {{ invoice.customer?.name ?? 'Walk-in' }}
-                        </div>
-                        <div>
-                            Date:
-                            {{
-                                new Date(invoice.created_at).toLocaleString(
-                                    'en-PK',
-                                )
-                            }}
-                        </div>
-                        <div class="border-t pt-1">
-                            <div v-for="item in invoice.items" :key="item.id">
-                                {{ item.product?.name }} x1
-                            </div>
-                        </div>
-                        <div class="border-t pt-1 font-bold">
-                            Total: {{ formatCurrency(invoice.net_amount) }}
-                        </div>
-                        <div>
-                            Paid: {{ formatCurrency(invoice.paid_amount) }}
                         </div>
                     </div>
                 </div>
@@ -1383,14 +1695,15 @@ const formatCurrency = (val: number | string) => {
                                 <th class="px-4 py-3">Method</th>
                                 <th class="px-4 py-3">Status</th>
                                 <th class="px-4 py-3">Date</th>
-                                <th class="px-4 py-3 text-right">Print</th>
+                                <th class="px-4 py-3 text-right">View / Print</th>
                             </tr>
                         </thead>
                         <tbody class="divide-border divide-y">
                             <tr
                                 v-for="voucher in paginatedPurchases"
                                 :key="voucher.id"
-                                class="transition-colors hover:bg-white/60"
+                                class="cursor-pointer transition-colors hover:bg-white/60"
+                                @click="openPurchaseVoucherModal(voucher)"
                             >
                                 <td
                                     class="tnum px-4 py-3 font-mono font-bold text-[#003B7D]"
@@ -1454,15 +1767,12 @@ const formatCurrency = (val: number | string) => {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        class="h-8 w-8 p-0"
-                                        title="Print voucher"
-                                        @click="
-                                            printElement(
-                                                '#purchase-invoice-print',
-                                            )
-                                        "
+                                        class="h-8 gap-1"
+                                        title="View Voucher"
+                                        @click.stop="openPurchaseVoucherModal(voucher)"
                                     >
-                                        <Printer class="h-3.5 w-3.5" />
+                                        <Eye class="h-3.5 w-3.5 text-amber-600" />
+                                        <Printer class="h-3.5 w-3.5 text-slate-600" />
                                     </Button>
                                 </td>
                             </tr>
@@ -1477,13 +1787,22 @@ const formatCurrency = (val: number | string) => {
                 >
                     <div class="text-xs text-slate-500 dark:text-slate-400">
                         Showing
-                        <span class="font-medium text-slate-900 dark:text-slate-200">{{ paginatedPurchases.length }}</span>
+                        <span
+                            class="font-medium text-slate-900 dark:text-slate-200"
+                            >{{ paginatedPurchases.length }}</span
+                        >
                         of
-                        <span class="font-medium text-slate-900 dark:text-slate-200">{{ purchaseInvoices.length }}</span>
+                        <span
+                            class="font-medium text-slate-900 dark:text-slate-200"
+                            >{{ purchaseInvoices.length }}</span
+                        >
                         vouchers
                     </div>
 
-                    <div v-if="totalPurchasePages > 1" class="flex items-center gap-1.5">
+                    <div
+                        v-if="totalPurchasePages > 1"
+                        class="flex items-center gap-1.5"
+                    >
                         <Button
                             variant="outline"
                             size="sm"
@@ -1493,7 +1812,7 @@ const formatCurrency = (val: number | string) => {
                         >
                             Previous
                         </Button>
-                        <span class="text-xs font-semibold px-2">
+                        <span class="px-2 text-xs font-semibold">
                             Page {{ purchasePage }} of {{ totalPurchasePages }}
                         </span>
                         <Button
@@ -1508,64 +1827,623 @@ const formatCurrency = (val: number | string) => {
                     </div>
                 </div>
             </div>
-
-            <!-- Printable voucher for the most recent entry -->
-            <div
-                id="purchase-invoice-print"
-                v-if="purchaseInvoices.length > 0"
-                class="mt-4 hidden bg-white p-4 font-mono text-[11px] leading-tight text-black"
-            >
-                <div class="border-b pb-2 text-center">
-                    <div class="text-sm font-extrabold uppercase">
-                        {{ shopInfo.name }}
-                    </div>
-                    <div>{{ shopInfo.address }}</div>
-                    <div>Ph: {{ shopInfo.phone }}</div>
-                    <div
-                        class="mt-1 inline-block border px-2 py-0.5 text-xs font-bold"
-                    >
-                        PURCHASE VOUCHER
-                    </div>
-                </div>
-                <div
-                    v-for="voucher in purchaseInvoices"
-                    :key="voucher.id"
-                    class="border-b py-1 last:border-b-0"
-                >
-                    <div class="flex justify-between font-bold">
-                        <span>VOUCHER #:</span>
-                        <span>{{ voucher.voucher_no }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Date:</span>
-                        <span>{{
-                            new Date(voucher.created_at).toLocaleString('en-PK')
-                        }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Seller:</span>
-                        <span>{{ voucher.seller_name }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>CNIC:</span>
-                        <span>{{ voucher.seller_cnic }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Device:</span>
-                        <span>{{ voucher.device_model }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>IMEI:</span>
-                        <span>{{ voucher.imei_1 }}</span>
-                    </div>
-                    <div class="flex justify-between font-bold">
-                        <span>Payout:</span>
-                        <span>{{
-                            formatCurrency(voucher.purchase_amount)
-                        }}</span>
-                    </div>
-                </div>
-            </div>
         </div>
+
+        <!-- MODAL: SALE INVOICE RECEIPT & DETAILS -->
+        <Dialog
+            :open="isSaleInvoiceModalOpen"
+            @update:open="isSaleInvoiceModalOpen = $event"
+        >
+            <DialogContent
+                class="max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] dark:bg-blue-500/20 dark:text-blue-400"
+                        >
+                            <FileText class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Mobile Sale Invoice
+                            </DialogTitle>
+                            <DialogDescription class="text-xs text-slate-500">
+                                Invoice #{{
+                                    selectedSaleInvoiceModal?.invoice_no
+                                }}
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <div
+                    v-if="selectedSaleInvoiceModal"
+                    class="space-y-4 py-2 text-xs"
+                >
+                    <div
+                        id="sale-invoice-printable-area"
+                        class="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div
+                            class="border-b border-dashed border-slate-300 pb-3 text-center dark:border-slate-700"
+                        >
+                            <div
+                                class="text-base font-black tracking-tight text-[#003B7D] uppercase dark:text-blue-400"
+                            >
+                                {{ shopInfo.name }}
+                            </div>
+                            <div
+                                class="text-[11px] text-slate-500 dark:text-slate-400"
+                            >
+                                {{ shopInfo.address }}
+                            </div>
+                            <div
+                                class="font-mono text-[11px] text-slate-500 dark:text-slate-400"
+                            >
+                                Ph: {{ shopInfo.phone }}
+                            </div>
+                        </div>
+
+                        <div
+                            class="grid grid-cols-2 gap-2 border-b border-dashed border-slate-300 py-3 text-[11px] dark:border-slate-700"
+                        >
+                            <div>
+                                <span class="text-slate-400">Invoice No:</span>
+                                <span
+                                    class="ml-1 font-mono font-bold text-slate-900 dark:text-white"
+                                    >{{
+                                        selectedSaleInvoiceModal.invoice_no
+                                    }}</span
+                                >
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">Date:</span>
+                                <span
+                                    class="ml-1 font-mono text-slate-700 dark:text-slate-300"
+                                    >{{
+                                        new Date(
+                                            selectedSaleInvoiceModal.created_at,
+                                        ).toLocaleString('en-PK')
+                                    }}</span
+                                >
+                            </div>
+                            <div>
+                                <span class="text-slate-400">Customer:</span>
+                                <span
+                                    class="ml-1 font-semibold text-slate-800 dark:text-slate-200"
+                                    >{{
+                                        selectedSaleInvoiceModal.customer
+                                            ?.name ?? 'Walk-in Customer'
+                                    }}</span
+                                >
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">Payment:</span>
+                                <span
+                                    class="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 uppercase dark:bg-slate-700 dark:text-slate-200"
+                                    >{{
+                                        selectedSaleInvoiceModal.payment_method
+                                    }}</span
+                                >
+                            </div>
+                        </div>
+
+                        <div class="py-3">
+                            <div
+                                class="mb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase"
+                            >
+                                Handset &amp; Items Purchased
+                            </div>
+                            <div class="space-y-2">
+                                <div
+                                    v-for="item in selectedSaleInvoiceModal.items"
+                                    :key="item.id"
+                                    class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"
+                                >
+                                    <div
+                                        class="flex items-center justify-between"
+                                    >
+                                        <div
+                                            class="font-bold text-slate-900 dark:text-white"
+                                        >
+                                            {{ item.product?.name }}
+                                        </div>
+                                        <div
+                                            class="tnum font-bold text-[#003B7D] dark:text-blue-400"
+                                        >
+                                            {{
+                                                formatCurrency(item.line_total)
+                                            }}
+                                        </div>
+                                    </div>
+                                    <div
+                                        v-if="item.productImei"
+                                        class="mt-1 space-y-1 text-[11px] text-slate-600 dark:text-slate-300"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-center gap-2 font-mono"
+                                        >
+                                            <span
+                                                >IMEI 1:
+                                                <strong
+                                                    class="text-slate-900 dark:text-white"
+                                                    >{{
+                                                        item.productImei.imei_1
+                                                    }}</strong
+                                                ></span
+                                            >
+                                            <span v-if="item.productImei.imei_2"
+                                                >| IMEI 2:
+                                                <strong
+                                                    class="text-slate-900 dark:text-white"
+                                                    >{{
+                                                        item.productImei.imei_2
+                                                    }}</strong
+                                                ></span
+                                            >
+                                        </div>
+                                        <div
+                                            class="flex flex-wrap items-center gap-1.5 text-[10px]"
+                                        >
+                                            <span
+                                                v-if="item.productImei.storage"
+                                                class="rounded bg-slate-100 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                                >{{
+                                                    item.productImei.storage
+                                                }}</span
+                                            >
+                                            <span
+                                                v-if="item.productImei.color"
+                                                class="rounded bg-slate-100 px-1.5 py-0.5 font-medium dark:bg-slate-700"
+                                                >{{
+                                                    item.productImei.color
+                                                }}</span
+                                            >
+                                            <span
+                                                v-if="
+                                                    item.productImei.condition
+                                                "
+                                                class="rounded bg-amber-50 px-1.5 py-0.5 font-bold text-amber-700 uppercase dark:bg-amber-950/50 dark:text-amber-300"
+                                                >{{
+                                                    item.productImei.condition
+                                                }}</span
+                                            >
+                                            <span
+                                                v-if="
+                                                    item.productImei.pta_status
+                                                "
+                                                class="rounded bg-blue-50 px-1.5 py-0.5 font-bold text-blue-700 uppercase dark:bg-blue-950/50 dark:text-blue-300"
+                                                >{{
+                                                    item.productImei.pta_status
+                                                }}</span
+                                            >
+                                            <span
+                                                v-if="
+                                                    item.productImei
+                                                        .warranty_days
+                                                "
+                                                class="rounded bg-emerald-50 px-1.5 py-0.5 font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                                >{{
+                                                    item.productImei
+                                                        .warranty_days
+                                                }}d Warranty</span
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="space-y-1.5 border-t border-dashed border-slate-300 pt-3 text-[11px] dark:border-slate-700"
+                        >
+                            <div
+                                v-if="
+                                    selectedSaleInvoiceModal.trade_in_amount &&
+                                    Number(
+                                        selectedSaleInvoiceModal.trade_in_amount,
+                                    ) > 0
+                                "
+                                class="flex justify-between text-slate-600"
+                            >
+                                <span>Trade-in Credit Offset</span>
+                                <span class="font-bold text-amber-600"
+                                    >-
+                                    {{
+                                        formatCurrency(
+                                            selectedSaleInvoiceModal.trade_in_amount,
+                                        )
+                                    }}</span
+                                >
+                            </div>
+                            <div
+                                class="flex justify-between text-sm font-bold text-slate-900 dark:text-white"
+                            >
+                                <span>Net Total</span>
+                                <span class="text-[#003B7D] dark:text-blue-400">{{
+                                    formatCurrency(
+                                        selectedSaleInvoiceModal.net_amount,
+                                    )
+                                }}</span>
+                            </div>
+                            <div
+                                class="flex justify-between text-slate-600 dark:text-slate-400"
+                            >
+                                <span>Paid Amount</span>
+                                <span
+                                    class="font-semibold text-slate-800 dark:text-slate-200"
+                                    >{{
+                                        formatCurrency(
+                                            selectedSaleInvoiceModal.paid_amount,
+                                        )
+                                    }}</span
+                                >
+                            </div>
+                            <div
+                                v-if="
+                                    Number(
+                                        selectedSaleInvoiceModal.change_amount,
+                                    ) > 0
+                                "
+                                class="flex justify-between text-slate-600 dark:text-slate-400"
+                            >
+                                <span>Change Returned</span>
+                                <span
+                                    class="font-semibold text-emerald-600 dark:text-emerald-400"
+                                    >{{
+                                        formatCurrency(
+                                            selectedSaleInvoiceModal.change_amount,
+                                        )
+                                    }}</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter
+                    class="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
+                >
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="isSaleInvoiceModalOpen = false"
+                    >
+                        Close
+                    </Button>
+                    <Button
+                        size="sm"
+                        class="gap-1.5 bg-[#003B7D] font-bold text-white hover:bg-[#002b5c]"
+                        @click="
+                            printHtmlContent(
+                                'sale-invoice-printable-area',
+                                'Sale Invoice ' +
+                                    selectedSaleInvoiceModal?.invoice_no,
+                            )
+                        "
+                    >
+                        <Printer class="h-4 w-4" /> Print Invoice
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- MODAL: PURCHASE VOUCHER RECEIPT & DETAILS -->
+        <Dialog
+            :open="isPurchaseVoucherModalOpen"
+            @update:open="isPurchaseVoucherModalOpen = $event"
+        >
+            <DialogContent
+                class="max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
+                        >
+                            <HandCoins class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Phone Purchase Voucher
+                            </DialogTitle>
+                            <DialogDescription class="text-xs text-slate-500">
+                                Voucher #{{
+                                    selectedPurchaseVoucherModal?.voucher_no
+                                }}
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <div
+                    v-if="selectedPurchaseVoucherModal"
+                    class="space-y-4 py-2 text-xs"
+                >
+                    <div
+                        id="purchase-voucher-printable-area"
+                        class="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                        <div
+                            class="border-b border-dashed border-slate-300 pb-3 text-center dark:border-slate-700"
+                        >
+                            <div
+                                class="text-base font-black tracking-tight text-[#003B7D] uppercase dark:text-blue-400"
+                            >
+                                {{ shopInfo.name }}
+                            </div>
+                            <div
+                                class="text-[11px] text-slate-500 dark:text-slate-400"
+                            >
+                                {{ shopInfo.address }}
+                            </div>
+                            <div
+                                class="font-mono text-[11px] text-slate-500 dark:text-slate-400"
+                            >
+                                Ph: {{ shopInfo.phone }}
+                            </div>
+                            <div
+                                class="mt-2 inline-block rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase"
+                            >
+                                Used Phone Purchase Voucher
+                            </div>
+                        </div>
+
+                        <div
+                            class="grid grid-cols-2 gap-2 border-b border-dashed border-slate-300 py-3 text-[11px] dark:border-slate-700"
+                        >
+                            <div>
+                                <span class="text-slate-400">Voucher No:</span>
+                                <span
+                                    class="ml-1 font-mono font-bold text-slate-900 dark:text-white"
+                                    >{{
+                                        selectedPurchaseVoucherModal.voucher_no
+                                    }}</span
+                                >
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">Date:</span>
+                                <span
+                                    class="ml-1 font-mono text-slate-700 dark:text-slate-300"
+                                    >{{
+                                        new Date(
+                                            selectedPurchaseVoucherModal.created_at,
+                                        ).toLocaleString('en-PK')
+                                    }}</span
+                                >
+                            </div>
+                            <div>
+                                <span class="text-slate-400">Seller Name:</span>
+                                <span
+                                    class="ml-1 font-bold text-slate-900 dark:text-white"
+                                    >{{
+                                        selectedPurchaseVoucherModal.seller_name
+                                    }}</span
+                                >
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">CNIC:</span>
+                                <span
+                                    class="ml-1 font-mono font-bold text-slate-900 dark:text-white"
+                                    >{{
+                                        selectedPurchaseVoucherModal.seller_cnic
+                                    }}</span
+                                >
+                            </div>
+                            <div
+                                v-if="selectedPurchaseVoucherModal.seller_phone"
+                            >
+                                <span class="text-slate-400"
+                                    >Seller Phone:</span
+                                >
+                                <span
+                                    class="ml-1 font-mono text-slate-700 dark:text-slate-300"
+                                    >{{
+                                        selectedPurchaseVoucherModal.seller_phone
+                                    }}</span
+                                >
+                            </div>
+                            <div class="text-right">
+                                <span class="text-slate-400">Payout:</span>
+                                <span
+                                    class="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 uppercase dark:bg-slate-700 dark:text-slate-200"
+                                    >{{
+                                        selectedPurchaseVoucherModal.payment_method
+                                    }}</span
+                                >
+                            </div>
+                        </div>
+
+                        <div class="py-3">
+                            <div
+                                class="mb-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase"
+                            >
+                                Device Acquired
+                            </div>
+                            <div
+                                class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800"
+                            >
+                                <div
+                                    class="text-sm font-bold text-slate-900 dark:text-white"
+                                >
+                                    {{
+                                        selectedPurchaseVoucherModal.device_model
+                                    }}
+                                </div>
+                                <div
+                                    class="mt-1 font-mono text-xs text-slate-700 dark:text-slate-300"
+                                >
+                                    IMEI 1:
+                                    <strong>{{
+                                        selectedPurchaseVoucherModal.imei_1
+                                    }}</strong>
+                                    <span
+                                        v-if="
+                                            selectedPurchaseVoucherModal.imei_2
+                                        "
+                                    >
+                                        | IMEI 2:
+                                        <strong>{{
+                                            selectedPurchaseVoucherModal.imei_2
+                                        }}</strong></span
+                                    >
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between border-t border-dashed border-slate-300 pt-3 text-sm font-bold text-slate-900 dark:border-slate-700 dark:text-white"
+                        >
+                            <span>Payout Amount</span>
+                            <span class="text-amber-600 dark:text-amber-400">{{
+                                formatCurrency(
+                                    selectedPurchaseVoucherModal.purchase_amount,
+                                )
+                            }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter
+                    class="flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
+                >
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="isPurchaseVoucherModalOpen = false"
+                    >
+                        Close
+                    </Button>
+                    <Button
+                        size="sm"
+                        class="gap-1.5 bg-amber-600 font-bold text-white hover:bg-amber-700"
+                        @click="
+                            printHtmlContent(
+                                'purchase-voucher-printable-area',
+                                'Purchase Voucher ' +
+                                    selectedPurchaseVoucherModal?.voucher_no,
+                            )
+                        "
+                    >
+                        <Printer class="h-4 w-4" /> Print Voucher
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- MODAL: ADD NEW CUSTOMER -->
+        <Dialog
+            :open="isAddCustomerModalOpen"
+            @update:open="isAddCustomerModalOpen = $event"
+        >
+            <DialogContent
+                class="max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+            >
+                <DialogHeader
+                    class="border-b border-slate-100 pb-3 dark:border-slate-800"
+                >
+                    <div class="flex items-center gap-3">
+                        <div
+                            class="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#003B7D]/10 text-[#003B7D] dark:bg-blue-500/20 dark:text-blue-400"
+                        >
+                            <UserPlus class="h-6 w-6" />
+                        </div>
+                        <div>
+                            <DialogTitle
+                                class="text-base font-black text-slate-900 dark:text-white"
+                            >
+                                Add New Customer
+                            </DialogTitle>
+                            <DialogDescription class="text-xs text-slate-500">
+                                Register a new customer for handset sales and
+                                record ledger.
+                            </DialogDescription>
+                        </div>
+                    </div>
+                </DialogHeader>
+
+                <form
+                    class="space-y-3.5 py-1 text-xs"
+                    @submit.prevent="submitAddCustomer"
+                >
+                    <div class="space-y-1">
+                        <Label class="font-bold"
+                            >Customer Name
+                            <span class="text-rose-500">*</span></Label
+                        >
+                        <Input
+                            v-model="addCustomerForm.name"
+                            required
+                            placeholder="e.g. Mohammad Usman"
+                            class="h-9 text-xs"
+                        />
+                        <span
+                            v-if="addCustomerForm.errors.name"
+                            class="text-xs font-bold text-rose-500"
+                            >{{ addCustomerForm.errors.name }}</span
+                        >
+                    </div>
+
+                    <div class="space-y-1">
+                        <Label class="font-bold"
+                            >Phone Number
+                            <span class="text-rose-500">*</span></Label
+                        >
+                        <Input
+                            v-model="addCustomerForm.phone"
+                            required
+                            placeholder="03001234567"
+                            class="h-9 font-mono text-xs"
+                        />
+                        <span
+                            v-if="addCustomerForm.errors.phone"
+                            class="text-xs font-bold text-rose-500"
+                            >{{ addCustomerForm.errors.phone }}</span
+                        >
+                    </div>
+
+                    <div class="space-y-1">
+                        <Label class="font-bold">Address (Optional)</Label>
+                        <Input
+                            v-model="addCustomerForm.address"
+                            placeholder="e.g. Main Market, Shop #4"
+                            class="h-9 text-xs"
+                        />
+                    </div>
+
+                    <DialogFooter class="pt-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            @click="isAddCustomerModalOpen = false"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            size="sm"
+                            :disabled="addCustomerForm.processing"
+                            class="bg-[#003B7D] font-bold text-white hover:bg-[#002b5c]"
+                        >
+                            {{
+                                addCustomerForm.processing
+                                    ? 'Saving...'
+                                    : 'Save Customer'
+                            }}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

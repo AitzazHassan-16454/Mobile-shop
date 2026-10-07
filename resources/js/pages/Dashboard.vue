@@ -38,7 +38,10 @@ interface DashboardMetrics {
 
 interface PosStats {
     total_sale: number;
+    gross_sale?: number;
     sales_count: number;
+    total_returns?: number;
+    total_refunds?: number;
     total_expense: number;
     gross_profit: number;
     net_profit: number;
@@ -51,6 +54,11 @@ interface PosStats {
     purchase_due: number;
     total_due: number;
     used_phone_buying: number;
+    total_purchase: number;
+    total_purchase_payment: number;
+    total_purchase_returned: number;
+    opening_balance_dues: number;
+    stock_valuation: number;
     repair_revenue: number;
     repair_profit: number;
 }
@@ -134,7 +142,10 @@ const backupDownloadUrl = computed(
     () => backup.download(currentTeamSlug.value).url,
 );
 
-import type { IconTone, ValueColor } from '@/components/dashboard/StatsCard.vue';
+import type {
+    IconTone,
+    ValueColor,
+} from '@/components/dashboard/StatsCard.vue';
 
 interface MetricCard {
     label: string;
@@ -147,51 +158,91 @@ interface MetricCard {
 const statsCards = computed<MetricCard[]>(() => {
     const stats = props.posStats ?? ({} as PosStats);
 
-    const purchase = stats.used_phone_buying ?? 0;
+    const purchase = stats.total_purchase ?? stats.used_phone_buying ?? 0;
+    const purchaseReturned = stats.total_purchase_returned ?? 0;
+    const purchasePayment = stats.total_purchase_payment ?? 0;
     const purchaseDue = stats.purchase_due ?? 0;
-    const purchasePayment = Math.max(0, purchase - purchaseDue);
+    const saleDue = stats.sale_due ?? 0;
+    const totalDue = stats.total_due ?? saleDue + purchaseDue;
+    const stockValuation =
+        stats.stock_valuation ?? props.metrics?.totalValuation ?? 0;
 
     return [
+        // Row 1: Purchases & Wholesale Suppliers
         {
             label: 'Total Purchase',
             value: purchase,
+            sublabel: 'Used Phones & Suppliers',
             iconTone: 'blue',
             valueColor: 'blue',
         },
         {
             label: 'Total Purchase Returned',
-            value: 0,
+            value: purchaseReturned,
+            sublabel: 'Supplier Returns',
             iconTone: 'blue',
             valueColor: 'blue',
         },
         {
             label: 'Total Purchase Payment',
             value: purchasePayment,
+            sublabel: 'Paid to Sellers & Suppliers',
             iconTone: 'green',
             valueColor: 'green',
         },
         {
+            label: 'Total Purchase Due',
+            value: purchaseDue,
+            sublabel: 'Payable to Suppliers',
+            iconTone: 'red',
+            valueColor: 'red',
+        },
+
+        // Row 2: Sales, Collections & Receivables
+        {
             label: 'Total Sale',
             value: stats.total_sale ?? 0,
+            sublabel:
+                stats.gross_sale && stats.gross_sale !== stats.total_sale
+                    ? `Gross: Rs ${Math.round(stats.gross_sale).toLocaleString()}`
+                    : 'Net POS & Repairs',
             iconTone: 'blue',
             valueColor: 'blue',
         },
         {
             label: 'Total Sale Returned',
-            value: 0,
+            value: stats.total_returns ?? 0,
+            sublabel: 'Customer Product Returns',
             iconTone: 'blue',
             valueColor: 'blue',
         },
         {
+            label: 'Total Payment Received',
+            value: stats.payment_received ?? 0,
+            sublabel: 'Sales, Repairs & Wasooli',
+            iconTone: 'green',
+            valueColor: 'green',
+        },
+        {
+            label: 'Total Sale Due',
+            value: saleDue,
+            sublabel: 'Customer Udhaar Balance',
+            iconTone: 'red',
+            valueColor: 'red',
+        },
+
+        // Row 3: Margins & Overheads
+        {
             label: 'Total Expense',
             value: stats.total_expense ?? 0,
+            sublabel: 'Bills, Rent & Supplies',
             iconTone: 'blue',
             valueColor: 'blue',
         },
         {
             label: 'Gross Profit',
             value: stats.gross_profit ?? 0,
-            sublabel: 'Sale - Purchase - Discount',
+            sublabel: 'Total Revenue - Cost',
             iconTone: 'green',
             valueColor: 'green',
         },
@@ -203,46 +254,41 @@ const statsCards = computed<MetricCard[]>(() => {
             valueColor: 'green',
         },
         {
-            label: 'Total Payment Received',
-            value: stats.payment_received ?? 0,
-            iconTone: 'green',
-            valueColor: 'green',
-        },
-        {
-            label: 'Total Purchase Due',
-            value: purchaseDue,
+            label: 'Total Discount',
+            value: stats.total_discount ?? 0,
+            sublabel: 'Discounts Granted',
             iconTone: 'red',
             valueColor: 'red',
         },
-        {
-            label: 'Total Sale Due',
-            value: stats.sale_due ?? 0,
-            iconTone: 'red',
-            valueColor: 'red',
-        },
+
+        // Row 4: Working Capital & Valuation
         {
             label: 'Opening Balance Dues',
-            value: 0,
-            iconTone: 'red',
-            valueColor: 'red',
-        },
-        {
-            label: 'Total Due',
-            value: stats.total_due ?? 0,
+            value: stats.opening_balance_dues ?? 0,
+            sublabel: 'Customer & Supplier Openings',
             iconTone: 'red',
             valueColor: 'red',
         },
         {
             label: 'Total Advance',
             value: stats.total_advance ?? 0,
+            sublabel: 'Customer Advance Deposits',
             iconTone: 'green',
             valueColor: 'green',
         },
         {
-            label: 'Total Discount',
-            value: stats.total_discount ?? 0,
+            label: 'Total Due',
+            value: totalDue,
+            sublabel: `Customer: Rs ${Math.round(saleDue).toLocaleString()} | Supplier: Rs ${Math.round(purchaseDue).toLocaleString()}`,
             iconTone: 'red',
             valueColor: 'red',
+        },
+        {
+            label: 'Total Stock Value',
+            value: stockValuation,
+            sublabel: 'Inventory Valuation',
+            iconTone: 'blue',
+            valueColor: 'blue',
         },
     ];
 });
@@ -296,7 +342,9 @@ function formatGraphLabel(label: string): string {
     <div class="mx-0 w-full max-w-none space-y-5 p-4 md:p-6">
         <!-- Standalone Dashboard Title Header with normal spacing -->
         <div>
-            <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+            <h1
+                class="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl"
+            >
                 Dashboard
             </h1>
         </div>
@@ -330,7 +378,7 @@ function formatGraphLabel(label: string): string {
 
         <!-- Financial Overview Chart -->
         <section
-            class="glass-card rounded-3xl p-5 sm:p-7 border border-slate-200/80 bg-white/95 shadow-[0_16px_40px_rgba(0,35,90,0.06)] backdrop-blur-xl"
+            class="glass-card rounded-3xl border border-slate-200/80 bg-white/95 p-5 shadow-[0_16px_40px_rgba(0,35,90,0.06)] backdrop-blur-xl sm:p-7"
         >
             <LineChart
                 :labels="graph?.labels ?? []"

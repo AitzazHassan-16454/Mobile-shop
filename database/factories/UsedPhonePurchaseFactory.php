@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\TradeInStatus;
 use App\Models\UsedPhonePurchase;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -26,6 +27,30 @@ class UsedPhonePurchaseFactory extends Factory
             'purchase_amount' => fake()->numberBetween(10000, 90000),
             'payment_method' => 'cash',
             'agreement_signed' => true,
+            'status' => TradeInStatus::Pending,
         ];
+    }
+
+    public function pending(): static
+    {
+        return $this->state(fn (): array => ['status' => TradeInStatus::Pending]);
+    }
+
+    public function approved(): static
+    {
+        return $this->state(fn (): array => ['status' => TradeInStatus::Approved]);
+    }
+
+    public function rejected(string $reason = 'Rejected by reviewer'): static
+    {
+        return $this->state(fn (): array => [
+            'status' => TradeInStatus::Rejected,
+            'rejection_reason' => $reason,
+        ]);
+    }
+
+    public function applied(): static
+    {
+        return $this->state(fn (): array => ['applied_at' => now()->subDay()]);
     }
 }
